@@ -8,7 +8,6 @@ local HttpService = game:GetService("HttpService")
 -- ==========================================
 -- MESIN PEMBUAT FOLDER (EXECUTOR ONLY)
 -- ==========================================
--- Bikin folder di workspace executor biar rapi
 if makefolder and isfolder then
     if not isfolder("HonamiHub") then makefolder("HonamiHub") end
     if not isfolder("HonamiHub/Presets") then makefolder("HonamiHub/Presets") end
@@ -19,16 +18,13 @@ end
 -- ==========================================
 function LightingModule.GetPresetsList()
     local list = {"Default"}
-    -- Kalau di executor, baca semua file di dalam folder Presets
     if listfiles then
         local files = listfiles("HonamiHub/Presets")
         for _, file in pairs(files) do
-            -- Ekstrak cuma nama filenya aja (tanpa path dan .json)
             local name = file:match("([^/\\]+)%.json$")
             if name then table.insert(list, name) end
         end
     else
-        -- Simulasi Studio
         table.insert(list, "Horor_Mode (Studio)")
     end
     return list
@@ -37,7 +33,6 @@ end
 function LightingModule.SavePreset(presetName)
     if presetName == "" then return end
 
-    -- Ubah tabel settingan saat ini jadi teks JSON
     local data = HttpService:JSONEncode(LightingModule.TargetValues)
 
     if writefile then
@@ -48,7 +43,6 @@ function LightingModule.SavePreset(presetName)
 end
 
 function LightingModule.LoadPreset(presetName)
-    -- Kalau pilih Default, kembalikan ke nilai asli bawaan map
     if presetName == "Default" then
         for cat, props in pairs(LightingModule.Defaults) do
             if LightingModule.TargetValues[cat] then
@@ -60,14 +54,12 @@ function LightingModule.LoadPreset(presetName)
         return
     end
 
-    -- Kalau pilih preset buatan user, baca filenya
     local path = "HonamiHub/Presets/" .. presetName .. ".json"
     if readfile and isfile and isfile(path) then
         local data = readfile(path)
         local success, decoded = pcall(function() return HttpService:JSONDecode(data) end)
 
         if success and decoded then
-            -- Timpa nilai Target saat ini dengan data dari file
             for cat, props in pairs(decoded) do
                 if LightingModule.TargetValues[cat] then
                     for k, v in pairs(props) do
@@ -85,8 +77,8 @@ end
 -- DATABASE SKYBOX (Pakai Asset ID Package/Model)
 -- ==========================================
 LightingModule.SkyboxDatabase = {
-    ["Default Sky"] = "", -- Kosongin buat ngembaliin ke bawaan map
-    ["Sunset"] = "5186800496", -- Contoh ID Model Skybox
+    ["Default Sky"] = "",
+    ["Sunset"] = "5186800496",
     ["Vaporwave"] = "5157589613", 
     ["Starry Night"] = "143962526",
     ["Anime Sky"] = "14753835117"
@@ -94,7 +86,7 @@ LightingModule.SkyboxDatabase = {
 
 LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
-LightingModule.CopiedSky = nil -- Tempat nyimpen cache saat user pencet 'Copy Sky'
+LightingModule.CopiedSky = nil
 
 -- ==========================================
 -- 1. DATABASE SYSTEM (Limit, Target, Default, & Object Cache)
@@ -102,10 +94,9 @@ LightingModule.CopiedSky = nil -- Tempat nyimpen cache saat user pencet 'Copy Sk
 LightingModule.LockEnabled = false
 
 LightingModule.Objects = { Lighting = Lighting }
-LightingModule.Defaults = {} -- Menyimpan nilai asli bawaan game (Mirroring)
-LightingModule.TargetValues = {} -- Menyimpan nilai yang diatur lewat UI
+LightingModule.Defaults = {}
+LightingModule.TargetValues = {}
 
--- Batas Min/Max bawaan Engine Roblox untuk Slider UI
 LightingModule.Limits = {
     Lighting = {
         Brightness = {Min = 0, Max = 10},
@@ -160,7 +151,6 @@ function LightingModule.Init()
         SunRays = "SunRaysEffect"
     }
 
-    -- 1. Pengecekan / Pembuatan Objek
     for key, className in pairs(requiredEffects) do
         local effect = Lighting:FindFirstChildOfClass(className)
         if not effect then
@@ -171,7 +161,6 @@ function LightingModule.Init()
         LightingModule.Objects[key] = effect
     end
 
-    -- 2. Mirroring Nilai Asli Game
     for category, properties in pairs(LightingModule.Limits) do
         LightingModule.Defaults[category] = {}
         LightingModule.TargetValues[category] = {}
@@ -179,7 +168,6 @@ function LightingModule.Init()
         local obj = LightingModule.Objects[category]
         if obj then
             for propName, _ in pairs(properties) do
-                -- Ambil nilai aslinya, simpan ke Default dan Target awal
                 local realValue = obj[propName]
                 LightingModule.Defaults[category][propName] = realValue
                 LightingModule.TargetValues[category][propName] = realValue
@@ -188,7 +176,6 @@ function LightingModule.Init()
     end
 end
 
--- Panggil Inisialisasi secara otomatis saat modul di-load
 LightingModule.Init()
 
 -- ==========================================
@@ -198,7 +185,6 @@ function LightingModule.UpdateValue(category, property, value)
     if LightingModule.TargetValues[category] then
         LightingModule.TargetValues[category][property] = value
 
-        -- Kalau Lock mati, kita tetep apply 1x biar user bisa liat preview perubahannya
         if not LightingModule.LockEnabled then
             local obj = LightingModule.Objects[category]
             if obj then
@@ -212,11 +198,9 @@ end
 -- MESIN LOAD SKYBOX (Dari ID Package/Model)
 -- ==========================================
 function LightingModule.LoadSkybox(id)
-    if id == "" or id == "Default" then return end -- Nanti logika reset bisa ditaruh sini
+    if id == "" or id == "Default" then return end
 
-    -- Pakai pcall biar script gak crash kalau ID-nya salah/di-banned
     local success, result = pcall(function()
-        -- game:GetObjects adalah fungsi khusus executor buat narik aset dari web
         return game:GetObjects("rbxassetid://" .. id)
     end)
 
@@ -225,11 +209,9 @@ function LightingModule.LoadSkybox(id)
         local skyObject = asset:IsA("Sky") and asset or asset:FindFirstChildOfClass("Sky")
 
         if skyObject then
-            -- Hapus Sky lama kalau ada
             local oldSky = Lighting:FindFirstChildOfClass("Sky")
             if oldSky then oldSky:Destroy() end
 
-            -- Pasang Sky baru
             skyObject.Parent = Lighting
             skyObject.Name = "Honami_Sky"
             print("Skybox berhasil dipasang!")
@@ -251,22 +233,18 @@ end
 -- ==========================================
 -- 4. EXECUTOR FILE SYSTEM (SAVE/LOAD PRESETS)
 -- ==========================================
--- Mode Executor dikomentari biar gak error di Studio
 function LightingModule.SavePreset(presetName)
-    -- local http = game:GetService("HttpService")
-    -- local json = http:JSONEncode(LightingModule.TargetValues)
-    -- if writefile then
-    --     writefile("HonamiHub_Lighting_"..presetName..".json", json)
-    --     print("Preset Tersimpan!")
-    -- end
-    print("[Studio Mode] Preset disimulasikan tersimpan:", presetName)
+     local http = game:GetService("HttpService")
+     local json = http:JSONEncode(LightingModule.TargetValues)
+     if writefile then
+         writefile("HonamiHub_Lighting_"..presetName..".json", json)
+    end
 end
 
 -- ==========================================
 -- 5. KASTA TERTINGGI: MESIN FORCE LOCK & ANIMASI
 -- ==========================================
 RunService.RenderStepped:Connect(function(deltaTime)
-    -- Logika Force Lock Lighting
     if LightingModule.LockEnabled then
         for category, properties in pairs(LightingModule.TargetValues) do
             local obj = LightingModule.Objects[category]
@@ -280,12 +258,10 @@ RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
-    -- Logika Rotasi Skybox (Diputar secara linear)
     if LightingModule.SkyAnimEnabled then
         local sky = Lighting:FindFirstChildOfClass("Sky")
         if sky then
             local currentRot = sky.SkyboxOrientation
-            -- Muter sumbu Y ke arah kiri berdasarkan deltaTime biar mulus meskipun FPS ngedrop
             local rotationStep = (LightingModule.SkyAnimSpeed * deltaTime)
             sky.SkyboxOrientation = currentRot + Vector3.new(0, rotationStep, 0)
         end
