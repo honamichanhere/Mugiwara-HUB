@@ -231,18 +231,7 @@ function LightingModule.ToggleEffect(category, isEnabled)
 end
 
 -- ==========================================
--- 4. EXECUTOR FILE SYSTEM (SAVE/LOAD PRESETS)
--- ==========================================
-function LightingModule.SavePreset(presetName)
-     local http = game:GetService("HttpService")
-     local json = http:JSONEncode(LightingModule.TargetValues)
-     if writefile then
-         writefile("HonamiHub_Lighting_"..presetName..".json", json)
-    end
-end
-
--- ==========================================
--- 5. KASTA TERTINGGI: MESIN FORCE LOCK & ANIMASI
+-- 4. KASTA TERTINGGI: MESIN FORCE LOCK & ANIMASI
 -- ==========================================
 RunService.RenderStepped:Connect(function(deltaTime)
     if LightingModule.LockEnabled then
