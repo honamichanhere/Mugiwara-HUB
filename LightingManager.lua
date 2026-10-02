@@ -14,37 +14,87 @@ if makefolder and isfolder then
 end
 
 -- ==========================================
+-- DATABASE PRESET BAWAAN (DEFAULT PRESETS)
+-- ==========================================
+LightingModule.BuiltInPresets = {
+    ["Horor Vibe"] = {
+        Desc = "Tema gelap, berkabut merah, dan mencekam.",
+        Skybox = "5157589613",
+        Values = {
+            Lighting = { Brightness = 0.2, ClockTime = 0, Ambient = Color3.fromRGB(10, 0, 0) },
+            Atmosphere = { Density = 0.8, Color = Color3.fromRGB(20, 5, 5), Haze = 5 },
+            ColorCorrection = { Brightness = -0.1, Contrast = 0.5, Saturation = -0.5 }
+        }
+    },
+    ["Cozy Sunset"] = {
+        Desc = "Hangat, estetik, cocok buat hangout sore.",
+        Skybox = "5186800496",
+        Values = {
+            Lighting = { Brightness = 2.5, ClockTime = 17.5, ExposureCompensation = 0.2 },
+            SunRays = { Intensity = 0.2, Spread = 0.8 },
+            Bloom = { Intensity = 0.5, Size = 20 }
+        }
+    }
+}
+
+-- ==========================================
 -- MESIN PRESET (SAVE, LOAD, LIST)
 -- ==========================================
 function LightingModule.GetPresetsList()
-    local list = {"Default"}
+    local list = {}
+
+    table.insert(list, { Title = "Default", Desc = "Kembali ke cuaca map asli", Icon = "lucide:sun" })
+    table.insert(list, { Type = "Divider" })
+
+    for name, data in pairs(LightingModule.BuiltInPresets) do
+        table.insert(list, { Title = name, Desc = data.Desc, Icon = "lucide:cloudy" })
+    end
+
     if listfiles then
         local files = listfiles("HonamiHub/Presets")
-        for _, file in pairs(files) do
-            local name = file:match("([^/\\]+)%.json$")
-            if name then table.insert(list, name) end
+        if #files > 0 then
+            table.insert(list, { Type = "Divider" })
+            for _, file in pairs(files) do
+                local name = file:match("([^/\\]+)%.json$")
+                if name then 
+                    table.insert(list, { Title = name, Desc = "Custom Preset (Saved)", Icon = "lucide:save" }) 
+                end
+            end
         end
-    else
-        table.insert(list, "Horor_Mode (Studio)")
     end
+
     return list
 end
 
 function LightingModule.SavePreset(presetName)
     if presetName == "" then return end
-
     local data = HttpService:JSONEncode(LightingModule.TargetValues)
-
-    if writefile then
-        writefile("HonamiHub/Presets/" .. presetName .. ".json", data)
-    else
-        print("[Studio Mode] Preset Tersimpan:", presetName)
-    end
+    if writefile then writefile("HonamiHub/Presets/" .. presetName .. ".json", data) end
 end
 
 function LightingModule.LoadPreset(presetName)
     if presetName == "Default" then
+        LightingModule.LoadSkybox("Default")
         for cat, props in pairs(LightingModule.Defaults) do
+            if LightingModule.TargetValues[cat] then
+                local obj = LightingModule.Objects[cat]
+                for k, v in pairs(props) do
+                    LightingModule.TargetValues[cat][k] = v
+                    if obj then obj[k] = v end
+                end
+            end
+        end
+        return
+    end
+
+    if LightingModule.BuiltInPresets[presetName] then
+        local presetData = LightingModule.BuiltInPresets[presetName]
+        
+        if presetData.Skybox and presetData.Skybox ~= "" then
+            LightingModule.LoadSkybox(presetData.Skybox)
+        end
+
+        for cat, props in pairs(presetData.Values) do
             if LightingModule.TargetValues[cat] then
                 local obj = LightingModule.Objects[cat]
                 for k, v in pairs(props) do
