@@ -61,7 +61,23 @@ end
 
 function LightingModule.SavePreset(presetName)
     if presetName == "" then return end
-    local data = HttpService:JSONEncode(LightingModule.TargetValues)
+    
+    local dataToSave = {}
+    
+    for cat, props in pairs(LightingModule.TargetValues) do
+        dataToSave[cat] = props
+    end
+    
+    local sky = Lighting:FindFirstChildOfClass("Sky")
+    if sky then
+        dataToSave.CustomSkybox = {
+            SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt,
+            SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp,
+            SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount
+        }
+    end
+
+    local data = HttpService:JSONEncode(dataToSave)
     if writefile then writefile("HonamiHub/Presets/" .. presetName .. ".json", data) end
 end
 
@@ -99,7 +115,22 @@ function LightingModule.LoadPreset(presetName)
     if readfile and isfile and isfile(path) then
         local data = readfile(path)
         local success, decoded = pcall(function() return HttpService:JSONDecode(data) end)
+        
         if success and decoded then
+            if decoded.CustomSkybox then
+                local sky = Lighting:FindFirstChildOfClass("Sky")
+                if not sky then
+                    sky = Instance.new("Sky")
+                    sky.Name = "Honami_Sky"
+                    sky.Parent = Lighting
+                end
+                for key, value in pairs(decoded.CustomSkybox) do
+                    pcall(function() sky[key] = value end)
+                end
+                
+                decoded.CustomSkybox = nil 
+            end
+
             for cat, props in pairs(decoded) do
                 if LightingModule.TargetValues[cat] then
                     local obj = LightingModule.Objects[cat]
