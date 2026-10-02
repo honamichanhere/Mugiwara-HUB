@@ -43,17 +43,21 @@ function LightingModule.SavePreset(presetName)
 end
 
 function LightingModule.LoadPreset(presetName)
+    -- Kalau pilih Default, kembalikan ke nilai asli bawaan map
     if presetName == "Default" then
         for cat, props in pairs(LightingModule.Defaults) do
             if LightingModule.TargetValues[cat] then
+                local obj = LightingModule.Objects[cat]
                 for k, v in pairs(props) do
                     LightingModule.TargetValues[cat][k] = v
+                    if obj then obj[k] = v end
                 end
             end
         end
         return
     end
 
+    -- Kalau pilih preset buatan user, baca filenya
     local path = "HonamiHub/Presets/" .. presetName .. ".json"
     if readfile and isfile and isfile(path) then
         local data = readfile(path)
@@ -62,14 +66,14 @@ function LightingModule.LoadPreset(presetName)
         if success and decoded then
             for cat, props in pairs(decoded) do
                 if LightingModule.TargetValues[cat] then
+                    local obj = LightingModule.Objects[cat]
                     for k, v in pairs(props) do
                         LightingModule.TargetValues[cat][k] = v
+                        if obj then obj[k] = v end
                     end
                 end
             end
         end
-    else
-        print("[Studio Mode] Load Preset:", presetName)
     end
 end
 
