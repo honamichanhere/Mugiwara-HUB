@@ -43,7 +43,6 @@ function LightingModule.SavePreset(presetName)
 end
 
 function LightingModule.LoadPreset(presetName)
-    -- Kalau pilih Default, kembalikan ke nilai asli bawaan map
     if presetName == "Default" then
         for cat, props in pairs(LightingModule.Defaults) do
             if LightingModule.TargetValues[cat] then
@@ -57,7 +56,6 @@ function LightingModule.LoadPreset(presetName)
         return
     end
 
-    -- Kalau pilih preset buatan user, baca filenya
     local path = "HonamiHub/Presets/" .. presetName .. ".json"
     if readfile and isfile and isfile(path) then
         local data = readfile(path)
@@ -232,6 +230,59 @@ function LightingModule.ToggleEffect(category, isEnabled)
     if obj and obj:IsA("PostEffect") then
         obj.Enabled = isEnabled
     end
+end
+
+-- ==========================================
+-- MESIN COPY-PASTE SKYBOX (LINTAS GAME TUNGGAL)
+-- ==========================================
+function LightingModule.CopySkybox()
+    local sky = Lighting:FindFirstChildOfClass("Sky")
+    if not sky then return false, "Tidak ada Skybox bawaan di map ini!" end
+    
+    local skyData = {
+        SkyboxBk = sky.SkyboxBk,
+        SkyboxDn = sky.SkyboxDn,
+        SkyboxFt = sky.SkyboxFt,
+        SkyboxLf = sky.SkyboxLf,
+        SkyboxRt = sky.SkyboxRt,
+        SkyboxUp = sky.SkyboxUp,
+        SunTextureId = sky.SunTextureId,
+        MoonTextureId = sky.MoonTextureId,
+        StarCount = sky.StarCount
+    }
+    
+    local json = HttpService:JSONEncode(skyData)
+    if writefile then
+        writefile("HonamiHub/CopiedSky.json", json)
+        return true, "Skybox berhasil dicopy & tersimpan!"
+    end
+    return false, "Executor tidak support writefile!"
+end
+
+function LightingModule.PasteSkybox()
+    local path = "HonamiHub/CopiedSky.json"
+    if not (readfile and isfile and isfile(path)) then
+        return false, "Belum ada Skybox yang pernah lu copy!"
+    end
+    
+    local data = readfile(path)
+    local success, decoded = pcall(function() return HttpService:JSONDecode(data) end)
+    
+    if success and decoded then
+        local sky = Lighting:FindFirstChildOfClass("Sky")
+        if not sky then
+            sky = Instance.new("Sky")
+            sky.Name = "Honami_Sky"
+            sky.Parent = Lighting
+        end
+        
+        for key, value in pairs(decoded) do
+            pcall(function() sky[key] = value end) 
+        end
+        
+        return true, "Skybox berhasil dipaste!"
+    end
+    return false, "Data CopiedSky rusak/error!"
 end
 
 -- ==========================================
