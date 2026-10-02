@@ -60,13 +60,17 @@ function LightingModule.GetPresetsList()
 end
 
 function LightingModule.SavePreset(presetName)
-    if presetName == "" then return end
+    if presetName == "" then return false, "Nama kosong" end
+    
+    local path = "HonamiHub/Presets/" .. presetName .. ".json"
+    local isOverwrite = false
+    
+    if isfile and isfile(path) then
+        isOverwrite = true
+    end
     
     local dataToSave = {}
-    
-    for cat, props in pairs(LightingModule.TargetValues) do
-        dataToSave[cat] = props
-    end
+    for cat, props in pairs(LightingModule.TargetValues) do dataToSave[cat] = props end
     
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if sky then
@@ -78,12 +82,31 @@ function LightingModule.SavePreset(presetName)
     end
 
     local data = HttpService:JSONEncode(dataToSave)
-    if writefile then writefile("HonamiHub/Presets/" .. presetName .. ".json", data) end
+    if writefile then 
+        writefile(path, data) 
+        if isOverwrite then return true, "Overwrite" else return true, "New" end
+    end
+    
+    return false, "Executor tidak support writefile"
 end
 
 function LightingModule.LoadPreset(presetName)
     if presetName == "Default" then
-        LightingModule.LoadSkybox("Default")
+        local currentSky = Lighting:FindFirstChildOfClass("Sky")
+        
+        if LightingModule.DefaultSkybox then
+            if not currentSky then
+                currentSky = Instance.new("Sky")
+                currentSky.Name = "Honami_Sky"
+                currentSky.Parent = Lighting
+            end
+            for k, v in pairs(LightingModule.DefaultSkybox) do
+                pcall(function() currentSky[k] = v end)
+            end
+        else
+            if currentSky then currentSky:Destroy() end
+        end
+
         for cat, props in pairs(LightingModule.Defaults) do
             if LightingModule.TargetValues[cat] then
                 local obj = LightingModule.Objects[cat]
@@ -124,10 +147,7 @@ function LightingModule.LoadPreset(presetName)
                     sky.Name = "Honami_Sky"
                     sky.Parent = Lighting
                 end
-                for key, value in pairs(decoded.CustomSkybox) do
-                    pcall(function() sky[key] = value end)
-                end
-                
+                for key, value in pairs(decoded.CustomSkybox) do pcall(function() sky[key] = value end) end
                 decoded.CustomSkybox = nil 
             end
 
@@ -162,6 +182,7 @@ LightingModule.SkyAnimSpeed = 10
 -- 1. DATABASE SYSTEM (Limit, Target, Default, & Tracked)
 -- ==========================================
 LightingModule.LockEnabled = false
+LightingModule.DefaultSkybox = nil
 LightingModule.Objects = { Lighting = Lighting }
 LightingModule.Defaults = {} 
 LightingModule.TargetValues = {} 
@@ -179,7 +200,6 @@ LightingModule.Limits = {
     SunRays = { Intensity = {Min = 0, Max = 1}, Spread = {Min = 0, Max = 1} }
 }
 
--- [FIX] DAFTAR SEMUA PROPERTI YANG HARUS DI-BACKUP (Termasuk Warna & Status On/Off)
 LightingModule.TrackedProperties = {
     Lighting = {"Ambient", "Brightness", "ColorShift_Top", "ColorShift_Bottom", "EnvironmentDiffuseScale", "EnvironmentSpecularScale", "GlobalShadows", "OutdoorAmbient", "ShadowSoftness", "ClockTime", "GeographicLatitude", "ExposureCompensation"},
     Atmosphere = {"Density", "Offset", "Color", "Decay", "Glare", "Haze"},
@@ -209,7 +229,6 @@ function LightingModule.Init()
         LightingModule.Objects[key] = effect
     end
 
-    -- [FIX] Menggunakan TrackedProperties untuk nge-backup nilai asli dengan akurat
     for category, properties in pairs(LightingModule.TrackedProperties) do
         LightingModule.Defaults[category] = {}
         LightingModule.TargetValues[category] = {}
@@ -222,6 +241,15 @@ function LightingModule.Init()
                 LightingModule.TargetValues[category][propName] = realValue
             end
         end
+    end
+
+    local originalSky = Lighting:FindFirstChildOfClass("Sky")
+    if originalSky then
+        LightingModule.DefaultSkybox = {
+            SkyboxBk = originalSky.SkyboxBk, SkyboxDn = originalSky.SkyboxDn, SkyboxFt = originalSky.SkyboxFt,
+            SkyboxLf = originalSky.SkyboxLf, SkyboxRt = originalSky.SkyboxRt, SkyboxUp = originalSky.SkyboxUp,
+            SunTextureId = originalSky.SunTextureId, MoonTextureId = originalSky.MoonTextureId, StarCount = originalSky.StarCount
+        }
     end
 end
 
