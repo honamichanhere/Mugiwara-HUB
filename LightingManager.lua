@@ -213,6 +213,9 @@ function LightingModule.SavePreset(presetName)
 end
 
 function LightingModule.LoadPreset(presetName)
+    -- ========================================
+    -- 1. JIKA PILIH DEFAULT
+    -- ========================================
     if presetName == "Default" then
         local currentSky = Lighting:FindFirstChildOfClass("Sky")
         if LightingModule.DefaultSkybox then
@@ -229,27 +232,60 @@ function LightingModule.LoadPreset(presetName)
 
         for cat, props in pairs(LightingModule.Defaults) do
             if LightingModule.TargetValues[cat] then
-                for k, v in pairs(props) do LightingModule.TargetValues[cat][k] = v end
+                local obj = LightingModule.Objects[cat]
+                for k, v in pairs(props) do 
+                    LightingModule.TargetValues[cat][k] = v 
+                    if obj then pcall(function() obj[k] = v end) end -- [FIX] Maksa langsung terapin ke game!
+                end
             end
         end
         return
     end
 
+    -- ========================================
+    -- 2. JIKA PRESET BAWAAN (BUILT-IN)
+    -- ========================================
     if LightingModule.BuiltInPresets[presetName] then
         local presetData = LightingModule.BuiltInPresets[presetName]
-        if presetData.Skybox and presetData.Skybox ~= "" then LightingModule.LoadSkybox(presetData.Skybox) end
+        if presetData.Skybox and presetData.Skybox ~= "" then 
+            LightingModule.LoadSkybox(presetData.Skybox) 
+        else
+            -- [FIX] Kalo preset bawaan ga punya skybox, reset ke default map
+            local currentSky = Lighting:FindFirstChildOfClass("Sky")
+            if LightingModule.DefaultSkybox then
+                LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
+                if not currentSky then
+                    currentSky = Instance.new("Sky", Lighting)
+                    currentSky.Name = "Honami_Sky"
+                end
+                for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
+            else
+                LightingModule.ActiveSkybox = nil
+                if currentSky then currentSky:Destroy() end
+            end
+        end
+        
         for cat, props in pairs(presetData.Values) do
             if LightingModule.TargetValues[cat] then
-                for k, v in pairs(props) do LightingModule.TargetValues[cat][k] = v end
+                local obj = LightingModule.Objects[cat]
+                for k, v in pairs(props) do 
+                    LightingModule.TargetValues[cat][k] = v 
+                    if obj then pcall(function() obj[k] = v end) end -- [FIX] Maksa langsung terapin ke game!
+                end
             end
         end
         return
     end
 
+    -- ========================================
+    -- 3. JIKA CUSTOM PRESET (DARI FOLDER USER)
+    -- ========================================
     local path = "HonamiHub/Presets/" .. presetName .. ".json"
     if readfile and isfile and isfile(path) then
         local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
         if success and decoded then
+            
+            -- [FIX] Logika Skybox buat file Custom
             if decoded.CustomSkybox then
                 LightingModule.ActiveSkybox = decoded.CustomSkybox
                 local sky = Lighting:FindFirstChildOfClass("Sky")
@@ -259,11 +295,30 @@ function LightingModule.LoadPreset(presetName)
                 end
                 for key, value in pairs(decoded.CustomSkybox) do pcall(function() sky[key] = value end) end
                 decoded.CustomSkybox = nil 
+            else
+                -- [FIX CRUCIAL] Jika user save preset tanpa skybox, WAJIB reset langitnya ke awal!
+                local currentSky = Lighting:FindFirstChildOfClass("Sky")
+                if LightingModule.DefaultSkybox then
+                    LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
+                    if not currentSky then
+                        currentSky = Instance.new("Sky", Lighting)
+                        currentSky.Name = "Honami_Sky"
+                    end
+                    for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
+                else
+                    LightingModule.ActiveSkybox = nil
+                    if currentSky then currentSky:Destroy() end
+                end
             end
 
+            -- Terapin nilai warna dan efek lighting
             for cat, props in pairs(decoded) do
                 if LightingModule.TargetValues[cat] then
-                    for k, v in pairs(props) do LightingModule.TargetValues[cat][k] = v end
+                    local obj = LightingModule.Objects[cat]
+                    for k, v in pairs(props) do 
+                        LightingModule.TargetValues[cat][k] = v 
+                        if obj then pcall(function() obj[k] = v end) end -- [FIX] Maksa langsung terapin ke game!
+                    end
                 end
             end
         end
