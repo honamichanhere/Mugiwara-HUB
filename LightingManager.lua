@@ -42,7 +42,7 @@ LightingModule.BuiltInPresets = {
 LightingModule.LockEnabled = false
 LightingModule.DefaultSkybox = nil 
 LightingModule.ActiveSkybox = nil 
-LightingModule.OnPresetLoaded = nil -- [BARU] Jembatan buat ngasih tau UI kalo preset kelar diload
+LightingModule.OnPresetLoaded = nil
 
 LightingModule.Objects = { Lighting = Lighting }
 LightingModule.Defaults = {} 
@@ -86,7 +86,6 @@ function LightingModule.Init()
         if not effect then
             effect = Instance.new(className)
             effect.Name = "Honami_" .. className
-            -- [FIX BUG VISUAL BLUR] Paksa matikan jika objek adalah PostEffect buatan baru
             if effect:IsA("PostEffect") then 
                 effect.Enabled = false 
             end
@@ -196,7 +195,16 @@ function LightingModule.SavePreset(presetName)
     local isOverwrite = (isfile and isfile(path))
     
     local dataToSave = {}
-    for cat, props in pairs(LightingModule.TargetValues) do dataToSave[cat] = props end
+    for cat, props in pairs(LightingModule.TargetValues) do 
+        dataToSave[cat] = {}
+        for k, v in pairs(props) do
+            if typeof(v) == "Color3" then
+                dataToSave[cat][k] = { isColor3 = true, R = v.R, G = v.G, B = v.B }
+            else
+                dataToSave[cat][k] = v
+            end
+        end
+    end
     
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if sky then
@@ -239,7 +247,7 @@ function LightingModule.LoadPreset(presetName)
                 end
             end
         end
-        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end -- [TRIGGER UI UPDATE]
+        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end
         return
     end
 
@@ -271,7 +279,7 @@ function LightingModule.LoadPreset(presetName)
                 end
             end
         end
-        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end -- [TRIGGER UI UPDATE]
+        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end 
         return
     end
 
@@ -308,12 +316,17 @@ function LightingModule.LoadPreset(presetName)
                 if LightingModule.TargetValues[cat] then
                     local obj = LightingModule.Objects[cat]
                     for k, v in pairs(props) do 
-                        LightingModule.TargetValues[cat][k] = v 
-                        if obj then pcall(function() obj[k] = v end) end 
+                        local finalValue = v
+                        if type(v) == "table" and v.isColor3 then
+                            finalValue = Color3.new(v.R, v.G, v.B)
+                        end
+                        
+                        LightingModule.TargetValues[cat][k] = finalValue 
+                        if obj then pcall(function() obj[k] = finalValue end) end 
                     end
                 end
             end
-            if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end -- [TRIGGER UI UPDATE]
+            if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end
         end
     end
 end
