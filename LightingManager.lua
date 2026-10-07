@@ -41,7 +41,8 @@ LightingModule.BuiltInPresets = {
 -- ==========================================
 LightingModule.LockEnabled = false
 LightingModule.DefaultSkybox = nil 
-LightingModule.ActiveSkybox = nil -- [BARU] Tracker buat ngelock Skybox
+LightingModule.ActiveSkybox = nil 
+LightingModule.OnPresetLoaded = nil -- [BARU] Jembatan buat ngasih tau UI kalo preset kelar diload
 
 LightingModule.Objects = { Lighting = Lighting }
 LightingModule.Defaults = {} 
@@ -85,6 +86,10 @@ function LightingModule.Init()
         if not effect then
             effect = Instance.new(className)
             effect.Name = "Honami_" .. className
+            -- [FIX BUG VISUAL BLUR] Paksa matikan jika objek adalah PostEffect buatan baru
+            if effect:IsA("PostEffect") then 
+                effect.Enabled = false 
+            end
             effect.Parent = Lighting
         end
         LightingModule.Objects[key] = effect
@@ -143,7 +148,6 @@ function LightingModule.LoadSkybox(id)
         local skyObject = asset:IsA("Sky") and asset or asset:FindFirstChildOfClass("Sky")
         
         if skyObject then
-            -- [FIX] Track di memori ActiveSkybox, jangan di-parent langsung!
             LightingModule.ActiveSkybox = {
                 SkyboxBk = skyObject.SkyboxBk, SkyboxDn = skyObject.SkyboxDn, SkyboxFt = skyObject.SkyboxFt,
                 SkyboxLf = skyObject.SkyboxLf, SkyboxRt = skyObject.SkyboxRt, SkyboxUp = skyObject.SkyboxUp,
@@ -161,7 +165,6 @@ function LightingModule.LoadSkybox(id)
                 pcall(function() currentSky[k] = v end)
             end
             
-            -- [FIX] Hancurkan objek aslinya biar ngga numpuk
             pcall(function() asset:Destroy() end) 
         end
     end
@@ -213,9 +216,6 @@ function LightingModule.SavePreset(presetName)
 end
 
 function LightingModule.LoadPreset(presetName)
-    -- ========================================
-    -- 1. JIKA PILIH DEFAULT
-    -- ========================================
     if presetName == "Default" then
         local currentSky = Lighting:FindFirstChildOfClass("Sky")
         if LightingModule.DefaultSkybox then
@@ -235,22 +235,19 @@ function LightingModule.LoadPreset(presetName)
                 local obj = LightingModule.Objects[cat]
                 for k, v in pairs(props) do 
                     LightingModule.TargetValues[cat][k] = v 
-                    if obj then pcall(function() obj[k] = v end) end -- [FIX] Maksa langsung terapin ke game!
+                    if obj then pcall(function() obj[k] = v end) end 
                 end
             end
         end
+        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end -- [TRIGGER UI UPDATE]
         return
     end
 
-    -- ========================================
-    -- 2. JIKA PRESET BAWAAN (BUILT-IN)
-    -- ========================================
     if LightingModule.BuiltInPresets[presetName] then
         local presetData = LightingModule.BuiltInPresets[presetName]
         if presetData.Skybox and presetData.Skybox ~= "" then 
             LightingModule.LoadSkybox(presetData.Skybox) 
         else
-            -- [FIX] Kalo preset bawaan ga punya skybox, reset ke default map
             local currentSky = Lighting:FindFirstChildOfClass("Sky")
             if LightingModule.DefaultSkybox then
                 LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
@@ -270,22 +267,19 @@ function LightingModule.LoadPreset(presetName)
                 local obj = LightingModule.Objects[cat]
                 for k, v in pairs(props) do 
                     LightingModule.TargetValues[cat][k] = v 
-                    if obj then pcall(function() obj[k] = v end) end -- [FIX] Maksa langsung terapin ke game!
+                    if obj then pcall(function() obj[k] = v end) end 
                 end
             end
         end
+        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end -- [TRIGGER UI UPDATE]
         return
     end
 
-    -- ========================================
-    -- 3. JIKA CUSTOM PRESET (DARI FOLDER USER)
-    -- ========================================
     local path = "HonamiHub/Presets/" .. presetName .. ".json"
     if readfile and isfile and isfile(path) then
         local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
         if success and decoded then
             
-            -- [FIX] Logika Skybox buat file Custom
             if decoded.CustomSkybox then
                 LightingModule.ActiveSkybox = decoded.CustomSkybox
                 local sky = Lighting:FindFirstChildOfClass("Sky")
@@ -296,7 +290,6 @@ function LightingModule.LoadPreset(presetName)
                 for key, value in pairs(decoded.CustomSkybox) do pcall(function() sky[key] = value end) end
                 decoded.CustomSkybox = nil 
             else
-                -- [FIX CRUCIAL] Jika user save preset tanpa skybox, WAJIB reset langitnya ke awal!
                 local currentSky = Lighting:FindFirstChildOfClass("Sky")
                 if LightingModule.DefaultSkybox then
                     LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
@@ -311,16 +304,16 @@ function LightingModule.LoadPreset(presetName)
                 end
             end
 
-            -- Terapin nilai warna dan efek lighting
             for cat, props in pairs(decoded) do
                 if LightingModule.TargetValues[cat] then
                     local obj = LightingModule.Objects[cat]
                     for k, v in pairs(props) do 
                         LightingModule.TargetValues[cat][k] = v 
-                        if obj then pcall(function() obj[k] = v end) end -- [FIX] Maksa langsung terapin ke game!
+                        if obj then pcall(function() obj[k] = v end) end 
                     end
                 end
             end
+            if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end -- [TRIGGER UI UPDATE]
         end
     end
 end
@@ -360,30 +353,29 @@ end
 -- 4. KASTA TERTINGGI: SINGULARITY ENGINE & LOCK
 -- ==========================================
 RunService.RenderStepped:Connect(function(deltaTime)
-    -- [1] ANTI-DUPLIKAT (SINGULARITY)
     local counts = {}
     for _, child in ipairs(Lighting:GetChildren()) do
         local cls = child.ClassName
         if cls == "Sky" or cls == "Atmosphere" or cls == "BloomEffect" or cls == "BlurEffect" or cls == "ColorCorrectionEffect" or cls == "DepthOfFieldEffect" or cls == "SunRaysEffect" then
             if counts[cls] then
-                child:Destroy() -- Basmi duplikat ciptaan game!
+                child:Destroy() 
             else
                 counts[cls] = child
             end
         end
     end
 
-    -- Update tracker supaya selalu nyambung ke objek yg bener
     local trackedClasses = { Atmosphere = "Atmosphere", Bloom = "BloomEffect", Blur = "BlurEffect", ColorCorrection = "ColorCorrectionEffect", DepthOfField = "DepthOfFieldEffect", SunRays = "SunRaysEffect" }
     for cat, clsName in pairs(trackedClasses) do
         if counts[clsName] then
             LightingModule.Objects[cat] = counts[clsName]
         else
-            -- Kalo game ngapus objek kita secara brutal, paksa bikin baru saat Lock!
             if LightingModule.LockEnabled then
                 local newObj = Instance.new(clsName)
                 newObj.Name = "Honami_" .. clsName
                 newObj.Parent = Lighting
+                -- Pastikan objek lock juga default mati
+                if newObj:IsA("PostEffect") then newObj.Enabled = false end
                 LightingModule.Objects[cat] = newObj
                 counts[clsName] = newObj
             end
@@ -392,9 +384,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 
     local currentSky = counts["Sky"]
 
-    -- [2] FORCE LOCK VALUES
     if LightingModule.LockEnabled then
-        -- Kunci Slider/Warna
         for category, properties in pairs(LightingModule.TargetValues) do
             local obj = LightingModule.Objects[category]
             if obj then
@@ -404,7 +394,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
             end
         end
         
-        -- Kunci Skybox Texture
         if currentSky and LightingModule.ActiveSkybox then
             for k, v in pairs(LightingModule.ActiveSkybox) do
                 pcall(function() if currentSky[k] ~= v then currentSky[k] = v end end)
@@ -412,7 +401,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
-    -- [3] ANIMASI ROTASI SKYBOX
     if LightingModule.SkyAnimEnabled and currentSky then
         local currentRot = currentSky.SkyboxOrientation
         currentSky.SkyboxOrientation = currentRot + Vector3.new(0, LightingModule.SkyAnimSpeed * deltaTime, 0)
