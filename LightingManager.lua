@@ -43,6 +43,8 @@ LightingModule.LockEnabled = false
 LightingModule.DefaultSkybox = nil 
 LightingModule.ActiveSkybox = nil 
 LightingModule.OnPresetLoaded = nil
+LightingModule.OnPropertyChanged = nil
+LightingModule.LastObserve = 0
 
 LightingModule.Objects = { Lighting = Lighting }
 LightingModule.Defaults = {} 
@@ -125,7 +127,8 @@ LightingModule.Init()
 function LightingModule.UpdateValue(category, property, value)
     if LightingModule.TargetValues[category] then
         LightingModule.TargetValues[category][property] = value
-        if not LightingModule.LockEnabled then
+        
+        if not LightingModule.IsSyncing and not LightingModule.LockEnabled then
             local obj = LightingModule.Objects[category]
             if obj then pcall(function() obj[property] = value end) end
         end
@@ -363,7 +366,7 @@ function LightingModule.PasteSkybox()
 end
 
 -- ==========================================
--- 4. KASTA TERTINGGI: SINGULARITY ENGINE & LOCK
+-- 4. KASTA TERTINGGI: SINGULARITY ENGINE & LOCK / OBSERVER
 -- ==========================================
 RunService.RenderStepped:Connect(function(deltaTime)
     local counts = {}
@@ -387,7 +390,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
                 local newObj = Instance.new(clsName)
                 newObj.Name = "Honami_" .. clsName
                 newObj.Parent = Lighting
-                -- Pastikan objek lock juga default mati
                 if newObj:IsA("PostEffect") then newObj.Enabled = false end
                 LightingModule.Objects[cat] = newObj
                 counts[clsName] = newObj
@@ -412,6 +414,40 @@ RunService.RenderStepped:Connect(function(deltaTime)
                 pcall(function() if currentSky[k] ~= v then currentSky[k] = v end end)
             end
         end
+    else
+        LightingModule.LastObserve = (LightingModule.LastObserve or 0) + deltaTime
+        if LightingModule.LastObserve >= 0.5 then
+            LightingModule.LastObserve = 0
+            LightingModule.IsSyncing = true -- Tutup kuping UI biar gak berantem
+
+            for category, properties in pairs(LightingModule.TargetValues) do
+                local obj = LightingModule.Objects[category]
+                if obj then
+                    for propName, targetVal in pairs(properties) do
+                        local success, realVal = pcall(function() return obj[propName] end)
+                        if success and realVal ~= nil then
+                            local isDifferent = false
+                            
+                            if type(realVal) == "number" and type(targetVal) == "number" then
+                                if math.abs(realVal - targetVal) > 0.01 then isDifferent = true end
+                            elseif typeof(realVal) == "Color3" and typeof(targetVal) == "Color3" then
+                                if math.abs(realVal.R - targetVal.R) > 0.01 or math.abs(realVal.G - targetVal.G) > 0.01 or math.abs(realVal.B - targetVal.B) > 0.01 then isDifferent = true end
+                            elseif realVal ~= targetVal then
+                                isDifferent = true
+                            end
+
+                            if isDifferent then
+                                LightingModule.TargetValues[category][propName] = realVal
+                                if LightingModule.OnPropertyChanged then
+                                    pcall(LightingModule.OnPropertyChanged, category, propName, realVal)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            LightingModule.IsSyncing = false
+        end
     end
 
     if LightingModule.SkyAnimEnabled and currentSky then
@@ -420,4 +456,5 @@ RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
+return LightingModule
 return LightingModule
