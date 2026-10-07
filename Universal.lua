@@ -3,17 +3,14 @@
 -- ==========================================
 return function(Window, isPremiumUser, WindUI)
     
-    -- 1. PANGGIL TAB HOME (GLOBAL)
-    local loadHome = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/HomeTab.lua"))
+    local loadHome = loadstring(game:HttpGet("URL_GITHUBLU_TABS_HOMETAB.LUA"))
     if loadHome then loadHome()(Window, isPremiumUser, WindUI) end
 
-    -- 2. BIKIN TAB MAIN (DINAMIS UNTUK UNIVERSAL)
     local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ship" })
     
-    local InfoSection = TabMain:Section({ Title = "Universal Mode", Icon = "lucide:globe", Opened = true, Box = true })
-    InfoSection:Paragraph({
-        Title = "Game Tidak Terspesifikasi",
-        Desc = "Hub tidak mendeteksi game ini di database. Memuat fitur pergerakan karakter universal."
+    TabMain:Paragraph({
+        Title = "Universal Mode Active",
+        Desc = "This game is not explicitly supported. Loading universal character movements as fallback."
     })
 
     -- 3. SUNTIK FITUR MOVEMENT KE TAB MAIN
