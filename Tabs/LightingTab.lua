@@ -1,4 +1,4 @@
-local LightingModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/LightingManager.lua"))()
+local LightingModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/LightingManager.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
