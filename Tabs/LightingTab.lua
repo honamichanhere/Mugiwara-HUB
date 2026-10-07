@@ -3,158 +3,140 @@ local LightingModule = loadstring(game:HttpGet("https://raw.githubusercontent.co
 return function(Window, isPremiumUser, WindUI)
     
     local TabLighting = Window:Tab({ Title = "Lighting", Icon = "lucide:sun" })
-    
-    local UIElements = { Lighting = {}, Atmosphere = {}, Bloom = {}, Blur = {}, ColorCorrection = {}, DepthOfField = {}, SunRays = {} }
 
-    -- 1. PRESET MANAGER (PREMIUM)
-    local PresetSection = TabLighting:Section({ Title = "Preset Configuration", Icon = "lucide:save", Opened = true, Box = true })
-    
-    local VipSavePreset, VipLoadPreset, VipLoadSkyBox
-    
-    VipSavePreset = PresetSection:Input({
-        Title = "Save Custom Preset",
-        Desc = "Save your current lighting configuration to a local file. (Premium Only)",
-        Placeholder = "Enter preset name...",
+    local lockMsg = "Buy premium to unlock!"
+
+    local skyboxNames = {}
+    if LightingModule.SkyboxDatabase then
+        for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames, name) end
+    else
+        table.insert(skyboxNames, "Default Sky")
+    end
+
+    local VipLoadPreset = TabLighting:Dropdown({
+        Title = "Load Presets",
+        Desc = "Select presets.",
         Locked = not isPremiumUser,
-        Callback = function(Text)
-            if Text == "" then return end
-            local success, msg = LightingModule.SavePreset(Text)
-            if success then
-                WindUI:Notify({ Title = "Preset Saved", Content = "Successfully saved lighting preset as: " .. Text, Duration = 3 })
-                pcall(function() VipSavePreset:Set("") end)
-            else
-                WindUI:Notify({ Title = "Save Failed", Content = msg, Duration = 3 })
+        Values = LightingModule.GetPresetsList and LightingModule.GetPresetsList() or {},
+        Value = "Default",
+        Callback = function(Option)
+            if Option and Option.Title then
+                LightingModule.LoadPreset(Option.Title) 
             end
         end
     })
 
-    VipLoadPreset = PresetSection:Input({
-        Title = "Load Custom Preset",
-        Desc = "Load a previously saved custom lighting configuration. (Premium Only)",
-        Placeholder = "Enter preset name...",
+    local VipSavePreset
+    VipSavePreset = TabLighting:Input({
+        Title = "Save Preset",
+        Desc = "Save Lighting to a preset.",
+        Placeholder = "Preset Name",
         Locked = not isPremiumUser,
         Callback = function(Text)
             if Text == "" then return end
-            LightingModule.LoadPreset(Text)
-            WindUI:Notify({ Title = "Preset Loaded", Content = "Successfully loaded preset: " .. Text, Duration = 3 })
-            pcall(function() VipLoadPreset:Set("") end)
+            local success, status = LightingModule.SavePreset(Text) 
+            if success then
+                if status == "Overwrite" then
+                    WindUI:Notify({ Title = "Preset Overwritten!", Content = "Preset '" .. Text .. "' successfully updated!", Duration = 3 })
+                else
+                    WindUI:Notify({ Title = "Preset Saved!", Content = "New preset '" .. Text .. "' successfully saved!", Duration = 3 })
+                end           
+                
+                pcall(function() VipSavePreset:Set("") end)
+                
+                if VipLoadPreset and VipLoadPreset.Refresh then
+                    VipLoadPreset:Refresh(LightingModule.GetPresetsList())
+                end
+            end
         end
     })
 
-    PresetSection:Dropdown({
-        Title = "Built-in Presets",
-        Desc = "Select from pre-configured cinematic lighting setups.",
-        Multi = false,
-        Options = {"Default", "Cozy Sunset", "Horor Vibe", "Cyberpunk", "Realistic"},
-        Callback = function(Value)
-            LightingModule.LoadPreset(Value)
-            WindUI:Notify({ Title = "Preset Applied", Content = "Successfully loaded built-in preset: " .. Value, Duration = 3 })
+    local skyboxNames2 = {}
+    for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames2, name) end
+
+    local VipSkyBox = TabLighting:Dropdown({
+        Title = "Sky Box",
+        Desc = "Change Sky Box.",
+        Icon = "lucide:cloudy",
+        Locked = not isPremiumUser,
+        Values = skyboxNames2,
+        Value = "Default Sky",
+        Callback = function(Option)
+            local assetId = LightingModule.SkyboxDatabase[Option]
+            if assetId and assetId ~= "" then LightingModule.LoadSkybox(assetId) end
         end
     })
 
-    VipLoadSkyBox = PresetSection:Input({
-        Title = "Load Custom Skybox",
-        Desc = "Enter a Roblox Image ID to apply a custom skybox texture.",
-        Placeholder = "e.g., 1234567890",
+    local VipLoadSkyBox
+    VipLoadSkyBox = TabLighting:Input({
+        Title = "Load Sky Box",
+        Desc = "Load Sky Box via Asset ID.",
+        Locked = not isPremiumUser,
+        Placeholder = "Asset ID",
         Callback = function(Text)
             if Text == "" then return end
-            LightingModule.LoadSkybox(Text)
-            WindUI:Notify({ Title = "Skybox Applied", Content = "Successfully loaded Custom Skybox ID: " .. Text, Duration = 3 })
+            LightingModule.LoadSkybox(Text) 
             pcall(function() VipLoadSkyBox:Set("") end)
         end
     })
 
-    -- 2. ENVIRONMENT & OBSERVER CONTROLS
-    local ControlSection = TabLighting:Section({ Title = "Environment Controls", Icon = "lucide:settings-2", Opened = false, Box = true })
-    
-    ControlSection:Toggle({
-        Title = "Force Lock Lighting",
-        Desc = "Prevent the server/game from altering your lighting setup. If disabled, Observer Mode will auto-sync UI with the game.",
-        Callback = function(Value) LightingModule.LockEnabled = Value end
-    })
-    
-    ControlSection:Toggle({
-        Title = "Enable Skybox Animation",
-        Desc = "Automatically rotate the skybox to create a dynamic background effect.",
+    local VipSkyAnim = TabLighting:Toggle({
+        Title = "Sky Box Animation",
+        Desc = "Animate the skybox by rotating it.",
+        Locked = not isPremiumUser,
         Callback = function(Value) LightingModule.SkyAnimEnabled = Value end
     })
 
-    ControlSection:Slider({
-        Title = "Skybox Rotation Speed",
-        Desc = "Adjust how fast the skybox rotates.",
-        Step = 0.1,
-        Value = { Min = 0.1, Max = 10, Default = 1 },
+    local VipSkyRot = TabLighting:Slider({
+        Title = "Rotation Speed",
+        Desc = "Set the rotation speed of the skybox.",
+        Locked = not isPremiumUser,
+        Step = 1,
+        Value = { Min = 0, Max = 100, Default = 10 },
         Callback = function(Value) LightingModule.SkyAnimSpeed = Value end
     })
 
-    -- FUNGSI PEMBANTU (UI GENERATOR)
-    local function AddSlider(Section, Cat, Prop, Title, Min, Max, Def)
-        local stepVal = (Max - Min <= 10) and 0.01 or 0.1
-        UIElements[Cat][Prop] = Section:Slider({ Title = Title, Step = stepVal, Value = { Min = Min, Max = Max, Default = Def }, Callback = function(v) LightingModule.UpdateValue(Cat, Prop, v) end })
-    end
-    local function AddColor(Section, Cat, Prop, Title, Def)
-        UIElements[Cat][Prop] = Section:Colorpicker({ Title = Title, Default = Def, Callback = function(v) LightingModule.UpdateValue(Cat, Prop, v) end })
-    end
-    local function AddToggle(Section, Cat, Prop, Title)
-        UIElements[Cat][Prop] = Section:Toggle({ Title = Title, Callback = function(v) LightingModule.UpdateValue(Cat, Prop, v) end })
-    end
+    local VipCopySky = TabLighting:Button({
+        Title = "Copy Sky Box",
+        Desc = "Copy current Sky Box to Database.",
+        Locked = not isPremiumUser,
+        Callback = function()
+            local success, msg = LightingModule.CopySkybox()
+            WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
+        end
+    })
 
-    -- 3. GLOBAL LIGHTING
-    local LgtSec = TabLighting:Section({ Title = "Global Lighting", Icon = "lucide:globe", Opened = false, Box = true })
-    AddSlider(LgtSec, "Lighting", "Brightness", "Brightness Level", 0, 10, 2)
-    AddSlider(LgtSec, "Lighting", "ClockTime", "Clock Time (Hours)", 0, 24, 12)
-    AddSlider(LgtSec, "Lighting", "ExposureCompensation", "Exposure Compensation", -3, 3, 0)
-    AddSlider(LgtSec, "Lighting", "EnvironmentDiffuseScale", "Diffuse Scale", 0, 1, 1)
-    AddSlider(LgtSec, "Lighting", "EnvironmentSpecularScale", "Specular Scale", 0, 1, 1)
-    AddSlider(LgtSec, "Lighting", "ShadowSoftness", "Shadow Softness", 0, 1, 0.2)
-    AddToggle(LgtSec, "Lighting", "GlobalShadows", "Enable Global Shadows")
-    AddColor(LgtSec, "Lighting", "Ambient", "Ambient Color", Color3.fromRGB(138, 138, 138))
-    AddColor(LgtSec, "Lighting", "OutdoorAmbient", "Outdoor Ambient", Color3.fromRGB(128, 128, 128))
-    AddColor(LgtSec, "Lighting", "ColorShift_Top", "Color Shift Top", Color3.fromRGB(0, 0, 0))
-    AddColor(LgtSec, "Lighting", "ColorShift_Bottom", "Color Shift Bottom", Color3.fromRGB(0, 0, 0))
+    local VipPasteSky = TabLighting:Button({
+        Title = "Paste Sky Box",
+        Desc = "Paste Sky Box from Database.",
+        Locked = not isPremiumUser,
+        Callback = function()
+            local success, msg = LightingModule.PasteSkybox()
+            WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
+        end
+    })
 
-    -- 4. COLOR CORRECTION
-    local CcSec = TabLighting:Section({ Title = "Color Correction", Icon = "lucide:palette", Opened = false, Box = true })
-    AddSlider(CcSec, "ColorCorrection", "Brightness", "Brightness", -1, 1, 0)
-    AddSlider(CcSec, "ColorCorrection", "Contrast", "Contrast", -1, 2, 0)
-    AddSlider(CcSec, "ColorCorrection", "Saturation", "Saturation", -1, 5, 0)
-    AddColor(CcSec, "ColorCorrection", "TintColor", "Tint Color", Color3.fromRGB(255, 255, 255))
+    TabLighting:Divider({ Title = "System Control" })
+    TabLighting:Toggle({ Title = "Lock Lighting", Desc = "Force Override! Lock all values in this script; prevent the game from altering the lighting.", Locked = false, Callback = function(Value) LightingModule.LockEnabled = Value end })
 
-    -- 5. ATMOSPHERE
-    local AtmSec = TabLighting:Section({ Title = "Atmosphere", Icon = "lucide:cloud", Opened = false, Box = true })
-    AddSlider(AtmSec, "Atmosphere", "Density", "Atmosphere Density", 0, 1, 0.3)
-    AddSlider(AtmSec, "Atmosphere", "Offset", "Atmosphere Offset", 0, 1, 0)
-    AddSlider(AtmSec, "Atmosphere", "Glare", "Atmosphere Glare", 0, 1, 0)
-    AddSlider(AtmSec, "Atmosphere", "Haze", "Atmosphere Haze", 0, 5, 0)
-    AddColor(AtmSec, "Atmosphere", "Color", "Atmosphere Color", Color3.fromRGB(199, 199, 199))
-    AddColor(AtmSec, "Atmosphere", "Decay", "Decay Color", Color3.fromRGB(106, 112, 125))
+    -- ==========================================
+    -- MESIN SINKRONISASI UI (JEMBATAN DARI MANAGER)
+    -- ==========================================
+    local UIElements = { Lighting = {}, Atmosphere = {}, Bloom = {}, Blur = {}, ColorCorrection = {}, DepthOfField = {}, SunRays = {} }
 
-    -- 6. BLOOM & BLUR
-    local BbSec = TabLighting:Section({ Title = "Bloom & Blur", Icon = "lucide:droplet", Opened = false, Box = true })
-    AddSlider(BbSec, "Bloom", "Intensity", "Bloom Intensity", 0, 5, 1)
-    AddSlider(BbSec, "Bloom", "Size", "Bloom Size", 0, 56, 24)
-    AddSlider(BbSec, "Bloom", "Threshold", "Bloom Threshold", 0, 4, 2)
-    AddSlider(BbSec, "Blur", "Size", "Blur Size", 0, 56, 0)
-
-    -- 7. DEPTH OF FIELD & SUNRAYS
-    local DfSec = TabLighting:Section({ Title = "Depth of Field & SunRays", Icon = "lucide:focus", Opened = false, Box = true })
-    AddSlider(DfSec, "DepthOfField", "FocusDistance", "Focus Distance", 0, 500, 0.05)
-    AddSlider(DfSec, "DepthOfField", "InFocusRadius", "In-Focus Radius", 0, 50, 30)
-    AddSlider(DfSec, "DepthOfField", "NearIntensity", "Near Intensity", 0, 1, 0.75)
-    AddSlider(DfSec, "DepthOfField", "FarIntensity", "Far Intensity", 0, 1, 0.1)
-    AddSlider(DfSec, "SunRays", "Intensity", "SunRays Intensity", 0, 1, 0.25)
-    AddSlider(DfSec, "SunRays", "Spread", "SunRays Spread", 0, 1, 0.1)
-
-    -- 8. SYNC ENGINE BRIDGE (OBSERVER MODE)
     LightingModule.OnPresetLoaded = function()
         for cat, props in pairs(UIElements) do
             for propName, element in pairs(props) do
                 local targetValue = LightingModule.TargetValues[cat] and LightingModule.TargetValues[cat][propName]
+                
                 if targetValue ~= nil and type(element) == "table" then
                     pcall(function()
-                        if element.SetValue then element:SetValue(targetValue)
-                        elseif element.Set then element:Set(targetValue)
-                        elseif element.SetColor then element:SetColor(targetValue)
+                        if element.SetValue then 
+                            element:SetValue(targetValue) 
+                        elseif element.Set then 
+                            element:Set(targetValue) 
+                        elseif element.SetColor then
+                            element:SetColor(targetValue)
                         end
                     end)
                 end
@@ -166,12 +148,73 @@ return function(Window, isPremiumUser, WindUI)
         local element = UIElements[category] and UIElements[category][property]
         if element then
             pcall(function()
-                if element.SetValue then element:SetValue(newValue)
-                elseif element.Set then element:Set(newValue)
-                elseif element.SetColor then element:SetColor(newValue)
+                if element.SetValue then 
+                    element:SetValue(newValue) 
+                elseif element.Set then 
+                    element:Set(newValue) 
+                elseif element.SetColor then
+                    element:SetColor(newValue)
                 end
             end)
         end
     end
+
+    local objL = LightingModule.Objects["Lighting"]
+    local Lighting = TabLighting:Section({ Title = "Lighting", Icon = "lucide:haze", Opened = false, Box = true })
+    UIElements.Lighting.Ambient = Lighting:Colorpicker({ Title = "Ambient", Default = objL.Ambient, Callback = function(Value) LightingModule.UpdateValue("Lighting", "Ambient", Value) end })
+    UIElements.Lighting.Brightness = Lighting:Slider({ Title = "Brightness", Step = 0.1, Value = { Min = LightingModule.Limits.Lighting.Brightness.Min, Max = LightingModule.Limits.Lighting.Brightness.Max, Default = objL.Brightness }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "Brightness", Value) end })
+    UIElements.Lighting.ColorShift_Top = Lighting:Colorpicker({ Title = "Color Shift Top", Default = objL.ColorShift_Top, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ColorShift_Top", Value) end })
+    UIElements.Lighting.ColorShift_Bottom = Lighting:Colorpicker({ Title = "Color Shift Bottom", Default = objL.ColorShift_Bottom, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ColorShift_Bottom", Value) end })
+    UIElements.Lighting.EnvironmentDiffuseScale = Lighting:Slider({ Title = "Environment Diffuse Scale", Step = 0.01, Value = { Min = LightingModule.Limits.Lighting.EnvironmentDiffuseScale.Min, Max = LightingModule.Limits.Lighting.EnvironmentDiffuseScale.Max, Default = objL.EnvironmentDiffuseScale }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "EnvironmentDiffuseScale", Value) end })
+    UIElements.Lighting.EnvironmentSpecularScale = Lighting:Slider({ Title = "Environment Specular Scale", Step = 0.01, Value = { Min = LightingModule.Limits.Lighting.EnvironmentSpecularScale.Min, Max = LightingModule.Limits.Lighting.EnvironmentSpecularScale.Max, Default = objL.EnvironmentSpecularScale }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "EnvironmentSpecularScale", Value) end })
+    UIElements.Lighting.GlobalShadows = Lighting:Toggle({ Title = "Global Shadows", Value = objL.GlobalShadows, Callback = function(Value) LightingModule.UpdateValue("Lighting", "GlobalShadows", Value) end })
+    UIElements.Lighting.OutdoorAmbient = Lighting:Colorpicker({ Title = "Outdoor Ambient", Default = objL.OutdoorAmbient, Callback = function(Value) LightingModule.UpdateValue("Lighting", "OutdoorAmbient", Value) end })
+    UIElements.Lighting.ShadowSoftness = Lighting:Slider({ Title = "Shadow Softness", Step = 0.01, Value = { Min = LightingModule.Limits.Lighting.ShadowSoftness.Min, Max = LightingModule.Limits.Lighting.ShadowSoftness.Max, Default = objL.ShadowSoftness }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ShadowSoftness", Value) end })
+    UIElements.Lighting.ClockTime = Lighting:Slider({ Title = "Clock Time", Step = 0.1, Value = { Min = LightingModule.Limits.Lighting.ClockTime.Min, Max = LightingModule.Limits.Lighting.ClockTime.Max, Default = objL.ClockTime }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ClockTime", Value) end })
+    UIElements.Lighting.GeographicLatitude = Lighting:Slider({ Title = "Geographic Latitude", Step = 1, Value = { Min = LightingModule.Limits.Lighting.GeographicLatitude.Min, Max = LightingModule.Limits.Lighting.GeographicLatitude.Max, Default = objL.GeographicLatitude }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "GeographicLatitude", Value) end })
+    UIElements.Lighting.ExposureCompensation = Lighting:Slider({ Title = "Exposure Compensation", Step = 0.1, Value = { Min = LightingModule.Limits.Lighting.ExposureCompensation.Min, Max = LightingModule.Limits.Lighting.ExposureCompensation.Max, Default = objL.ExposureCompensation }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ExposureCompensation", Value) end })
+
+    local objAtm = LightingModule.Objects["Atmosphere"]
+    local Atmosphere = TabLighting:Section({ Title = "Atmosphere", Icon = "lucide:sun-dim", Opened = false, Box = true })
+    UIElements.Atmosphere.Density = Atmosphere:Slider({ Title = "Density", Step = 0.01, Value = { Min = LightingModule.Limits.Atmosphere.Density.Min, Max = LightingModule.Limits.Atmosphere.Density.Max, Default = objAtm.Density }, Callback = function(Value) LightingModule.UpdateValue("Atmosphere", "Density", Value) end })
+    UIElements.Atmosphere.Offset = Atmosphere:Slider({ Title = "Offset", Step = 0.01, Value = { Min = LightingModule.Limits.Atmosphere.Offset.Min, Max = LightingModule.Limits.Atmosphere.Offset.Max, Default = objAtm.Offset }, Callback = function(Value) LightingModule.UpdateValue("Atmosphere", "Offset", Value) end })
+    UIElements.Atmosphere.Color = Atmosphere:Colorpicker({ Title = "Color", Default = objAtm.Color, Callback = function(Value) LightingModule.UpdateValue("Atmosphere", "Color", Value) end })
+    UIElements.Atmosphere.Decay = Atmosphere:Colorpicker({ Title = "Decay Color", Default = objAtm.Decay, Callback = function(Value) LightingModule.UpdateValue("Atmosphere", "Decay", Value) end })
+    UIElements.Atmosphere.Glare = Atmosphere:Slider({ Title = "Glare", Step = 0.1, Value = { Min = LightingModule.Limits.Atmosphere.Glare.Min, Max = LightingModule.Limits.Atmosphere.Glare.Max, Default = objAtm.Glare }, Callback = function(Value) LightingModule.UpdateValue("Atmosphere", "Glare", Value) end })
+    UIElements.Atmosphere.Haze = Atmosphere:Slider({ Title = "Haze", Step = 0.1, Value = { Min = LightingModule.Limits.Atmosphere.Haze.Min, Max = LightingModule.Limits.Atmosphere.Haze.Max, Default = objAtm.Haze }, Callback = function(Value) LightingModule.UpdateValue("Atmosphere", "Haze", Value) end })
+
+    local objBloom = LightingModule.Objects["Bloom"]
+    local Bloom = TabLighting:Section({ Title = "Bloom", Icon = "lucide:target", Opened = false, Box = true })
+    UIElements.Bloom.Enabled = Bloom:Toggle({ Title = "Enabled", Value = objBloom.Enabled, Callback = function(Value) LightingModule.ToggleEffect("Bloom", Value) end })
+    UIElements.Bloom.Intensity = Bloom:Slider({ Title = "Intensity", Step = 0.1, Value = { Min = LightingModule.Limits.Bloom.Intensity.Min, Max = LightingModule.Limits.Bloom.Intensity.Max, Default = objBloom.Intensity }, Callback = function(Value) LightingModule.UpdateValue("Bloom", "Intensity", Value) end })
+    UIElements.Bloom.Size = Bloom:Slider({ Title = "Size", Step = 1, Value = { Min = LightingModule.Limits.Bloom.Size.Min, Max = LightingModule.Limits.Bloom.Size.Max, Default = objBloom.Size }, Callback = function(Value) LightingModule.UpdateValue("Bloom", "Size", Value) end })
+    UIElements.Bloom.Threshold = Bloom:Slider({ Title = "Threshold", Step = 0.1, Value = { Min = LightingModule.Limits.Bloom.Threshold.Min, Max = LightingModule.Limits.Bloom.Threshold.Max, Default = objBloom.Threshold }, Callback = function(Value) LightingModule.UpdateValue("Bloom", "Threshold", Value) end })
+
+    local objBlur = LightingModule.Objects["Blur"]
+    local Blur = TabLighting:Section({ Title = "Blur", Icon = "lucide:droplet", Opened = false, Box = true })
+    UIElements.Blur.Enabled = Blur:Toggle({ Title = "Enabled", Value = objBlur.Enabled, Callback = function(Value) LightingModule.ToggleEffect("Blur", Value) end })
+    UIElements.Blur.Size = Blur:Slider({ Title = "Size", Step = 1, Value = { Min = LightingModule.Limits.Blur.Size.Min, Max = LightingModule.Limits.Blur.Size.Max, Default = objBlur.Size }, Callback = function(Value) LightingModule.UpdateValue("Blur", "Size", Value) end })
+
+    local objCC = LightingModule.Objects["ColorCorrection"]
+    local ColorCorrection = TabLighting:Section({ Title = "Color Correction", Icon = "lucide:palette", Opened = false, Box = true })
+    UIElements.ColorCorrection.Enabled = ColorCorrection:Toggle({ Title = "Enabled", Value = objCC.Enabled, Callback = function(Value) LightingModule.ToggleEffect("ColorCorrection", Value) end })
+    UIElements.ColorCorrection.Brightness = ColorCorrection:Slider({ Title = "Brightness", Step = 0.01, Value = { Min = LightingModule.Limits.ColorCorrection.Brightness.Min, Max = LightingModule.Limits.ColorCorrection.Brightness.Max, Default = objCC.Brightness }, Callback = function(Value) LightingModule.UpdateValue("ColorCorrection", "Brightness", Value) end })
+    UIElements.ColorCorrection.Contrast = ColorCorrection:Slider({ Title = "Contrast", Step = 0.01, Value = { Min = LightingModule.Limits.ColorCorrection.Contrast.Min, Max = LightingModule.Limits.ColorCorrection.Contrast.Max, Default = objCC.Contrast }, Callback = function(Value) LightingModule.UpdateValue("ColorCorrection", "Contrast", Value) end })
+    UIElements.ColorCorrection.Saturation = ColorCorrection:Slider({ Title = "Saturation", Step = 0.01, Value = { Min = LightingModule.Limits.ColorCorrection.Saturation.Min, Max = LightingModule.Limits.ColorCorrection.Saturation.Max, Default = objCC.Saturation }, Callback = function(Value) LightingModule.UpdateValue("ColorCorrection", "Saturation", Value) end })
+    UIElements.ColorCorrection.TintColor = ColorCorrection:Colorpicker({ Title = "Tint", Default = objCC.TintColor, Callback = function(Value) LightingModule.UpdateValue("ColorCorrection", "TintColor", Value) end })
+
+    local objDoF = LightingModule.Objects["DepthOfField"]
+    local DepthOfField = TabLighting:Section({ Title = "Depth Of Field", Icon = "lucide:focus", Opened = false, Box = true })
+    UIElements.DepthOfField.Enabled = DepthOfField:Toggle({ Title = "Enabled", Value = objDoF.Enabled, Callback = function(Value) LightingModule.ToggleEffect("DepthOfField", Value) end })
+    UIElements.DepthOfField.FarIntensity = DepthOfField:Slider({ Title = "Far Intensity", Step = 0.01, Value = { Min = LightingModule.Limits.DepthOfField.FarIntensity.Min, Max = LightingModule.Limits.DepthOfField.FarIntensity.Max, Default = objDoF.FarIntensity }, Callback = function(Value) LightingModule.UpdateValue("DepthOfField", "FarIntensity", Value) end })
+    UIElements.DepthOfField.FocusDistance = DepthOfField:Slider({ Title = "Focus Distance", Step = 1, Value = { Min = LightingModule.Limits.DepthOfField.FocusDistance.Min, Max = LightingModule.Limits.DepthOfField.FocusDistance.Max, Default = objDoF.FocusDistance }, Callback = function(Value) LightingModule.UpdateValue("DepthOfField", "FocusDistance", Value) end })
+    UIElements.DepthOfField.InFocusRadius = DepthOfField:Slider({ Title = "In Focus Radius", Step = 1, Value = { Min = LightingModule.Limits.DepthOfField.InFocusRadius.Min, Max = LightingModule.Limits.DepthOfField.InFocusRadius.Max, Default = objDoF.InFocusRadius }, Callback = function(Value) LightingModule.UpdateValue("DepthOfField", "InFocusRadius", Value) end })
+    UIElements.DepthOfField.NearIntensity = DepthOfField:Slider({ Title = "Near Intensity", Step = 0.01, Value = { Min = LightingModule.Limits.DepthOfField.NearIntensity.Min, Max = LightingModule.Limits.DepthOfField.NearIntensity.Max, Default = objDoF.NearIntensity }, Callback = function(Value) LightingModule.UpdateValue("DepthOfField", "NearIntensity", Value) end })
+
+    local objSun = LightingModule.Objects["SunRays"]
+    local SunRays = TabLighting:Section({ Title = "Sun Rays", Icon = "lucide:sun", Opened = false, Box = true })
+    UIElements.SunRays.Enabled = SunRays:Toggle({ Title = "Enabled", Value = objSun.Enabled, Callback = function(Value) LightingModule.ToggleEffect("SunRays", Value) end })
+    UIElements.SunRays.Intensity = SunRays:Slider({ Title = "Intensity", Step = 0.01, Value = { Min = LightingModule.Limits.SunRays.Intensity.Min, Max = LightingModule.Limits.SunRays.Intensity.Max, Default = objSun.Intensity }, Callback = function(Value) LightingModule.UpdateValue("SunRays", "Intensity", Value) end })
+    UIElements.SunRays.Spread = SunRays:Slider({ Title = "Spread", Step = 0.01, Value = { Min = LightingModule.Limits.SunRays.Spread.Min, Max = LightingModule.Limits.SunRays.Spread.Max, Default = objSun.Spread }, Callback = function(Value) LightingModule.UpdateValue("SunRays", "Spread", Value) end })
 
 end
