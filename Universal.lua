@@ -19,6 +19,5 @@ return function(Window, isPremiumUser, WindUI)
     -- local loadCamera = loadstring(game:HttpGet("URL_GITHUBLU_TABS_CAMERATAB.LUA"))
     -- if loadCamera then loadCamera()(Window, isPremiumUser, WindUI) end
     
-    -- Aktifkan Tab Home saat pertama kali dieksekusi
-    -- (WindUI biasanya otomatis select tab pertama, tapi buat jaga-jaga)
+    pcall(function() Window:SelectTab(2) end)
 end
