@@ -457,4 +457,3 @@ RunService.RenderStepped:Connect(function(deltaTime)
 end)
 
 return LightingModule
-return LightingModule
