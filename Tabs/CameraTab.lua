@@ -1,8 +1,7 @@
 -- ==========================================
 -- CAMERA MANAGER LOADER
 -- ==========================================
--- PENTING: Ganti URL ini pake raw link file CameraManager.lua dari GitHub lu!
-local CameraModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/CameraManager.lua"))()
+local CameraModule = loadstring(game:HttpGet("URL_GITHUBLU_MANAGERS_CAMERAMANAGER.LUA"))()
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -15,7 +14,7 @@ return function(Window, isPremiumUser, WindUI)
     
     PremiumSection:Toggle({
         Title = "Enable Free Camera",
-        Desc = "Detach and control the camera freely using WASD, Q/E, and Arrow Keys.",
+        Desc = "Detach camera. Move with WASD/QE. Rotate by holding Right-Click or using Arrow Keys.",
         Locked = not isPremiumUser,
         Callback = function(Value)
             CameraModule.ToggleFreecam(Value)
@@ -44,11 +43,7 @@ return function(Window, isPremiumUser, WindUI)
         Values = CameraModule.GetPlayerList(),
         Callback = function(Value)
             local success, msg = CameraModule.SetSpectate(Value)
-            if success then
-                WindUI:Notify({ Title = "Observation Active", Content = msg, Duration = 3 })
-            else
-                WindUI:Notify({ Title = "Observation Failed", Content = msg, Duration = 3 })
-            end
+            WindUI:Notify({ Title = success and "Observation Active" or "Observation Failed", Content = msg, Duration = 3 })
         end
     })
 
@@ -81,22 +76,45 @@ return function(Window, isPremiumUser, WindUI)
     -- ==========================================
     local FovSection = TabCamera:Section({ Title = "Field of View Configuration", Icon = "lucide:eye", Opened = true, Box = true })
 
-    FovSection:Toggle({
+    local ToggleFOV
+    ToggleFOV = FovSection:Toggle({
         Title = "Force Lock FOV",
-        Desc = "Prevent the game from dynamically altering your field of view (e.g., during sprinting or taking damage).",
+        Desc = "Prevent the game from dynamically altering your field of view.",
         Callback = function(Value)
             CameraModule.FOVLocked = Value
+            if not Value then
+                -- Saat dimatikan, kembalikan kamera ke FOV asli gamenya saat itu juga
+                workspace.CurrentCamera.FieldOfView = CameraModule.GameIntendedFOV
+            end
         end
     })
 
-    FovSection:Slider({
+    local SliderFOV
+    SliderFOV = FovSection:Slider({
         Title = "Adjust FOV",
-        Desc = "Set your preferred field of view.",
+        Desc = "Set your preferred field of view. Syncs automatically if game alters it.",
         Step = 1,
-        Value = { Min = 20, Max = 120, Default = 70 },
+        Value = { Min = 20, Max = 120, Default = workspace.CurrentCamera.FieldOfView },
         Callback = function(Value)
             CameraModule.FOVValue = Value
+            if not CameraModule.FOVLocked then
+                -- Kalau Force mati, slider berfungsi merubah FOV secara kasual
+                CameraModule.GameIntendedFOV = Value
+                workspace.CurrentCamera.FieldOfView = Value
+            end
         end
     })
+
+    -- ==========================================
+    -- 3. UI SYNC ENGINE (OBSERVER)
+    -- ==========================================
+    CameraModule.OnFOVChanged = function(newValue)
+        if SliderFOV then
+            pcall(function() 
+                if SliderFOV.SetValue then SliderFOV:SetValue(newValue)
+                elseif SliderFOV.Set then SliderFOV:Set(newValue) end 
+            end)
+        end
+    end
 
 end
