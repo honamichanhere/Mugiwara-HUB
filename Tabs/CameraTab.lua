@@ -71,6 +71,30 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
+    PremiumSection:Divider({ Title = "Global Stabilizer Engine" })
+
+    PremiumSection:Slider({
+        Title = "Position Stabilizer",
+        Desc = "Smooths out camera tracking. 0 = Instant (Off), 1 = Max Smoothness.",
+        Locked = not isPremiumUser,
+        Step = 0.01,
+        Value = { Min = 0, Max = 1, Default = 0 },
+        Callback = function(Value)
+            CameraModule.PositionStabilizer = Value
+        end
+    })
+
+    PremiumSection:Slider({
+        Title = "Rotation Stabilizer",
+        Desc = "Smooths out camera aiming. Cinematic feel. 0 = Instant (Off), 1 = Max Smoothness.",
+        Locked = not isPremiumUser,
+        Step = 0.01,
+        Value = { Min = 0, Max = 1, Default = 0 },
+        Callback = function(Value)
+            CameraModule.RotationStabilizer = Value
+        end
+    })
+
     -- ==========================================
     -- 2. FIELD OF VIEW CONTROLS (FREE)
     -- ==========================================
@@ -83,7 +107,6 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function(Value)
             CameraModule.FOVLocked = Value
             if not Value then
-                -- Panggil fungsi aman dari Manager buat Restore FOV
                 CameraModule.RestoreFOV()
             end
         end
@@ -96,7 +119,6 @@ return function(Window, isPremiumUser, WindUI)
         Step = 1,
         Value = { Min = 20, Max = 120, Default = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70 },
         Callback = function(Value)
-            -- Direct Push instan ke kamera (anti-delay)
             CameraModule.SetFOV(Value)
         end
     })
