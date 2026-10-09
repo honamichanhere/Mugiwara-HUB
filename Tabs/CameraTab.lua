@@ -1,7 +1,7 @@
 -- ==========================================
 -- CAMERA MANAGER LOADER
 -- ==========================================
-local CameraModule = loadstring(game:HttpGet("URL_GITHUBLU_MANAGERS_CAMERAMANAGER.LUA"))()
+local CameraModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/CameraManager.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
