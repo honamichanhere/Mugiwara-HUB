@@ -6,21 +6,28 @@ local CameraModule = {}
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local Camera = Workspace.CurrentCamera
 
 -- Variables State
 CameraModule.FreecamEnabled = false
 CameraModule.FreecamSpeed = 16
 CameraModule.FOVLocked = false
-CameraModule.FOVValue = Camera.FieldOfView
-CameraModule.GameIntendedFOV = Camera.FieldOfView
+CameraModule.FOVValue = Camera and Camera.FieldOfView or 70
+CameraModule.GameIntendedFOV = Camera and Camera.FieldOfView or 70
 CameraModule.SpectateTarget = nil
 
+-- Connections
+local fovConnection
+local subjectConnection
+local cameraChangeConnection
+
 -- Memori untuk balik ke awal
-local originalCameraType = Camera.CameraType
-local originalCameraSubject = Camera.CameraSubject
-local freecamCFrame = Camera.CFrame
+local originalCameraType = Camera and Camera.CameraType or Enum.CameraType.Custom
+local originalCameraSubject = Camera and Camera.CameraSubject
+local freecamCFrame = Camera and Camera.CFrame or CFrame.new()
 local rotationX = 0
 local rotationY = 0
 
@@ -38,7 +45,79 @@ local function UpdateCharacterAnchor()
 end
 
 -- ==========================================
--- 1. FREECAM ENGINE
+-- 1. REACTIONARY LOCK SYSTEM (FOV & SPECTATE)
+-- ==========================================
+local function LockFOV()
+    if not Camera then return end
+    
+    local currentCamFOV = Camera.FieldOfView
+    
+    if CameraModule.FOVLocked then
+        -- Jika game merubah FOV pas lagi di-lock, kita rekam nilai aslinya
+        if currentCamFOV ~= CameraModule.FOVValue then
+            CameraModule.GameIntendedFOV = currentCamFOV
+            -- Langsung timpa paksa balik ke nilai force
+            Camera.FieldOfView = CameraModule.FOVValue
+        end
+    else
+        -- Mode Observer (Mirroring ke UI)
+        if currentCamFOV ~= CameraModule.FOVValue then
+            CameraModule.FOVValue = currentCamFOV
+            CameraModule.GameIntendedFOV = currentCamFOV
+            -- Kirim sinyal ke UI buat geser slider otomatis
+            if CameraModule.OnFOVChanged then
+                CameraModule.OnFOVChanged(currentCamFOV)
+            end
+        end
+    end
+end
+
+local function LockSubject()
+    if not Camera then return end
+    
+    if CameraModule.SpectateTarget and not CameraModule.FreecamEnabled then
+        local targetChar = CameraModule.SpectateTarget.Character
+        if targetChar and targetChar:FindFirstChild("Humanoid") then
+            -- Kalau game mindahin Subject, paksa balik ke target Spectate
+            if Camera.CameraSubject ~= targetChar.Humanoid then
+                Camera.CameraType = Enum.CameraType.Custom
+                Camera.CameraSubject = targetChar.Humanoid
+                LocalPlayer.CameraMinZoomDistance = 0
+                LocalPlayer.CameraMaxZoomDistance = 30
+            end
+        else
+            -- Target mati atau hilang, otomatis lepas spectate
+            CameraModule.SetSpectate(nil)
+        end
+    end
+end
+
+local function ConnectCameraEvents()
+    if fovConnection then fovConnection:Disconnect() end
+    if subjectConnection then subjectConnection:Disconnect() end
+    
+    if Camera then
+        -- Pasang event listener ala brute-force
+        fovConnection = Camera:GetPropertyChangedSignal("FieldOfView"):Connect(LockFOV)
+        subjectConnection = Camera:GetPropertyChangedSignal("CameraSubject"):Connect(LockSubject)
+        
+        -- Eksekusi sekali buat mastiin kondisi awal aman
+        LockFOV()
+        LockSubject()
+    end
+end
+
+-- Pantau kalau game bikin kamera baru (Misal pas respawn)
+cameraChangeConnection = Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    Camera = Workspace.CurrentCamera
+    ConnectCameraEvents()
+end)
+
+-- Inisialisasi koneksi pertama kali
+ConnectCameraEvents()
+
+-- ==========================================
+-- 2. FREECAM ENGINE
 -- ==========================================
 function CameraModule.ToggleFreecam(state)
     CameraModule.FreecamEnabled = state
@@ -61,14 +140,14 @@ function CameraModule.ToggleFreecam(state)
 end
 
 -- ==========================================
--- 2. SPECTATE ENGINE
+-- 3. SPECTATE ENGINE
 -- ==========================================
 function CameraModule.SetSpectate(playerName)
     if not playerName or playerName == "" or playerName == LocalPlayer.Name then
         CameraModule.SpectateTarget = nil
         UpdateCharacterAnchor()
 
-        if not CameraModule.FreecamEnabled then
+        if not CameraModule.FreecamEnabled and Camera then
             Camera.CameraType = Enum.CameraType.Custom
             Camera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
             LocalPlayer.CameraMinZoomDistance = 0.5
@@ -81,6 +160,9 @@ function CameraModule.SetSpectate(playerName)
     if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
         CameraModule.SpectateTarget = targetPlayer
         UpdateCharacterAnchor()
+        
+        -- Panggil LockSubject untuk langsung mengeksekusi perpindahan kamera
+        LockSubject()
         return true, "Now spectating: " .. playerName
     else
         CameraModule.SpectateTarget = nil
@@ -100,36 +182,11 @@ function CameraModule.GetPlayerList()
 end
 
 -- ==========================================
--- 3. THE MASTER LOOP (BIND TO RENDER STEP - HIGHEST PRIORITY)
+-- 4. FREECAM MOVEMENT LOOP
 -- ==========================================
--- Kita pake priority 2001 (Last + 1) buat ngalahin script bawaan game kayak Evade
-RunService:BindToRenderStep("MugiwaraCameraOverride", Enum.RenderPriority.Last.Value + 1, function(deltaTime)
-    Camera = workspace.CurrentCamera
+RunService.RenderStepped:Connect(function(deltaTime)
+    if not Camera then return end
 
-    -- A. FOV OBSERVER & FORCE ENGINE
-    local currentCamFOV = Camera.FieldOfView
-    
-    if CameraModule.FOVLocked then
-        -- Jika game berusaha ngubah FOV saat di-lock, kita rekam niat gamenya
-        if currentCamFOV ~= CameraModule.FOVValue then
-            CameraModule.GameIntendedFOV = currentCamFOV
-        end
-        -- Maksa timpa balik FOV-nya
-        Camera.FieldOfView = CameraModule.FOVValue
-    else
-        -- Jika tidak di-lock, dan FOV kamera saat ini beda sama value di Slider UI
-        -- (Berarti gamenya yang ngerubah FOV, misal pas lari)
-        if currentCamFOV ~= CameraModule.FOVValue then
-            CameraModule.FOVValue = currentCamFOV
-            CameraModule.GameIntendedFOV = currentCamFOV
-            -- Kirim sinyal ke UI buat sinkronisasi otomatis
-            if CameraModule.OnFOVChanged then
-                CameraModule.OnFOVChanged(currentCamFOV)
-            end
-        end
-    end
-
-    -- B. FREECAM MOVEMENT & ROTATION (FORCE)
     if CameraModule.FreecamEnabled then
         Camera.CameraType = Enum.CameraType.Scriptable
         
@@ -167,18 +224,6 @@ RunService:BindToRenderStep("MugiwaraCameraOverride", Enum.RenderPriority.Last.V
         end
 
         Camera.CFrame = CFrame.new(freecamCFrame.Position) * camRotation
-    
-    -- C. SPECTATE (FORCE) & FAIL-SAFE
-    elseif CameraModule.SpectateTarget then
-        if not CameraModule.SpectateTarget.Parent or not CameraModule.SpectateTarget.Character or not CameraModule.SpectateTarget.Character:FindFirstChild("Humanoid") then
-            CameraModule.SetSpectate(nil)
-        else
-            -- Maksa nahan Subject ke target biar ga dikalahin script game
-            Camera.CameraType = Enum.CameraType.Custom
-            Camera.CameraSubject = CameraModule.SpectateTarget.Character.Humanoid
-            LocalPlayer.CameraMinZoomDistance = 0
-            LocalPlayer.CameraMaxZoomDistance = 30
-        end
     end
 end)
 
