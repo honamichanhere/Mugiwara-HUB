@@ -75,7 +75,7 @@ return function(Window, isPremiumUser, WindUI)
 
     PremiumSection:Slider({
         Title = "Position Stabilizer",
-        Desc = "Smooths out camera tracking. 0 = Instant (Off), 1 = Max Smoothness.",
+        Desc = "Adds spring-like lag to character tracking. 0 = Instant, 1 = Max Smoothness.",
         Locked = not isPremiumUser,
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
@@ -86,7 +86,7 @@ return function(Window, isPremiumUser, WindUI)
 
     PremiumSection:Slider({
         Title = "Rotation Stabilizer",
-        Desc = "Smooths out camera aiming. Cinematic feel. 0 = Instant (Off), 1 = Max Smoothness.",
+        Desc = "Smooths out camera aiming for a cinematic feel. 0 = Instant, 1 = Max Smoothness.",
         Locked = not isPremiumUser,
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
@@ -96,9 +96,9 @@ return function(Window, isPremiumUser, WindUI)
     })
 
     -- ==========================================
-    -- 2. FIELD OF VIEW CONTROLS (FREE)
+    -- 2. FIELD OF VIEW & ZOOM CONTROLS (FREE)
     -- ==========================================
-    local FovSection = TabCamera:Section({ Title = "Field of View Configuration", Icon = "lucide:eye", Opened = true, Box = true })
+    local FovSection = TabCamera:Section({ Title = "Field of View & Zoom Configuration", Icon = "lucide:eye", Opened = true, Box = true })
 
     local ToggleFOV
     ToggleFOV = FovSection:Toggle({
@@ -106,9 +106,7 @@ return function(Window, isPremiumUser, WindUI)
         Desc = "Prevent the game from dynamically altering your field of view.",
         Callback = function(Value)
             CameraModule.FOVLocked = Value
-            if not Value then
-                CameraModule.RestoreFOV()
-            end
+            if not Value then CameraModule.RestoreFOV() end
         end
     })
 
@@ -120,6 +118,34 @@ return function(Window, isPremiumUser, WindUI)
         Value = { Min = 20, Max = 120, Default = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70 },
         Callback = function(Value)
             CameraModule.SetFOV(Value)
+        end
+    })
+    
+    FovSection:Divider({ Title = "Zoom Controls" })
+
+    FovSection:Toggle({
+        Title = "Force Lock Zoom",
+        Desc = "Lock camera distance. Prevents game or scrolling from altering zoom.",
+        Callback = function(Value)
+            CameraModule.ZoomLocked = Value
+            -- Saat dimatikan, buka kembali batas scroll normal
+            if not Value and not CameraModule.FreecamEnabled then
+                game:GetService("Players").LocalPlayer.CameraMinZoomDistance = 0.5
+                game:GetService("Players").LocalPlayer.CameraMaxZoomDistance = 400
+            end
+        end
+    })
+
+    local initialZoom = workspace.CurrentCamera and (workspace.CurrentCamera.CFrame.Position - workspace.CurrentCamera.Focus.Position).Magnitude or 12.5
+
+    local SliderZoom
+    SliderZoom = FovSection:Slider({
+        Title = "Adjust Zoom Distance",
+        Desc = "Set distance. Auto-syncs when you scroll your mouse wheel.",
+        Step = 0.1,
+        Value = { Min = 0, Max = 200, Default = initialZoom },
+        Callback = function(Value)
+            CameraModule.SetZoom(Value)
         end
     })
 
@@ -134,5 +160,18 @@ return function(Window, isPremiumUser, WindUI)
             end)
         end
     end
+
+    CameraModule.OnZoomChanged = function(newValue)
+        if SliderZoom then
+            pcall(function() 
+                -- Pembulatan 1 angka di belakang koma biar slider tidak getar
+                local roundedValue = math.floor(newValue * 10) / 10
+                if SliderZoom.SetValue then SliderZoom:SetValue(roundedValue)
+                elseif SliderZoom.Set then SliderZoom:Set(roundedValue) end 
+            end)
+        end
+    end
+
+end
 
 end
