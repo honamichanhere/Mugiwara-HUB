@@ -19,9 +19,14 @@ CameraModule.FOVValue = Camera and Camera.FieldOfView or 70
 CameraModule.GameIntendedFOV = Camera and Camera.FieldOfView or 70
 CameraModule.SpectateTarget = nil
 
--- Variables Stabilizer
+-- Variables Stabilizer (Orbit Engine)
 CameraModule.PositionStabilizer = 0
 CameraModule.RotationStabilizer = 0
+
+-- Variables Zoom
+CameraModule.ZoomLocked = false
+CameraModule.ZoomValue = Camera and (Camera.CFrame.Position - Camera.Focus.Position).Magnitude or 12.5
+CameraModule.CurrentZoom = CameraModule.ZoomValue
 
 -- Anti-Loop Debounce
 local isModifyingFOV = false
@@ -32,7 +37,7 @@ local subjectConnection
 local cameraChangeConnection
 local streamingTask = nil
 
--- Memori untuk balik ke awal
+-- Memori State Awal
 local originalCameraType = Camera and Camera.CameraType or Enum.CameraType.Custom
 local originalCameraSubject = Camera and Camera.CameraSubject
 local originalMouseBehavior = Enum.MouseBehavior.Default
@@ -40,11 +45,14 @@ local freecamCFrame = Camera and Camera.CFrame or CFrame.new()
 local rotationX = 0
 local rotationY = 0
 
--- Memori Stabilizer
-local currentSmoothedCFrame = nil
+-- Memori Orbit Stabilizer
+local smoothFocus = nil
+local smoothRot = nil
+local smoothDist = 0
 
--- Callback untuk UI Sinkronisasi
+-- Callbacks untuk UI Sinkronisasi
 CameraModule.OnFOVChanged = nil
+CameraModule.OnZoomChanged = nil
 
 -- ==========================================
 -- FUNGSI PEMBANTU (ANCHOR CHARACTER)
@@ -61,13 +69,11 @@ end
 -- ==========================================
 local function LockFOV()
     if not Camera or isModifyingFOV then return end
-    
     local currentCamFOV = Camera.FieldOfView
     
     if CameraModule.FOVLocked then
         if currentCamFOV ~= CameraModule.FOVValue then
             CameraModule.GameIntendedFOV = currentCamFOV
-            
             isModifyingFOV = true
             Camera.FieldOfView = CameraModule.FOVValue
             isModifyingFOV = false
@@ -76,7 +82,6 @@ local function LockFOV()
         if currentCamFOV ~= CameraModule.FOVValue then
             CameraModule.FOVValue = currentCamFOV
             CameraModule.GameIntendedFOV = currentCamFOV
-            
             if CameraModule.OnFOVChanged then
                 CameraModule.OnFOVChanged(currentCamFOV)
             end
@@ -87,9 +92,7 @@ end
 function CameraModule.SetFOV(value)
     CameraModule.FOVValue = value
     if Camera then
-        if not CameraModule.FOVLocked then
-            CameraModule.GameIntendedFOV = value
-        end
+        if not CameraModule.FOVLocked then CameraModule.GameIntendedFOV = value end
         isModifyingFOV = true
         Camera.FieldOfView = value
         isModifyingFOV = false
@@ -106,15 +109,12 @@ end
 
 local function LockSubject()
     if not Camera then return end
-    
     if CameraModule.SpectateTarget and not CameraModule.FreecamEnabled then
         local targetChar = CameraModule.SpectateTarget.Character
         if targetChar and targetChar:FindFirstChild("Humanoid") then
             if Camera.CameraSubject ~= targetChar.Humanoid then
                 Camera.CameraType = Enum.CameraType.Custom
                 Camera.CameraSubject = targetChar.Humanoid
-                LocalPlayer.CameraMinZoomDistance = 0
-                LocalPlayer.CameraMaxZoomDistance = 30
             end
         else
             CameraModule.SetSpectate(nil)
@@ -125,11 +125,9 @@ end
 local function ConnectCameraEvents()
     if fovConnection then fovConnection:Disconnect() end
     if subjectConnection then subjectConnection:Disconnect() end
-    
     if Camera then
         fovConnection = Camera:GetPropertyChangedSignal("FieldOfView"):Connect(LockFOV)
         subjectConnection = Camera:GetPropertyChangedSignal("CameraSubject"):Connect(LockSubject)
-        
         LockFOV()
         LockSubject()
     end
@@ -143,7 +141,28 @@ end)
 ConnectCameraEvents()
 
 -- ==========================================
--- 2. FREECAM ENGINE (WITH STREAMING SYNC)
+-- 2. ZOOM CONTROLLER
+-- ==========================================
+function CameraModule.SetZoom(value)
+    CameraModule.ZoomValue = value
+    if not CameraModule.FreecamEnabled then
+        LocalPlayer.CameraMinZoomDistance = value
+        LocalPlayer.CameraMaxZoomDistance = value
+        
+        -- Restore scroll ability if not locked
+        if not CameraModule.ZoomLocked then
+            task.delay(0.1, function()
+                if not CameraModule.ZoomLocked then
+                    LocalPlayer.CameraMinZoomDistance = 0.5
+                    LocalPlayer.CameraMaxZoomDistance = 400
+                end
+            end)
+        end
+    end
+end
+
+-- ==========================================
+-- 3. FREECAM ENGINE (WITH STREAMING SYNC)
 -- ==========================================
 function CameraModule.ToggleFreecam(state)
     CameraModule.FreecamEnabled = state
@@ -156,7 +175,6 @@ function CameraModule.ToggleFreecam(state)
         
         Camera.CameraType = Enum.CameraType.Scriptable
         freecamCFrame = Camera.CFrame
-        
         local rx, ry, rz = freecamCFrame:ToOrientation()
         rotationX = math.deg(rx)
         rotationY = math.deg(ry)
@@ -164,9 +182,7 @@ function CameraModule.ToggleFreecam(state)
         if Workspace.StreamingEnabled then
             streamingTask = task.spawn(function()
                 while CameraModule.FreecamEnabled do
-                    pcall(function()
-                        LocalPlayer:RequestStreamAroundAsync(freecamCFrame.Position)
-                    end)
+                    pcall(function() LocalPlayer:RequestStreamAroundAsync(freecamCFrame.Position) end)
                     task.wait(0.5)
                 end
             end)
@@ -175,7 +191,6 @@ function CameraModule.ToggleFreecam(state)
         Camera.CameraType = originalCameraType or Enum.CameraType.Custom
         Camera.CameraSubject = originalCameraSubject or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"))
         UserInputService.MouseBehavior = originalMouseBehavior
-        
         if streamingTask then
             task.cancel(streamingTask)
             streamingTask = nil
@@ -184,18 +199,15 @@ function CameraModule.ToggleFreecam(state)
 end
 
 -- ==========================================
--- 3. SPECTATE ENGINE
+-- 4. SPECTATE ENGINE
 -- ==========================================
 function CameraModule.SetSpectate(playerName)
     if not playerName or playerName == "" or playerName == LocalPlayer.Name then
         CameraModule.SpectateTarget = nil
         UpdateCharacterAnchor()
-
         if not CameraModule.FreecamEnabled and Camera then
             Camera.CameraType = Enum.CameraType.Custom
             Camera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-            LocalPlayer.CameraMinZoomDistance = 0.5
-            LocalPlayer.CameraMaxZoomDistance = 400
         end
         return true, "Stopped spectating. Returned to local character."
     end
@@ -216,19 +228,19 @@ end
 function CameraModule.GetPlayerList()
     local list = {}
     for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name ~= LocalPlayer.Name then
-            table.insert(list, player.Name)
-        end
+        if player.Name ~= LocalPlayer.Name then table.insert(list, player.Name) end
     end
     return list
 end
 
 -- ==========================================
--- 4. FREECAM MOVEMENT LOOP
+-- 5. THE MASTER LOOP (FREECAM, ZOOM OBSERVER & STABILIZER)
 -- ==========================================
-RunService.RenderStepped:Connect(function(deltaTime)
+-- Prioritas paling akhir (2002) untuk menumbangkan script Evade sepenuhnya
+RunService:BindToRenderStep("MugiwaraCameraMaster", Enum.RenderPriority.Last.Value + 2, function(deltaTime)
     if not Camera then return end
 
+    -- A. FREECAM MOVEMENT
     if CameraModule.FreecamEnabled then
         Camera.CameraType = Enum.CameraType.Scriptable
         
@@ -247,7 +259,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
             rotationY = rotationY - (mouseDelta.X * 0.5)
         else
             UserInputService.MouseBehavior = originalMouseBehavior
-            
             local rotSpeed = 120 * deltaTime 
             if UserInputService:IsKeyDown(Enum.KeyCode.Up) then rotationX = rotationX + rotSpeed end
             if UserInputService:IsKeyDown(Enum.KeyCode.Down) then rotationX = rotationX - rotSpeed end
@@ -265,54 +276,59 @@ RunService.RenderStepped:Connect(function(deltaTime)
         end
 
         Camera.CFrame = CFrame.new(freecamCFrame.Position) * camRotation
+        -- Manipulasi Focus bayangan agar Stabilizer tetap bekerja mulus di Freecam
+        Camera.Focus = CFrame.new(freecamCFrame.Position + (camRotation.LookVector * 10))
     end
-end)
 
--- ==========================================
--- 5. PHANTOM CAMERA STABILIZER (GLOBAL OVERRIDE)
--- ==========================================
--- Berjalan di prioritas tertinggi (Last + 2) buat numpuk semua kamera game/Freecam
-RunService:BindToRenderStep("MugiwaraCameraStabilizer", Enum.RenderPriority.Last.Value + 2, function(deltaTime)
-    if not Camera then return end
-    
-    -- Kalau dua-duanya nol, biarkan kamera asli jalan tanpa delay
+    -- B. ZOOM OBSERVER & FORCE ENGINE
+    if not CameraModule.FreecamEnabled then
+        if CameraModule.ZoomLocked then
+            LocalPlayer.CameraMinZoomDistance = CameraModule.ZoomValue
+            LocalPlayer.CameraMaxZoomDistance = CameraModule.ZoomValue
+        else
+            local currentDist = (Camera.CFrame.Position - Camera.Focus.Position).Magnitude
+            if CameraModule.OnZoomChanged and math.abs(CameraModule.CurrentZoom - currentDist) > 0.5 then
+                CameraModule.CurrentZoom = currentDist
+                CameraModule.OnZoomChanged(currentDist)
+            end
+        end
+    end
+
+    -- C. ORBIT STABILIZER ENGINE
     if CameraModule.PositionStabilizer == 0 and CameraModule.RotationStabilizer == 0 then
-        currentSmoothedCFrame = nil
+        smoothFocus = nil
         return
     end
-    
-    -- Ambil niat asli game (Phantom Target)
-    local targetCFrame = Camera.CFrame
-    
-    -- Inisialisasi awal saat baru dihidupkan biar ga lompat
-    if not currentSmoothedCFrame then
-        currentSmoothedCFrame = targetCFrame
+
+    local targetCF = Camera.CFrame
+    local targetFocus = Camera.Focus.Position
+
+    if not smoothFocus or (smoothFocus - targetFocus).Magnitude > 100 then
+        smoothFocus = targetFocus
+        smoothRot = targetCF.Rotation
+        smoothDist = (targetCF.Position - targetFocus).Magnitude
     end
+
+    local targetDist = (targetCF.Position - targetFocus).Magnitude
+    local targetRot = targetCF.Rotation
     
-    local targetPos = targetCFrame.Position
-    local targetRot = targetCFrame.Rotation
+    local blendSpeed = 60
+    local baseAlpha = 1 - math.exp(-blendSpeed * deltaTime)
     
-    local currentPos = currentSmoothedCFrame.Position
-    local currentRot = currentSmoothedCFrame.Rotation
+    -- Konversi slider UI (0-1) menjadi faktor pengali kecepatan
+    local posSpeedFactor = 1 - (CameraModule.PositionStabilizer * 0.9)
+    local rotSpeedFactor = 1 - (CameraModule.RotationStabilizer * 0.9)
     
-    -- Kalkulasi Delay Frame-Rate Independent (Biar adil di semua PC)
-    local fpsAdjust = deltaTime * 60
-    
-    -- Pemetaan nilai UI (0-1) ke batas maksimal 0.9 (90% Delay)
-    local posDelay = CameraModule.PositionStabilizer * 0.9
-    local rotDelay = CameraModule.RotationStabilizer * 0.9
-    
-    -- Rumus Lerp (1 = instant, 0.1 = pelan)
-    local posLerp = 1 - math.pow(posDelay, fpsAdjust)
-    local rotLerp = 1 - math.pow(rotDelay, fpsAdjust)
-    
-    -- Eksekusi pergerakan bayangan secara terpisah
-    local newPos = currentPos:Lerp(targetPos, posLerp)
-    local newRot = currentRot:Lerp(targetRot, rotLerp) -- Anti mantul (Spherical Interpolation)
-    
-    -- Rakit ulang CFrame dan tempel ke kamera
-    currentSmoothedCFrame = CFrame.new(newPos) * newRot
-    Camera.CFrame = currentSmoothedCFrame
+    local posAlpha = math.clamp(baseAlpha * posSpeedFactor, 0, 1)
+    local rotAlpha = math.clamp(baseAlpha * rotSpeedFactor, 0, 1)
+
+    smoothFocus = smoothFocus:Lerp(targetFocus, posAlpha)
+    smoothRot = smoothRot:Lerp(targetRot, rotAlpha)
+    smoothDist = smoothDist + (targetDist - smoothDist) * rotAlpha
+
+    local newPos = smoothFocus + (smoothRot.LookVector * -smoothDist)
+    Camera.CFrame = CFrame.new(newPos) * smoothRot
+
 end)
 
 return CameraModule
