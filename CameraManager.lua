@@ -19,6 +19,9 @@ CameraModule.FOVValue = Camera and Camera.FieldOfView or 70
 CameraModule.GameIntendedFOV = Camera and Camera.FieldOfView or 70
 CameraModule.SpectateTarget = nil
 
+-- Anti-Loop Debounce (PELINDUNG KABEL BIAR GAK PUTUS)
+local isModifyingFOV = false
+
 -- Connections
 local fovConnection
 local subjectConnection
@@ -48,27 +51,51 @@ end
 -- 1. REACTIONARY LOCK SYSTEM (FOV & SPECTATE)
 -- ==========================================
 local function LockFOV()
-    if not Camera then return end
+    -- Kalau script kita yang lagi ngubah FOV, abaikan deteksi biar gak Loop!
+    if not Camera or isModifyingFOV then return end
     
     local currentCamFOV = Camera.FieldOfView
     
     if CameraModule.FOVLocked then
-        -- Jika game merubah FOV pas lagi di-lock, kita rekam nilai aslinya
         if currentCamFOV ~= CameraModule.FOVValue then
             CameraModule.GameIntendedFOV = currentCamFOV
-            -- Langsung timpa paksa balik ke nilai force
+            
+            -- Eksekusi Paksa (Dengan pelindung Debounce)
+            isModifyingFOV = true
             Camera.FieldOfView = CameraModule.FOVValue
+            isModifyingFOV = false
         end
     else
-        -- Mode Observer (Mirroring ke UI)
         if currentCamFOV ~= CameraModule.FOVValue then
             CameraModule.FOVValue = currentCamFOV
             CameraModule.GameIntendedFOV = currentCamFOV
-            -- Kirim sinyal ke UI buat geser slider otomatis
+            
             if CameraModule.OnFOVChanged then
                 CameraModule.OnFOVChanged(currentCamFOV)
             end
         end
+    end
+end
+
+-- FUNGSI DIRECT PUSH (Biar slider instan bereaksi)
+function CameraModule.SetFOV(value)
+    CameraModule.FOVValue = value
+    if Camera then
+        if not CameraModule.FOVLocked then
+            CameraModule.GameIntendedFOV = value
+        end
+        isModifyingFOV = true
+        Camera.FieldOfView = value
+        isModifyingFOV = false
+    end
+end
+
+-- FUNGSI RESTORE FOV (Pas Force dimatiin)
+function CameraModule.RestoreFOV()
+    if Camera then
+        isModifyingFOV = true
+        Camera.FieldOfView = CameraModule.GameIntendedFOV
+        isModifyingFOV = false
     end
 end
 
@@ -78,7 +105,6 @@ local function LockSubject()
     if CameraModule.SpectateTarget and not CameraModule.FreecamEnabled then
         local targetChar = CameraModule.SpectateTarget.Character
         if targetChar and targetChar:FindFirstChild("Humanoid") then
-            -- Kalau game mindahin Subject, paksa balik ke target Spectate
             if Camera.CameraSubject ~= targetChar.Humanoid then
                 Camera.CameraType = Enum.CameraType.Custom
                 Camera.CameraSubject = targetChar.Humanoid
@@ -86,7 +112,6 @@ local function LockSubject()
                 LocalPlayer.CameraMaxZoomDistance = 30
             end
         else
-            -- Target mati atau hilang, otomatis lepas spectate
             CameraModule.SetSpectate(nil)
         end
     end
@@ -97,23 +122,19 @@ local function ConnectCameraEvents()
     if subjectConnection then subjectConnection:Disconnect() end
     
     if Camera then
-        -- Pasang event listener ala brute-force
         fovConnection = Camera:GetPropertyChangedSignal("FieldOfView"):Connect(LockFOV)
         subjectConnection = Camera:GetPropertyChangedSignal("CameraSubject"):Connect(LockSubject)
         
-        -- Eksekusi sekali buat mastiin kondisi awal aman
         LockFOV()
         LockSubject()
     end
 end
 
--- Pantau kalau game bikin kamera baru (Misal pas respawn)
 cameraChangeConnection = Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
     Camera = Workspace.CurrentCamera
     ConnectCameraEvents()
 end)
 
--- Inisialisasi koneksi pertama kali
 ConnectCameraEvents()
 
 -- ==========================================
@@ -160,8 +181,6 @@ function CameraModule.SetSpectate(playerName)
     if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
         CameraModule.SpectateTarget = targetPlayer
         UpdateCharacterAnchor()
-        
-        -- Panggil LockSubject untuk langsung mengeksekusi perpindahan kamera
         LockSubject()
         return true, "Now spectating: " .. playerName
     else
@@ -198,7 +217,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
         if UserInputService:IsKeyDown(Enum.KeyCode.E) then moveVector = moveVector + Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveVector = moveVector + Vector3.new(0, -1, 0) end
 
-        -- Mouse Rotation Logic (Hold Right Click)
+        -- Mouse Rotation Logic
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
             local mouseDelta = UserInputService:GetMouseDelta()
