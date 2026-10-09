@@ -14,7 +14,7 @@ CameraModule.FreecamEnabled = false
 CameraModule.FreecamSpeed = 16
 CameraModule.FOVLocked = false
 CameraModule.FOVValue = Camera.FieldOfView
-CameraModule.OriginalFOV = Camera.FieldOfView
+CameraModule.GameIntendedFOV = Camera.FieldOfView
 CameraModule.SpectateTarget = nil
 
 -- Memori untuk balik ke awal
@@ -38,21 +38,7 @@ local function UpdateCharacterAnchor()
 end
 
 -- ==========================================
--- 1. FOV OBSERVER ENGINE
--- ==========================================
-Camera:GetPropertyChangedSignal("FieldOfView"):Connect(function()
-    if not CameraModule.FOVLocked then
-        -- Jika tidak di-lock, ikuti FOV game dan update UI
-        CameraModule.FOVValue = Camera.FieldOfView
-        CameraModule.OriginalFOV = Camera.FieldOfView
-        if CameraModule.OnFOVChanged then
-            CameraModule.OnFOVChanged(CameraModule.FOVValue)
-        end
-    end
-end)
-
--- ==========================================
--- 2. FREECAM ENGINE
+-- 1. FREECAM ENGINE
 -- ==========================================
 function CameraModule.ToggleFreecam(state)
     CameraModule.FreecamEnabled = state
@@ -75,7 +61,7 @@ function CameraModule.ToggleFreecam(state)
 end
 
 -- ==========================================
--- 3. SPECTATE ENGINE
+-- 2. SPECTATE ENGINE
 -- ==========================================
 function CameraModule.SetSpectate(playerName)
     if not playerName or playerName == "" or playerName == LocalPlayer.Name then
@@ -83,6 +69,7 @@ function CameraModule.SetSpectate(playerName)
         UpdateCharacterAnchor()
 
         if not CameraModule.FreecamEnabled then
+            Camera.CameraType = Enum.CameraType.Custom
             Camera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
             LocalPlayer.CameraMinZoomDistance = 0.5
             LocalPlayer.CameraMaxZoomDistance = 400
@@ -94,12 +81,6 @@ function CameraModule.SetSpectate(playerName)
     if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
         CameraModule.SpectateTarget = targetPlayer
         UpdateCharacterAnchor()
-
-        if not CameraModule.FreecamEnabled then
-            Camera.CameraSubject = targetPlayer.Character.Humanoid
-            LocalPlayer.CameraMinZoomDistance = 0
-            LocalPlayer.CameraMaxZoomDistance = 30
-        end
         return true, "Now spectating: " .. playerName
     else
         CameraModule.SpectateTarget = nil
@@ -119,17 +100,36 @@ function CameraModule.GetPlayerList()
 end
 
 -- ==========================================
--- 4. THE MASTER LOOP (RENDER STEPPED)
+-- 3. THE MASTER LOOP (BIND TO RENDER STEP - HIGHEST PRIORITY)
 -- ==========================================
-RunService.RenderStepped:Connect(function(deltaTime)
+-- Kita pake priority 2001 (Last + 1) buat ngalahin script bawaan game kayak Evade
+RunService:BindToRenderStep("MugiwaraCameraOverride", Enum.RenderPriority.Last.Value + 1, function(deltaTime)
     Camera = workspace.CurrentCamera
 
-    -- A. FORCE FOV LOCK
+    -- A. FOV OBSERVER & FORCE ENGINE
+    local currentCamFOV = Camera.FieldOfView
+    
     if CameraModule.FOVLocked then
+        -- Jika game berusaha ngubah FOV saat di-lock, kita rekam niat gamenya
+        if currentCamFOV ~= CameraModule.FOVValue then
+            CameraModule.GameIntendedFOV = currentCamFOV
+        end
+        -- Maksa timpa balik FOV-nya
         Camera.FieldOfView = CameraModule.FOVValue
+    else
+        -- Jika tidak di-lock, dan FOV kamera saat ini beda sama value di Slider UI
+        -- (Berarti gamenya yang ngerubah FOV, misal pas lari)
+        if currentCamFOV ~= CameraModule.FOVValue then
+            CameraModule.FOVValue = currentCamFOV
+            CameraModule.GameIntendedFOV = currentCamFOV
+            -- Kirim sinyal ke UI buat sinkronisasi otomatis
+            if CameraModule.OnFOVChanged then
+                CameraModule.OnFOVChanged(currentCamFOV)
+            end
+        end
     end
 
-    -- B. FREECAM MOVEMENT & ROTATION
+    -- B. FREECAM MOVEMENT & ROTATION (FORCE)
     if CameraModule.FreecamEnabled then
         Camera.CameraType = Enum.CameraType.Scriptable
         
@@ -145,12 +145,11 @@ RunService.RenderStepped:Connect(function(deltaTime)
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
             local mouseDelta = UserInputService:GetMouseDelta()
-            rotationX = rotationX - (mouseDelta.Y * 0.5) -- Sensitivitas vertikal
-            rotationY = rotationY - (mouseDelta.X * 0.5) -- Sensitivitas horizontal
+            rotationX = rotationX - (mouseDelta.Y * 0.5)
+            rotationY = rotationY - (mouseDelta.X * 0.5)
         else
             UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            
-            -- Arrow Keys Rotation (Sebagai alternatif mouse)
+            -- Arrow Keys Rotation
             local rotSpeed = 120 * deltaTime 
             if UserInputService:IsKeyDown(Enum.KeyCode.Up) then rotationX = rotationX + rotSpeed end
             if UserInputService:IsKeyDown(Enum.KeyCode.Down) then rotationX = rotationX - rotSpeed end
@@ -159,7 +158,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
         end
 
         rotationX = math.clamp(rotationX, -89, 89)
-
         local camRotation = CFrame.Angles(0, math.rad(rotationY), 0) * CFrame.Angles(math.rad(rotationX), 0, 0)
         
         if moveVector.Magnitude > 0 then
@@ -169,12 +167,17 @@ RunService.RenderStepped:Connect(function(deltaTime)
         end
 
         Camera.CFrame = CFrame.new(freecamCFrame.Position) * camRotation
-    else
-        -- C. SPECTATE FAIL-SAFE
-        if CameraModule.SpectateTarget then
-            if not CameraModule.SpectateTarget.Parent or not CameraModule.SpectateTarget.Character or not CameraModule.SpectateTarget.Character:FindFirstChild("Humanoid") then
-                CameraModule.SetSpectate(nil)
-            end
+    
+    -- C. SPECTATE (FORCE) & FAIL-SAFE
+    elseif CameraModule.SpectateTarget then
+        if not CameraModule.SpectateTarget.Parent or not CameraModule.SpectateTarget.Character or not CameraModule.SpectateTarget.Character:FindFirstChild("Humanoid") then
+            CameraModule.SetSpectate(nil)
+        else
+            -- Maksa nahan Subject ke target biar ga dikalahin script game
+            Camera.CameraType = Enum.CameraType.Custom
+            Camera.CameraSubject = CameraModule.SpectateTarget.Character.Humanoid
+            LocalPlayer.CameraMinZoomDistance = 0
+            LocalPlayer.CameraMaxZoomDistance = 30
         end
     end
 end)
