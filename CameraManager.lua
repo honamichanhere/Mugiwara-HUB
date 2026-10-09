@@ -19,6 +19,10 @@ CameraModule.FOVValue = Camera and Camera.FieldOfView or 70
 CameraModule.GameIntendedFOV = Camera and Camera.FieldOfView or 70
 CameraModule.SpectateTarget = nil
 
+-- Variables Stabilizer
+CameraModule.PositionStabilizer = 0
+CameraModule.RotationStabilizer = 0
+
 -- Anti-Loop Debounce
 local isModifyingFOV = false
 
@@ -35,6 +39,9 @@ local originalMouseBehavior = Enum.MouseBehavior.Default
 local freecamCFrame = Camera and Camera.CFrame or CFrame.new()
 local rotationX = 0
 local rotationY = 0
+
+-- Memori Stabilizer
+local currentSmoothedCFrame = nil
 
 -- Callback untuk UI Sinkronisasi
 CameraModule.OnFOVChanged = nil
@@ -143,7 +150,6 @@ function CameraModule.ToggleFreecam(state)
     UpdateCharacterAnchor()
 
     if state then
-        -- Simpan semua state original termasuk settingan Mouse
         originalCameraType = Camera.CameraType
         originalCameraSubject = Camera.CameraSubject
         originalMouseBehavior = UserInputService.MouseBehavior
@@ -155,19 +161,17 @@ function CameraModule.ToggleFreecam(state)
         rotationX = math.deg(rx)
         rotationY = math.deg(ry)
 
-        -- Aktifkan sistem pemaksa loading map (Opsi A: Request Stream)
         if Workspace.StreamingEnabled then
             streamingTask = task.spawn(function()
                 while CameraModule.FreecamEnabled do
                     pcall(function()
                         LocalPlayer:RequestStreamAroundAsync(freecamCFrame.Position)
                     end)
-                    task.wait(0.5) -- Request ke server tiap setengah detik
+                    task.wait(0.5)
                 end
             end)
         end
     else
-        -- Kembalikan semua secara bersih
         Camera.CameraType = originalCameraType or Enum.CameraType.Custom
         Camera.CameraSubject = originalCameraSubject or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"))
         UserInputService.MouseBehavior = originalMouseBehavior
@@ -236,17 +240,14 @@ RunService.RenderStepped:Connect(function(deltaTime)
         if UserInputService:IsKeyDown(Enum.KeyCode.E) then moveVector = moveVector + Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveVector = moveVector + Vector3.new(0, -1, 0) end
 
-        -- Mouse Rotation Logic yang menghargai Shift Lock
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
             local mouseDelta = UserInputService:GetMouseDelta()
             rotationX = rotationX - (mouseDelta.Y * 0.5)
             rotationY = rotationY - (mouseDelta.X * 0.5)
         else
-            -- Balikin ke mode mouse bawaan game (misal Shift Lock) saat klik dilepas
             UserInputService.MouseBehavior = originalMouseBehavior
             
-            -- Arrow Keys Rotation
             local rotSpeed = 120 * deltaTime 
             if UserInputService:IsKeyDown(Enum.KeyCode.Up) then rotationX = rotationX + rotSpeed end
             if UserInputService:IsKeyDown(Enum.KeyCode.Down) then rotationX = rotationX - rotSpeed end
@@ -265,6 +266,53 @@ RunService.RenderStepped:Connect(function(deltaTime)
 
         Camera.CFrame = CFrame.new(freecamCFrame.Position) * camRotation
     end
+end)
+
+-- ==========================================
+-- 5. PHANTOM CAMERA STABILIZER (GLOBAL OVERRIDE)
+-- ==========================================
+-- Berjalan di prioritas tertinggi (Last + 2) buat numpuk semua kamera game/Freecam
+RunService:BindToRenderStep("MugiwaraCameraStabilizer", Enum.RenderPriority.Last.Value + 2, function(deltaTime)
+    if not Camera then return end
+    
+    -- Kalau dua-duanya nol, biarkan kamera asli jalan tanpa delay
+    if CameraModule.PositionStabilizer == 0 and CameraModule.RotationStabilizer == 0 then
+        currentSmoothedCFrame = nil
+        return
+    end
+    
+    -- Ambil niat asli game (Phantom Target)
+    local targetCFrame = Camera.CFrame
+    
+    -- Inisialisasi awal saat baru dihidupkan biar ga lompat
+    if not currentSmoothedCFrame then
+        currentSmoothedCFrame = targetCFrame
+    end
+    
+    local targetPos = targetCFrame.Position
+    local targetRot = targetCFrame.Rotation
+    
+    local currentPos = currentSmoothedCFrame.Position
+    local currentRot = currentSmoothedCFrame.Rotation
+    
+    -- Kalkulasi Delay Frame-Rate Independent (Biar adil di semua PC)
+    local fpsAdjust = deltaTime * 60
+    
+    -- Pemetaan nilai UI (0-1) ke batas maksimal 0.9 (90% Delay)
+    local posDelay = CameraModule.PositionStabilizer * 0.9
+    local rotDelay = CameraModule.RotationStabilizer * 0.9
+    
+    -- Rumus Lerp (1 = instant, 0.1 = pelan)
+    local posLerp = 1 - math.pow(posDelay, fpsAdjust)
+    local rotLerp = 1 - math.pow(rotDelay, fpsAdjust)
+    
+    -- Eksekusi pergerakan bayangan secara terpisah
+    local newPos = currentPos:Lerp(targetPos, posLerp)
+    local newRot = currentRot:Lerp(targetRot, rotLerp) -- Anti mantul (Spherical Interpolation)
+    
+    -- Rakit ulang CFrame dan tempel ke kamera
+    currentSmoothedCFrame = CFrame.new(newPos) * newRot
+    Camera.CFrame = currentSmoothedCFrame
 end)
 
 return CameraModule
