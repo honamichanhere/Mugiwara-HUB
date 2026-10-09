@@ -83,8 +83,8 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function(Value)
             CameraModule.FOVLocked = Value
             if not Value then
-                -- Saat dimatikan, kembalikan kamera ke FOV asli gamenya saat itu juga
-                workspace.CurrentCamera.FieldOfView = CameraModule.GameIntendedFOV
+                -- Panggil fungsi aman dari Manager buat Restore FOV
+                CameraModule.RestoreFOV()
             end
         end
     })
@@ -94,14 +94,10 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Adjust FOV",
         Desc = "Set your preferred field of view. Syncs automatically if game alters it.",
         Step = 1,
-        Value = { Min = 20, Max = 120, Default = workspace.CurrentCamera.FieldOfView },
+        Value = { Min = 20, Max = 120, Default = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70 },
         Callback = function(Value)
-            CameraModule.FOVValue = Value
-            if not CameraModule.FOVLocked then
-                -- Kalau Force mati, slider berfungsi merubah FOV secara kasual
-                CameraModule.GameIntendedFOV = Value
-                workspace.CurrentCamera.FieldOfView = Value
-            end
+            -- Direct Push instan ke kamera (anti-delay)
+            CameraModule.SetFOV(Value)
         end
     })
 
