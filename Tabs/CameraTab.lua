@@ -110,12 +110,16 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
+    -- Pengaman Anti-Crash (Clamp FOV)
+    local rawFov = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70
+    local safeFov = math.clamp(rawFov, 20, 120)
+
     local SliderFOV
     SliderFOV = FovSection:Slider({
         Title = "Adjust FOV",
         Desc = "Set your preferred field of view. Syncs automatically if game alters it.",
         Step = 1,
-        Value = { Min = 20, Max = 120, Default = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70 },
+        Value = { Min = 20, Max = 120, Default = safeFov },
         Callback = function(Value)
             CameraModule.SetFOV(Value)
         end
@@ -128,7 +132,7 @@ return function(Window, isPremiumUser, WindUI)
         Desc = "Lock camera distance. Prevents game or scrolling from altering zoom.",
         Callback = function(Value)
             CameraModule.ZoomLocked = Value
-            -- Saat dimatikan, buka kembali batas scroll normal
+            -- Saat dimatikan, buka kembali batas scroll normal ke bawaan game
             if not Value and not CameraModule.FreecamEnabled then
                 game:GetService("Players").LocalPlayer.CameraMinZoomDistance = 0.5
                 game:GetService("Players").LocalPlayer.CameraMaxZoomDistance = 400
@@ -136,14 +140,16 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    local initialZoom = workspace.CurrentCamera and (workspace.CurrentCamera.CFrame.Position - workspace.CurrentCamera.Focus.Position).Magnitude or 12.5
+    -- Pengaman Anti-Crash (Clamp Zoom)
+    local rawZoom = workspace.CurrentCamera and (workspace.CurrentCamera.CFrame.Position - workspace.CurrentCamera.Focus.Position).Magnitude or 12.5
+    local safeZoom = math.clamp(rawZoom, 0, 200)
 
     local SliderZoom
     SliderZoom = FovSection:Slider({
         Title = "Adjust Zoom Distance",
         Desc = "Set distance. Auto-syncs when you scroll your mouse wheel.",
         Step = 0.1,
-        Value = { Min = 0, Max = 200, Default = initialZoom },
+        Value = { Min = 0, Max = 200, Default = safeZoom },
         Callback = function(Value)
             CameraModule.SetZoom(Value)
         end
@@ -173,5 +179,4 @@ return function(Window, isPremiumUser, WindUI)
     end
 
 end
-
 end
