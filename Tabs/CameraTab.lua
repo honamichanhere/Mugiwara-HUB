@@ -140,16 +140,14 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    -- Pengaman Anti-Crash (Clamp Zoom)
-    local rawZoom = workspace.CurrentCamera and (workspace.CurrentCamera.CFrame.Position - workspace.CurrentCamera.Focus.Position).Magnitude or 12.5
-    local safeZoom = math.clamp(rawZoom, 0, 200)
+    local initialZoom = workspace.CurrentCamera and (workspace.CurrentCamera.CFrame.Position - workspace.CurrentCamera.Focus.Position).Magnitude or 12.5
 
     local SliderZoom
     SliderZoom = FovSection:Slider({
         Title = "Adjust Zoom Distance",
         Desc = "Set distance. Auto-syncs when you scroll your mouse wheel.",
         Step = 0.1,
-        Value = { Min = 0, Max = 200, Default = safeZoom },
+        Value = { Min = 0, Max = 400, Default = initialZoom },
         Callback = function(Value)
             CameraModule.SetZoom(Value)
         end
