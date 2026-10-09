@@ -19,17 +19,19 @@ CameraModule.FOVValue = Camera and Camera.FieldOfView or 70
 CameraModule.GameIntendedFOV = Camera and Camera.FieldOfView or 70
 CameraModule.SpectateTarget = nil
 
--- Anti-Loop Debounce (PELINDUNG KABEL BIAR GAK PUTUS)
+-- Anti-Loop Debounce
 local isModifyingFOV = false
 
--- Connections
+-- Connections & Tasks
 local fovConnection
 local subjectConnection
 local cameraChangeConnection
+local streamingTask = nil
 
 -- Memori untuk balik ke awal
 local originalCameraType = Camera and Camera.CameraType or Enum.CameraType.Custom
 local originalCameraSubject = Camera and Camera.CameraSubject
+local originalMouseBehavior = Enum.MouseBehavior.Default
 local freecamCFrame = Camera and Camera.CFrame or CFrame.new()
 local rotationX = 0
 local rotationY = 0
@@ -51,7 +53,6 @@ end
 -- 1. REACTIONARY LOCK SYSTEM (FOV & SPECTATE)
 -- ==========================================
 local function LockFOV()
-    -- Kalau script kita yang lagi ngubah FOV, abaikan deteksi biar gak Loop!
     if not Camera or isModifyingFOV then return end
     
     local currentCamFOV = Camera.FieldOfView
@@ -60,7 +61,6 @@ local function LockFOV()
         if currentCamFOV ~= CameraModule.FOVValue then
             CameraModule.GameIntendedFOV = currentCamFOV
             
-            -- Eksekusi Paksa (Dengan pelindung Debounce)
             isModifyingFOV = true
             Camera.FieldOfView = CameraModule.FOVValue
             isModifyingFOV = false
@@ -77,7 +77,6 @@ local function LockFOV()
     end
 end
 
--- FUNGSI DIRECT PUSH (Biar slider instan bereaksi)
 function CameraModule.SetFOV(value)
     CameraModule.FOVValue = value
     if Camera then
@@ -90,7 +89,6 @@ function CameraModule.SetFOV(value)
     end
 end
 
--- FUNGSI RESTORE FOV (Pas Force dimatiin)
 function CameraModule.RestoreFOV()
     if Camera then
         isModifyingFOV = true
@@ -138,25 +136,46 @@ end)
 ConnectCameraEvents()
 
 -- ==========================================
--- 2. FREECAM ENGINE
+-- 2. FREECAM ENGINE (WITH STREAMING SYNC)
 -- ==========================================
 function CameraModule.ToggleFreecam(state)
     CameraModule.FreecamEnabled = state
     UpdateCharacterAnchor()
 
     if state then
+        -- Simpan semua state original termasuk settingan Mouse
         originalCameraType = Camera.CameraType
         originalCameraSubject = Camera.CameraSubject
+        originalMouseBehavior = UserInputService.MouseBehavior
+        
         Camera.CameraType = Enum.CameraType.Scriptable
         freecamCFrame = Camera.CFrame
         
         local rx, ry, rz = freecamCFrame:ToOrientation()
         rotationX = math.deg(rx)
         rotationY = math.deg(ry)
+
+        -- Aktifkan sistem pemaksa loading map (Opsi A: Request Stream)
+        if Workspace.StreamingEnabled then
+            streamingTask = task.spawn(function()
+                while CameraModule.FreecamEnabled do
+                    pcall(function()
+                        LocalPlayer:RequestStreamAroundAsync(freecamCFrame.Position)
+                    end)
+                    task.wait(0.5) -- Request ke server tiap setengah detik
+                end
+            end)
+        end
     else
+        -- Kembalikan semua secara bersih
         Camera.CameraType = originalCameraType or Enum.CameraType.Custom
         Camera.CameraSubject = originalCameraSubject or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"))
-        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        UserInputService.MouseBehavior = originalMouseBehavior
+        
+        if streamingTask then
+            task.cancel(streamingTask)
+            streamingTask = nil
+        end
     end
 end
 
@@ -217,14 +236,16 @@ RunService.RenderStepped:Connect(function(deltaTime)
         if UserInputService:IsKeyDown(Enum.KeyCode.E) then moveVector = moveVector + Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveVector = moveVector + Vector3.new(0, -1, 0) end
 
-        -- Mouse Rotation Logic
+        -- Mouse Rotation Logic yang menghargai Shift Lock
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
             local mouseDelta = UserInputService:GetMouseDelta()
             rotationX = rotationX - (mouseDelta.Y * 0.5)
             rotationY = rotationY - (mouseDelta.X * 0.5)
         else
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            -- Balikin ke mode mouse bawaan game (misal Shift Lock) saat klik dilepas
+            UserInputService.MouseBehavior = originalMouseBehavior
+            
             -- Arrow Keys Rotation
             local rotSpeed = 120 * deltaTime 
             if UserInputService:IsKeyDown(Enum.KeyCode.Up) then rotationX = rotationX + rotSpeed end
