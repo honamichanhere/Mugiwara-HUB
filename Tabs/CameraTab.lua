@@ -1,7 +1,7 @@
 -- ==========================================
 -- CAMERA MANAGER LOADER
 -- ==========================================
-local CameraModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/CameraManager.lua"))()
+local CameraModule = loadstring(game:HttpGet("URL_GITHUBLU_MANAGERS_CAMERAMANAGER.LUA"))()
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -137,25 +137,18 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    local initialZoom = workspace.CurrentCamera and (workspace.CurrentCamera.CFrame.Position - workspace.CurrentCamera.Focus.Position).Magnitude or 12.5
-
-    -- Menggunakan Input sebagai pengganti Slider untuk tes stabilitas UI
-    local InputZoom
-    InputZoom = FovSection:Input({
+    FovSection:Slider({
         Title = "Adjust Zoom Distance",
-        Desc = "Enter distance (0 - 200). Auto-syncs when you scroll.",
-        PlaceholderText = tostring(math.floor(initialZoom)),
-        ClearTextOnFocus = false,
-        Callback = function(Text)
-            local num = tonumber(Text)
-            if num then
-                CameraModule.SetZoom(math.clamp(num, 0, 200))
-            end
+        Desc = "Set manual distance (Fire and Forget). Max 200.",
+        Step = 0.5,
+        Value = { Min = 0, Max = 200, Default = 12.5 },
+        Callback = function(Value)
+            CameraModule.SetZoom(Value)
         end
     })
 
     -- ==========================================
-    -- 3. UI SYNC ENGINE (OBSERVER)
+    -- 3. UI SYNC ENGINE (OBSERVER HANYA FOV)
     -- ==========================================
     CameraModule.OnFOVChanged = function(newValue)
         if SliderFOV then
@@ -166,15 +159,4 @@ return function(Window, isPremiumUser, WindUI)
         end
     end
 
-    CameraModule.OnZoomChanged = function(newValue)
-        if InputZoom then
-            pcall(function() 
-                local textValue = tostring(math.floor(newValue * 10) / 10)
-                if InputZoom.SetValue then InputZoom:SetValue(textValue)
-                elseif InputZoom.Set then InputZoom:Set(textValue) end 
-            end)
-        end
-    end
-
-end
 end
