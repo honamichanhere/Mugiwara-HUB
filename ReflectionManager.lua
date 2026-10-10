@@ -42,7 +42,7 @@ function ReflectionManager.Toggle(state)
         print("[Mugiwara HUB] Initiating reflection layer generation. This process may take a moment to prevent performance drops.")
         local count = 0
         for _, v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("BasePart") and v.Anchored and v.Transparency < 1 then
+            if v:IsA("BasePart") and not v:IsA("Terrain") and v.Anchored and v.Transparency < 1 then
                 if not v:GetAttribute("IsReflectionLayer") then
                     ReflectionManager.ApplyReflection(v)
                     count = count + 1
