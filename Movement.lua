@@ -168,8 +168,14 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
+-- ==========================================
+-- ANIMATION SPEED CONTROLLER (SAFE MODE)
+-- ==========================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
 local trackData = {}
-setmetatable(trackData, {__mode = "k"})
+setmetatable(trackData, {__mode = "k"}) 
 local isModifyingAnim = false
 
 local function HookTrack(track)
@@ -183,7 +189,7 @@ local function HookTrack(track)
                 if track.Speed ~= MovementModule.AnimSpeedValue then
                     trackData[track].originalSpeed = track.Speed 
                     isModifyingAnim = true
-                    track:AdjustSpeed(MovementModule.AnimSpeedValue)
+                    pcall(function() track:AdjustSpeed(MovementModule.AnimSpeedValue) end)
                     isModifyingAnim = false
                 end
             else
@@ -194,56 +200,64 @@ local function HookTrack(track)
     
     if MovementModule.AnimSpeedLocked then
         isModifyingAnim = true
-        track:AdjustSpeed(MovementModule.AnimSpeedValue)
+        pcall(function() track:AdjustSpeed(MovementModule.AnimSpeedValue) end)
         isModifyingAnim = false
     end
 end
 
 local function SetupAnimator(character)
-    if not character then return end
-    local humanoid = character:WaitForChild("Humanoid", 5)
-    if not humanoid then return end
-    local animator = humanoid:WaitForChild("Animator", 5)
-    if not animator then return end
+    pcall(function()
+        if not character then return end
+        local humanoid = character:WaitForChild("Humanoid", 3)
+        if not humanoid then return end
+        local animator = humanoid:WaitForChild("Animator", 3)
+        if not animator then return end
 
-    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-        HookTrack(track)
-    end
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            HookTrack(track)
+        end
 
-    animator.AnimationPlayed:Connect(function(track)
-        HookTrack(track)
+        animator.AnimationPlayed:Connect(function(track)
+            HookTrack(track)
+        end)
     end)
 end
 
-LocalPlayer.CharacterAdded:Connect(SetupAnimator)
-if LocalPlayer.Character then
-    task.spawn(SetupAnimator, LocalPlayer.Character)
+if LocalPlayer then
+    LocalPlayer.CharacterAdded:Connect(SetupAnimator)
+    if LocalPlayer.Character then
+        task.spawn(SetupAnimator, LocalPlayer.Character)
+    end
 end
 
 function MovementModule.SetAnimSpeed(value)
     MovementModule.AnimSpeedValue = value
     if MovementModule.AnimSpeedLocked then
         isModifyingAnim = true
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
-            for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
-                track:AdjustSpeed(value)
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
+                for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
+                    track:AdjustSpeed(value)
+                end
             end
-        end
+        end)
         isModifyingAnim = false
     end
 end
 
 function MovementModule.RestoreAnimSpeed()
     isModifyingAnim = true
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
-        for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
-            if trackData[track] and trackData[track].originalSpeed then
-                track:AdjustSpeed(trackData[track].originalSpeed)
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
+            for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
+                if trackData[track] and trackData[track].originalSpeed then
+                    track:AdjustSpeed(trackData[track].originalSpeed)
+                end
             end
         end
-    end
+    end)
     isModifyingAnim = false
 end
 
