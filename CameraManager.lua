@@ -25,8 +25,7 @@ CameraModule.RotationStabilizer = 0
 
 -- Variables Zoom
 CameraModule.ZoomLocked = false
-CameraModule.ZoomValue = Camera and (Camera.CFrame.Position - Camera.Focus.Position).Magnitude or 12.5
-CameraModule.CurrentZoom = CameraModule.ZoomValue
+CameraModule.ZoomValue = 12.5
 
 -- Anti-Loop Debounce
 local isModifyingFOV = false
@@ -50,9 +49,8 @@ local smoothFocus = nil
 local smoothRot = nil
 local smoothDist = 0
 
--- Callbacks untuk UI Sinkronisasi
+-- Callbacks untuk UI Sinkronisasi (Hanya FOV)
 CameraModule.OnFOVChanged = nil
-CameraModule.OnZoomChanged = nil
 
 -- ==========================================
 -- FUNGSI PEMBANTU (ANCHOR CHARACTER)
@@ -141,7 +139,7 @@ end)
 ConnectCameraEvents()
 
 -- ==========================================
--- 2. ZOOM CONTROLLER
+-- 2. ZOOM CONTROLLER (FIRE AND FORGET)
 -- ==========================================
 function CameraModule.SetZoom(value)
     CameraModule.ZoomValue = value
@@ -149,7 +147,7 @@ function CameraModule.SetZoom(value)
         LocalPlayer.CameraMinZoomDistance = value
         LocalPlayer.CameraMaxZoomDistance = value
         
-        -- Restore scroll ability if not locked
+        -- Restore scroll ability if force is OFF
         if not CameraModule.ZoomLocked then
             task.delay(0.1, function()
                 if not CameraModule.ZoomLocked then
@@ -162,7 +160,7 @@ function CameraModule.SetZoom(value)
 end
 
 -- ==========================================
--- 3. FREECAM ENGINE (WITH STREAMING SYNC)
+-- 3. FREECAM ENGINE
 -- ==========================================
 function CameraModule.ToggleFreecam(state)
     CameraModule.FreecamEnabled = state
@@ -234,9 +232,8 @@ function CameraModule.GetPlayerList()
 end
 
 -- ==========================================
--- 5. THE MASTER LOOP (FREECAM, ZOOM OBSERVER & STABILIZER)
+-- 5. THE MASTER LOOP
 -- ==========================================
--- Prioritas paling akhir (2002) untuk menumbangkan script Evade sepenuhnya
 RunService:BindToRenderStep("MugiwaraCameraMaster", Enum.RenderPriority.Last.Value + 2, function(deltaTime)
     if not Camera then return end
 
@@ -276,22 +273,13 @@ RunService:BindToRenderStep("MugiwaraCameraMaster", Enum.RenderPriority.Last.Val
         end
 
         Camera.CFrame = CFrame.new(freecamCFrame.Position) * camRotation
-        -- Manipulasi Focus bayangan agar Stabilizer tetap bekerja mulus di Freecam
         Camera.Focus = CFrame.new(freecamCFrame.Position + (camRotation.LookVector * 10))
     end
 
-    -- B. ZOOM OBSERVER & FORCE ENGINE
-    if not CameraModule.FreecamEnabled then
-        if CameraModule.ZoomLocked then
-            LocalPlayer.CameraMinZoomDistance = CameraModule.ZoomValue
-            LocalPlayer.CameraMaxZoomDistance = CameraModule.ZoomValue
-        else
-            local currentDist = (Camera.CFrame.Position - Camera.Focus.Position).Magnitude
-            if CameraModule.OnZoomChanged and math.abs(CameraModule.CurrentZoom - currentDist) > 0.5 then
-                CameraModule.CurrentZoom = currentDist
-                CameraModule.OnZoomChanged(currentDist)
-            end
-        end
+    -- B. FORCE ZOOM LOCK
+    if not CameraModule.FreecamEnabled and CameraModule.ZoomLocked then
+        LocalPlayer.CameraMinZoomDistance = CameraModule.ZoomValue
+        LocalPlayer.CameraMaxZoomDistance = CameraModule.ZoomValue
     end
 
     -- C. ORBIT STABILIZER ENGINE
@@ -315,7 +303,6 @@ RunService:BindToRenderStep("MugiwaraCameraMaster", Enum.RenderPriority.Last.Val
     local blendSpeed = 60
     local baseAlpha = 1 - math.exp(-blendSpeed * deltaTime)
     
-    -- Konversi slider UI (0-1) menjadi faktor pengali kecepatan
     local posSpeedFactor = 1 - (CameraModule.PositionStabilizer * 0.9)
     local rotSpeedFactor = 1 - (CameraModule.RotationStabilizer * 0.9)
     
