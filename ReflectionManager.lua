@@ -3,9 +3,9 @@
 -- ==========================================
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
-ReflectionManager.Transparency = 1.5
-ReflectionManager.Offset = 0.5
-ReflectionManager.Connection = nil -- Menyimpan event listener
+ReflectionManager.Transparency = 1
+ReflectionManager.Offset = 0
+ReflectionManager.Connection = nil
 
 local function ClearChildren(instance)
     for _, child in ipairs(instance:GetChildren()) do
@@ -14,10 +14,17 @@ local function ClearChildren(instance)
 end
 
 function ReflectionManager.ApplyReflection(part)
-    -- Anti-loop check: Jangan menduplikasi objek yang sudah menjadi reflection layer
     if part:GetAttribute("IsReflectionLayer") then return end
     
+    -- Bypass perlindungan "Archivable" dari developer
+    local originalArchivable = part.Archivable
+    part.Archivable = true
     local clone = part:Clone()
+    part.Archivable = originalArchivable
+    
+    -- Failsafe kalau clone tetap gagal
+    if not clone then return end
+    
     ClearChildren(clone)
     
     clone.Name = part.Name .. "_reflection"
@@ -25,17 +32,14 @@ function ReflectionManager.ApplyReflection(part)
     clone:SetAttribute("OriginalSize", part.Size)
     
     clone.CanCollide = false
-    clone.Massless = true -- Wajib agar tidak merusak physics part unanchored
+    clone.Massless = true
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
     clone.Size = part.Size + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
     clone.CFrame = part.CFrame
     
-    -- Parenting ke dalam objek asli.
-    -- Keuntungan: Jika objek asli dihapus (Destroy), clone ini akan otomatis ikut terhapus.
     clone.Parent = part
     
-    -- Proses Welding jika part tidak di-anchor
     if not part.Anchored then
         clone.Anchored = false
         local weld = Instance.new("WeldConstraint")
@@ -71,15 +75,15 @@ function ReflectionManager.Toggle(state)
             end
         end
         
-        -- Event Listener untuk objek yang baru spawn
         if not ReflectionManager.Connection then
             print("[Mugiwara HUB] Attaching DescendantAdded listener for new objects...")
             ReflectionManager.Connection = workspace.DescendantAdded:Connect(function(descendant)
                 if ReflectionManager.Enabled then
-                    -- task.defer digunakan untuk memastikan semua property part baru sudah termuat
-                    task.defer(function()
-                        if descendant and descendant.Parent and descendant:IsA("BasePart") and not descendant:IsA("Terrain") and descendant.Transparency < 1 then
-                            if not descendant:GetAttribute("IsReflectionLayer") then
+                    -- Gunakan delay untuk menunggu proses replikasi (StreamingEnabled) dari server ke client selesai
+                    task.spawn(function()
+                        task.wait(0.5)
+                        if descendant and descendant.Parent and descendant:IsA("BasePart") and not descendant:IsA("Terrain") then
+                            if descendant.Transparency < 1 and not descendant:GetAttribute("IsReflectionLayer") then
                                 ReflectionManager.ApplyReflection(descendant)
                             end
                         end
@@ -90,7 +94,6 @@ function ReflectionManager.Toggle(state)
         print("[Mugiwara HUB] Reflection layers successfully generated.")
     else
         print("[Mugiwara HUB] Removing existing reflection layers and detaching listener...")
-        -- Matikan listener saat fitur di-off
         if ReflectionManager.Connection then
             ReflectionManager.Connection:Disconnect()
             ReflectionManager.Connection = nil
@@ -102,7 +105,7 @@ function ReflectionManager.Toggle(state)
                 v:Destroy()
                 count = count + 1
                 
-                if count % 200 == 0 then
+                if count % 500 == 0 then
                     task.wait(0.5)
                 end
             end
@@ -128,8 +131,8 @@ function ReflectionManager.UpdateSettings(transparency, offset)
             v.Transparency = ReflectionManager.Transparency
             
             count = count + 1
-            if count % 500 == 0 then
-                task.wait(0.5) -- Update lebih cepat daripada pembuatan
+            if count % 200 == 0 then
+                task.wait(0.5)
             end
         end
     end
