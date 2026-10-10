@@ -3,29 +3,39 @@
 -- ==========================================
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
-ReflectionManager.Transparency = 1
-ReflectionManager.Offset = 0
+ReflectionManager.Transparency = 1.5
+ReflectionManager.Offset = 0.5
 ReflectionManager.Connection = nil
 
-local function ClearChildren(instance)
-    for _, child in ipairs(instance:GetChildren()) do
-        child:Destroy()
+-- Fungsi pembersih agresif
+local function StripVisuals(instance)
+    for _, child in ipairs(instance:GetDescendants()) do
+        -- Hancurkan segala jenis tekstur, decal, atau PBR (SurfaceAppearance)
+        if child:IsA("SurfaceAppearance") or child:IsA("Decal") or child:IsA("Texture") or child:IsA("ParticleEmitter") or child:IsA("Fire") or child:IsA("Smoke") or child:IsA("Sparkles") then
+            child:Destroy()
+        end
     end
 end
 
 function ReflectionManager.ApplyReflection(part)
     if part:GetAttribute("IsReflectionLayer") then return end
     
-    -- Bypass perlindungan "Archivable" dari developer
     local originalArchivable = part.Archivable
     part.Archivable = true
     local clone = part:Clone()
     part.Archivable = originalArchivable
     
-    -- Failsafe kalau clone tetap gagal
     if not clone then return end
     
-    ClearChildren(clone)
+    -- Bersihkan semua embel-embel visual bawaan
+    StripVisuals(clone)
+    
+    -- Hapus script/komponen fungsional lain agar tidak duplicate logic
+    for _, child in ipairs(clone:GetChildren()) do
+        if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ProximityPrompt") or child:IsA("ClickDetector") then
+            child:Destroy()
+        end
+    end
     
     clone.Name = part.Name .. "_reflection"
     clone:SetAttribute("IsReflectionLayer", true)
@@ -35,6 +45,12 @@ function ReflectionManager.ApplyReflection(part)
     clone.Massless = true
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
+    
+    -- KALAU DIA UNION ATAU MESH, KITA PAKSA USEPARTCOLOR TRUE BIAR MATERIAL GLASS NYA MASUK
+    if clone:IsA("UnionOperation") or clone:IsA("MeshPart") then
+        clone.UsePartColor = true
+    end
+    
     clone.Size = part.Size + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
     clone.CFrame = part.CFrame
     
@@ -79,7 +95,6 @@ function ReflectionManager.Toggle(state)
             print("[Mugiwara HUB] Attaching DescendantAdded listener for new objects...")
             ReflectionManager.Connection = workspace.DescendantAdded:Connect(function(descendant)
                 if ReflectionManager.Enabled then
-                    -- Gunakan delay untuk menunggu proses replikasi (StreamingEnabled) dari server ke client selesai
                     task.spawn(function()
                         task.wait(0.5)
                         if descendant and descendant.Parent and descendant:IsA("BasePart") and not descendant:IsA("Terrain") then
