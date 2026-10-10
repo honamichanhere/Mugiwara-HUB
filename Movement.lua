@@ -165,26 +165,20 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- ==========================================
--- ANIMATION SPEED CONTROLLER (FIRE & FORGET)
--- ==========================================
 function MovementModule.SetAnimSpeed(value)
-    pcall(function()
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        if not LocalPlayer then return end
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    if not LocalPlayer then return end
         
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") then
-            local animator = char.Humanoid:FindFirstChild("Animator")
-            if animator then
-                -- Hanya eksekusi sekali ke animasi yang SEDANG jalan saat ini
-                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                    track:AdjustSpeed(value)
-                end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        local animator = char.Humanoid:FindFirstChild("Animator")
+        if animator then
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                track:AdjustSpeed(value)
             end
         end
-    end)
+    end
 end
 
 return Movement
