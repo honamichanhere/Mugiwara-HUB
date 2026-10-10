@@ -24,9 +24,6 @@ Movement.FlySpeed = 16
 
 Movement.NoclipEnabled = false
 
-MovementModule.AnimSpeedLocked = false
-MovementModule.AnimSpeedValue = 1
-
 local currentJumps = 0
 local lastJumpTime = 0
 local flyBodyVelocity = nil
@@ -169,96 +166,25 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 -- ==========================================
--- ANIMATION SPEED CONTROLLER (SAFE MODE)
+-- ANIMATION SPEED CONTROLLER (FIRE & FORGET)
 -- ==========================================
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local trackData = {}
-setmetatable(trackData, {__mode = "k"}) 
-local isModifyingAnim = false
-
-local function HookTrack(track)
-    if not trackData[track] then
-        trackData[track] = { originalSpeed = track.Speed }
-        
-        track:GetPropertyChangedSignal("Speed"):Connect(function()
-            if isModifyingAnim then return end
-            
-            if MovementModule.AnimSpeedLocked then
-                if track.Speed ~= MovementModule.AnimSpeedValue then
-                    trackData[track].originalSpeed = track.Speed 
-                    isModifyingAnim = true
-                    pcall(function() track:AdjustSpeed(MovementModule.AnimSpeedValue) end)
-                    isModifyingAnim = false
-                end
-            else
-                trackData[track].originalSpeed = track.Speed
-            end
-        end)
-    end
-    
-    if MovementModule.AnimSpeedLocked then
-        isModifyingAnim = true
-        pcall(function() track:AdjustSpeed(MovementModule.AnimSpeedValue) end)
-        isModifyingAnim = false
-    end
-end
-
-local function SetupAnimator(character)
-    pcall(function()
-        if not character then return end
-        local humanoid = character:WaitForChild("Humanoid", 3)
-        if not humanoid then return end
-        local animator = humanoid:WaitForChild("Animator", 3)
-        if not animator then return end
-
-        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-            HookTrack(track)
-        end
-
-        animator.AnimationPlayed:Connect(function(track)
-            HookTrack(track)
-        end)
-    end)
-end
-
-if LocalPlayer then
-    LocalPlayer.CharacterAdded:Connect(SetupAnimator)
-    if LocalPlayer.Character then
-        task.spawn(SetupAnimator, LocalPlayer.Character)
-    end
-end
-
 function MovementModule.SetAnimSpeed(value)
-    MovementModule.AnimSpeedValue = value
-    if MovementModule.AnimSpeedLocked then
-        isModifyingAnim = true
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
-                for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
+    pcall(function()
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        if not LocalPlayer then return end
+        
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            local animator = char.Humanoid:FindFirstChild("Animator")
+            if animator then
+                -- Hanya eksekusi sekali ke animasi yang SEDANG jalan saat ini
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
                     track:AdjustSpeed(value)
                 end
             end
-        end)
-        isModifyingAnim = false
-    end
-end
-
-function MovementModule.RestoreAnimSpeed()
-    isModifyingAnim = true
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
-            for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
-                if trackData[track] and trackData[track].originalSpeed then
-                    track:AdjustSpeed(trackData[track].originalSpeed)
-                end
-            end
         end
     end)
-    isModifyingAnim = false
 end
 
 return Movement
