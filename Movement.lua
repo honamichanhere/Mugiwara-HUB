@@ -165,4 +165,21 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
+-- ==========================================
+-- ANIMATION SPEED CONTROLLER (FIRE & FORGET)
+-- ==========================================
+function Movement.SetAnimSpeed(value)
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            local animator = char.Humanoid:FindFirstChild("Animator")
+            if animator then
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                    track:AdjustSpeed(value)
+                end
+            end
+        end
+    end)
+end
+
 return Movement
