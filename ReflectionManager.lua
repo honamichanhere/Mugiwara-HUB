@@ -46,9 +46,11 @@ function ReflectionManager.ApplyReflection(part)
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
     
-    -- KALAU DIA UNION ATAU MESH, KITA PAKSA USEPARTCOLOR TRUE BIAR MATERIAL GLASS NYA MASUK
-    if clone:IsA("UnionOperation") or clone:IsA("MeshPart") then
-        clone.UsePartColor = true
+    -- Pisahkan logic Union dan MeshPart, ditambah pcall biar anti-crash kalau property di-lock game
+    if clone:IsA("UnionOperation") then
+        pcall(function() clone.UsePartColor = true end)
+    elseif clone:IsA("MeshPart") then
+        pcall(function() clone.TextureID = "" end)
     end
     
     clone.Size = part.Size + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
