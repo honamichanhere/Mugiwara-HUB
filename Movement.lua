@@ -5,7 +5,6 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Variabel Data
 Movement.SpeedEnabled = false
 Movement.SpeedValue = 16
 Movement.OriginalSpeed = 16
@@ -25,12 +24,14 @@ Movement.FlySpeed = 16
 
 Movement.NoclipEnabled = false
 
+MovementModule.AnimSpeedLocked = false
+MovementModule.AnimSpeedValue = 1
+
 local currentJumps = 0
 local lastJumpTime = 0
 local flyBodyVelocity = nil
 local flyBodyGyro = nil
 
--- Fungsi Update Data Asli Karakter
 local function UpdateOriginalStats(character)
     local humanoid = character:WaitForChild("Humanoid", 5)
     if humanoid then
@@ -42,7 +43,6 @@ end
 if LocalPlayer.Character then task.spawn(UpdateOriginalStats, LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(UpdateOriginalStats)
 
--- Fungsi Restore (Reset)
 function Movement.RestoreSpeed()
     local char = LocalPlayer.Character
     if char and char:FindFirstChildOfClass("Humanoid") then
@@ -57,7 +57,6 @@ function Movement.RestoreJump()
     end
 end
 
--- Fungsi Mesin Terbang
 function Movement.ToggleFly(state)
     Movement.FlyEnabled = state
     local char = LocalPlayer.Character
@@ -66,30 +65,22 @@ function Movement.ToggleFly(state)
     local hrp = char.HumanoidRootPart
 
     if state then
-        -- Pasang jet pendorong
         flyBodyVelocity = Instance.new("BodyVelocity")
         flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
         flyBodyVelocity.Velocity = Vector3.zero
         flyBodyVelocity.Parent = hrp
 
-        -- Pasang setir biar karakter madep kamera
         flyBodyGyro = Instance.new("BodyGyro")
         flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
         flyBodyGyro.P = 9e4
         flyBodyGyro.CFrame = hrp.CFrame
         flyBodyGyro.Parent = hrp
     else
-        -- Cabut mesin kalau dimatiin
         if flyBodyVelocity then flyBodyVelocity:Destroy() end
         if flyBodyGyro then flyBodyGyro:Destroy() end
     end
 end
 
--- ==========================================
--- LOOPING UTAMA (Berjalan tiap frame)
--- ==========================================
-
--- 1. Heartbeat (Untuk Speed & Jump)
 RunService.Heartbeat:Connect(function(deltaTime)
     local character = LocalPlayer.Character
     if not character then return end
@@ -121,22 +112,18 @@ RunService.Heartbeat:Connect(function(deltaTime)
     end
 end)
 
--- 2. RenderStepped (Khusus buat Fly biar pergerakan kamera halus)
 RunService.RenderStepped:Connect(function()
     if Movement.FlyEnabled and flyBodyVelocity and flyBodyGyro then
         local cam = workspace.CurrentCamera
         local moveDir = Vector3.zero
 
-        -- Deteksi tombol navigasi PC
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-        -- Naik/Turun pakai Space & Ctrl
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
 
-        -- Kalo user main di Mobile (Pake Analog Joystick), kita narik data dari MoveDirection
         if moveDir.Magnitude == 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             moveDir = LocalPlayer.Character.Humanoid.MoveDirection
         end
@@ -145,19 +132,16 @@ RunService.RenderStepped:Connect(function()
             moveDir = moveDir.Unit
         end
 
-        -- Tembak kecepatannya
         flyBodyVelocity.Velocity = moveDir * Movement.FlySpeed
         flyBodyGyro.CFrame = cam.CFrame
     end
 end)
 
--- 3. Stepped (Khusus buat Noclip biar menipu mesin fisika)
 RunService.Stepped:Connect(function()
     if Movement.NoclipEnabled then
         local character = LocalPlayer.Character
         if character then
             for _, part in pairs(character:GetDescendants()) do
-                -- Matikan tabrakan tepat sebelum engine menghitung fisika
                 if part:IsA("BasePart") and part.CanCollide then
                     part.CanCollide = false
                 end
@@ -166,7 +150,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Infinite Jump Anti-Spam
 UserInputService.JumpRequest:Connect(function()
     if Movement.InfJumpEnabled then
         local character = LocalPlayer.Character
@@ -184,5 +167,84 @@ UserInputService.JumpRequest:Connect(function()
         end
     end
 end)
+
+local trackData = {}
+setmetatable(trackData, {__mode = "k"})
+local isModifyingAnim = false
+
+local function HookTrack(track)
+    if not trackData[track] then
+        trackData[track] = { originalSpeed = track.Speed }
+        
+        track:GetPropertyChangedSignal("Speed"):Connect(function()
+            if isModifyingAnim then return end
+            
+            if MovementModule.AnimSpeedLocked then
+                if track.Speed ~= MovementModule.AnimSpeedValue then
+                    trackData[track].originalSpeed = track.Speed 
+                    isModifyingAnim = true
+                    track:AdjustSpeed(MovementModule.AnimSpeedValue)
+                    isModifyingAnim = false
+                end
+            else
+                trackData[track].originalSpeed = track.Speed
+            end
+        end)
+    end
+    
+    if MovementModule.AnimSpeedLocked then
+        isModifyingAnim = true
+        track:AdjustSpeed(MovementModule.AnimSpeedValue)
+        isModifyingAnim = false
+    end
+end
+
+local function SetupAnimator(character)
+    if not character then return end
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+    local animator = humanoid:WaitForChild("Animator", 5)
+    if not animator then return end
+
+    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+        HookTrack(track)
+    end
+
+    animator.AnimationPlayed:Connect(function(track)
+        HookTrack(track)
+    end)
+end
+
+LocalPlayer.CharacterAdded:Connect(SetupAnimator)
+if LocalPlayer.Character then
+    task.spawn(SetupAnimator, LocalPlayer.Character)
+end
+
+function MovementModule.SetAnimSpeed(value)
+    MovementModule.AnimSpeedValue = value
+    if MovementModule.AnimSpeedLocked then
+        isModifyingAnim = true
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
+            for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
+                track:AdjustSpeed(value)
+            end
+        end
+        isModifyingAnim = false
+    end
+end
+
+function MovementModule.RestoreAnimSpeed()
+    isModifyingAnim = true
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") and char.Humanoid:FindFirstChild("Animator") then
+        for _, track in ipairs(char.Humanoid.Animator:GetPlayingAnimationTracks()) do
+            if trackData[track] and trackData[track].originalSpeed then
+                track:AdjustSpeed(trackData[track].originalSpeed)
+            end
+        end
+    end
+    isModifyingAnim = false
+end
 
 return Movement
