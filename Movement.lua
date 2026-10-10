@@ -165,20 +165,4 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
-function MovementModule.SetAnimSpeed(value)
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    if not LocalPlayer then return end
-        
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
-        local animator = char.Humanoid:FindFirstChild("Animator")
-        if animator then
-            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                track:AdjustSpeed(value)
-            end
-        end
-    end
-end
-
 return Movement
