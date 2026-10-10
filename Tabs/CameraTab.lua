@@ -75,7 +75,7 @@ return function(Window, isPremiumUser, WindUI)
 
     PremiumSection:Slider({
         Title = "Position Stabilizer",
-        Desc = "Smooths out camera tracking. 0 = Instant (Off), 1 = Max Smoothness.",
+        Desc = "Adds spring-like lag to character tracking. 0 = Instant, 1 = Max Smoothness.",
         Locked = not isPremiumUser,
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
@@ -86,7 +86,7 @@ return function(Window, isPremiumUser, WindUI)
 
     PremiumSection:Slider({
         Title = "Rotation Stabilizer",
-        Desc = "Smooths out camera aiming. Cinematic feel. 0 = Instant (Off), 1 = Max Smoothness.",
+        Desc = "Smooths out camera aiming for a cinematic feel. 0 = Instant, 1 = Max Smoothness.",
         Locked = not isPremiumUser,
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
@@ -96,9 +96,9 @@ return function(Window, isPremiumUser, WindUI)
     })
 
     -- ==========================================
-    -- 2. FIELD OF VIEW CONTROLS (FREE)
+    -- 2. FIELD OF VIEW & ZOOM CONTROLS (FREE)
     -- ==========================================
-    local FovSection = TabCamera:Section({ Title = "Field of View Configuration", Icon = "lucide:eye", Opened = true, Box = true })
+    local FovSection = TabCamera:Section({ Title = "Field of View & Zoom Configuration", Icon = "lucide:eye", Opened = true, Box = true })
 
     local ToggleFOV
     ToggleFOV = FovSection:Toggle({
@@ -106,20 +106,51 @@ return function(Window, isPremiumUser, WindUI)
         Desc = "Prevent the game from dynamically altering your field of view.",
         Callback = function(Value)
             CameraModule.FOVLocked = Value
-            if not Value then
-                CameraModule.RestoreFOV()
-            end
+            if not Value then CameraModule.RestoreFOV() end
         end
     })
+
+    local safeFov = workspace.CurrentCamera and math.clamp(workspace.CurrentCamera.FieldOfView, 20, 120) or 70
 
     local SliderFOV
     SliderFOV = FovSection:Slider({
         Title = "Adjust FOV",
         Desc = "Set your preferred field of view. Syncs automatically if game alters it.",
         Step = 1,
-        Value = { Min = 20, Max = 120, Default = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70 },
+        Value = { Min = 20, Max = 120, Default = safeFov },
         Callback = function(Value)
             CameraModule.SetFOV(Value)
+        end
+    })
+    
+    FovSection:Divider({ Title = "Zoom Controls" })
+
+    FovSection:Toggle({
+        Title = "Force Lock Zoom",
+        Desc = "Lock camera distance. Prevents game or scrolling from altering zoom.",
+        Callback = function(Value)
+            CameraModule.ZoomLocked = Value
+            if not Value and not CameraModule.FreecamEnabled then
+                game:GetService("Players").LocalPlayer.CameraMinZoomDistance = 0.5
+                game:GetService("Players").LocalPlayer.CameraMaxZoomDistance = 400
+            end
+        end
+    })
+
+    local initialZoom = workspace.CurrentCamera and (workspace.CurrentCamera.CFrame.Position - workspace.CurrentCamera.Focus.Position).Magnitude or 12.5
+
+    -- Menggunakan Input sebagai pengganti Slider untuk tes stabilitas UI
+    local InputZoom
+    InputZoom = FovSection:Input({
+        Title = "Adjust Zoom Distance",
+        Desc = "Enter distance (0 - 200). Auto-syncs when you scroll.",
+        PlaceholderText = tostring(math.floor(initialZoom)),
+        ClearTextOnFocus = false,
+        Callback = function(Text)
+            local num = tonumber(Text)
+            if num then
+                CameraModule.SetZoom(math.clamp(num, 0, 200))
+            end
         end
     })
 
@@ -135,4 +166,15 @@ return function(Window, isPremiumUser, WindUI)
         end
     end
 
+    CameraModule.OnZoomChanged = function(newValue)
+        if InputZoom then
+            pcall(function() 
+                local textValue = tostring(math.floor(newValue * 10) / 10)
+                if InputZoom.SetValue then InputZoom:SetValue(textValue)
+                elseif InputZoom.Set then InputZoom:Set(textValue) end 
+            end)
+        end
+    end
+
+end
 end
