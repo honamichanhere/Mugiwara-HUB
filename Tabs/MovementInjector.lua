@@ -29,6 +29,28 @@ return function(TargetTab, isPremiumUser, WindUI)
     MovementSection:Toggle({ Title = "Enable Noclip", Callback = function(Value) MovementModule.NoclipEnabled = Value end })
 
     MovementSection:Divider({ Title = "Animation Controls" })
-    MovementSection:Toggle({ Title = "Force Animation Speed", Desc = "Lock animation playback speed. Overrides game-intended speeds.", Callback = function(Value) MovementModule.AnimSpeedLocked = Value if not Value then MovementModule.RestoreAnimSpeed() else MovementModule.SetAnimSpeed(MovementModule.AnimSpeedValue) end end })
-    MovementSection:Slider({ Title = "Animation Speed Value", Desc = "0 = Frozen, 1 = Normal, 2 = 2x Speed. Applies when forced.", Step = 0.1, Value = { Min = 0, Max = 2, Default = 1 }, Callback = function(Value) MovementModule.SetAnimSpeed(Value) end })
+    MovementSection:Toggle({
+        Title = "Force Animation Speed",
+        Desc = "Lock animation playback speed. Overrides game-intended speeds.",
+        Callback = function(Value)
+            MovementModule.AnimSpeedLocked = Value
+            if not Value then
+                MovementModule.RestoreAnimSpeed()
+            else
+                MovementModule.SetAnimSpeed(MovementModule.AnimSpeedValue)
+            end
+        end
+    })
+    MovementSection:Input({
+        Title = "Animation Speed Value",
+        Desc = "Enter speed (e.g., 0 = freeze, 1 = normal, 10 = super fast).",
+        PlaceholderText = "1",
+        ClearTextOnFocus = false,
+        Callback = function(Text)
+            local num = tonumber(Text)
+            if num then
+                MovementModule.SetAnimSpeed(num)
+            end
+        end
+    })
 end
