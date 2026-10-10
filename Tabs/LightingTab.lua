@@ -1,4 +1,5 @@
 local LightingModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/LightingManager.lua"))()
+local ReflectionModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/ReflectionManager.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -113,6 +114,53 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function()
             local success, msg = LightingModule.PasteSkybox()
             WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
+        end
+    })
+
+    -- ==========================================
+    -- GRAPHIC HACKS (PREMIUM)
+    -- ==========================================
+    TabLighting:Divider({ Title = "Graphic Hacks" })
+
+    TabLighting:Toggle({
+        Title = "Glass Reflection Effect",
+        Desc = "Create deep reflections by exploiting glass material with out-of-bounds transparency.",
+        Locked = not isPremiumUser,
+        Callback = function(Value)
+            if Value then
+                WindUI:Notify({ Title = "Processing", Content = "Generating reflection layers. Please wait...", Duration = 3 })
+            else
+                WindUI:Notify({ Title = "Cleaning Up", Content = "Removing reflection layers...", Duration = 3 })
+            end
+            task.spawn(function()
+                ReflectionModule.Toggle(Value)
+            end)
+        end
+    })
+
+    TabLighting:Slider({
+        Title = "Reflection Depth (Transparency)",
+        Desc = "Push transparency out of bounds for deeper reflections.",
+        Locked = not isPremiumUser,
+        Step = 0.5,
+        Value = { Min = 1, Max = 10, Default = 1.5 },
+        Callback = function(Value)
+            task.spawn(function()
+                ReflectionModule.UpdateSettings(Value, nil)
+            end)
+        end
+    })
+
+    TabLighting:Slider({
+        Title = "Reflection Shell Offset",
+        Desc = "Adjust the size offset of the reflection shell (studs).",
+        Locked = not isPremiumUser,
+        Step = 0.1,
+        Value = { Min = 0, Max = 5, Default = 0.5 },
+        Callback = function(Value)
+            task.spawn(function()
+                ReflectionModule.UpdateSettings(nil, Value)
+            end)
         end
     })
 
