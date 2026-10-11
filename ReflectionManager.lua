@@ -1,6 +1,3 @@
--- ==========================================
--- REFLECTION MANAGER (GRAPHIC HACK)
--- ==========================================
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
 ReflectionManager.Transparency = 1 
@@ -118,8 +115,8 @@ function ReflectionManager.Toggle(state)
                         ReflectionManager.ApplyReflection(v)
                         count = count + 1
                         
-                        if count % 200 == 0 then
-                            task.wait(1)
+                        if count % 1000 == 0 then
+                            task.wait(0.5)
                         end
                     end
                 end
