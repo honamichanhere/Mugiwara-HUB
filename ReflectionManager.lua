@@ -1,14 +1,7 @@
--- ==========================================
--- REFLECTION MANAGER (GRAPHIC HACK)
--- ==========================================
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
-
--- Config hasil eksperimen terbaru
-ReflectionManager.Transparency = 0 
-ReflectionManager.Offset = 0 
-ReflectionManager.Reflectance = 0.5 
-
+ReflectionManager.Transparency = 1 
+ReflectionManager.Offset = 0.1 
 ReflectionManager.Connections = {}
 ReflectionManager.GlobalModel = nil
 
@@ -71,7 +64,6 @@ function ReflectionManager.ApplyReflection(part)
     clone.Massless = true
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
-    clone.Reflectance = ReflectionManager.Reflectance -- Set Reflectance 0.5
     
     local totalOffset = ReflectionManager.Offset * 2
     
@@ -89,12 +81,8 @@ function ReflectionManager.ApplyReflection(part)
             else clone.TextureID = "" end 
         end)
         local maxAxis = math.max(part.Size.X, part.Size.Y, part.Size.Z)
-        -- Proteksi agar tidak bagi 0 atau error jika maxAxis 0
-        if maxAxis > 0 then
-            local scale = (maxAxis + totalOffset) / maxAxis
-            clone.Size = part.Size * scale
-        end
-        -- Micro-shift tetap jalan buat minimalisir Z-fighting bawaan di Mesh
+        local scale = (maxAxis + totalOffset) / maxAxis
+        clone.Size = part.Size * scale
         clone.CFrame = part.CFrame * CFrame.new(0.01, 0.01, 0.01)
         
     else
@@ -145,8 +133,8 @@ function ReflectionManager.Toggle(state)
                         ReflectionManager.ApplyReflection(v)
                         count = count + 1
                         
-                        if count % 200 == 0 then
-                            task.wait(1)
+                        if count % 1000 == 0 then
+                            task.wait(0.5)
                         end
                     end
                 end
