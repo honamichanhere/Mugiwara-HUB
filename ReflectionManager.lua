@@ -3,10 +3,20 @@
 -- ==========================================
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
-ReflectionManager.Transparency = 1.5
-ReflectionManager.Offset = 0.5
+ReflectionManager.Transparency = 1 
+ReflectionManager.Offset = 0.1 
 ReflectionManager.Connections = {}
 ReflectionManager.GlobalModel = nil
+
+local CharacterPartsFilter = {
+    ["Head"] = true, ["Torso"] = true, ["HumanoidRootPart"] = true,
+    ["Left Arm"] = true, ["Right Arm"] = true, ["Left Leg"] = true, ["Right Leg"] = true,
+    ["UpperTorso"] = true, ["LowerTorso"] = true,
+    ["LeftUpperArm"] = true, ["LeftLowerArm"] = true, ["LeftHand"] = true,
+    ["RightUpperArm"] = true, ["RightLowerArm"] = true, ["RightHand"] = true,
+    ["LeftUpperLeg"] = true, ["LeftLowerLeg"] = true, ["LeftFoot"] = true,
+    ["RightUpperLeg"] = true, ["RightLowerLeg"] = true, ["RightFoot"] = true
+}
 
 local function StripVisuals(instance)
     for _, child in ipairs(instance:GetDescendants()) do
@@ -32,8 +42,9 @@ end
 
 function ReflectionManager.ApplyReflection(part)
     if part:GetAttribute("IsReflectionLayer") then return end
-    -- Jangan proses bagian dari GlobalModel kita sendiri
     if ReflectionManager.GlobalModel and part:IsDescendantOf(ReflectionManager.GlobalModel) then return end
+    
+    if CharacterPartsFilter[part.Name] then return end
     
     local originalArchivable = part.Archivable
     part.Archivable = true
@@ -68,7 +79,6 @@ function ReflectionManager.ApplyReflection(part)
     clone.Size = part.Size + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
     clone.CFrame = part.CFrame
     
-    -- Parenting ke Global Model agar cukup pakai 1 Highlight
     clone.Parent = ReflectionManager.GlobalModel
     
     if not part.Anchored then
@@ -81,7 +91,6 @@ function ReflectionManager.ApplyReflection(part)
         clone.Anchored = true
     end
     
-    -- Auto-cleanup: Jika part asli dihapus, hancurkan clone-nya
     local cleanConn
     cleanConn = part.AncestryChanged:Connect(function(_, newParent)
         if not newParent then
@@ -98,31 +107,34 @@ function ReflectionManager.Toggle(state)
     ReflectionManager.Enabled = state
     
     if state then
-        print("[Mugiwara HUB] Initiating reflection layer generation. Processing all parts...")
+        print("[Mugiwara HUB] Initiating reflection layer generation. Processing all valid parts...")
         SetupGlobalModel()
         
         local count = 0
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("BasePart") and not v:IsA("Terrain") and v.Transparency < 1 then
                 if not v:GetAttribute("IsReflectionLayer") and not v:IsDescendantOf(ReflectionManager.GlobalModel) then
-                    ReflectionManager.ApplyReflection(v)
-                    count = count + 1
-                    
-                    if count % 200 == 0 then
-                        task.wait(1)
+                    if not CharacterPartsFilter[v.Name] then
+                        ReflectionManager.ApplyReflection(v)
+                        count = count + 1
+                        
+                        if count % 200 == 0 then
+                            task.wait(1)
+                        end
                     end
                 end
             end
         end
         
-        -- Event Listener untuk objek baru
         local addConn = workspace.DescendantAdded:Connect(function(descendant)
             if ReflectionManager.Enabled then
                 task.spawn(function()
                     task.wait(0.5)
                     if descendant and descendant.Parent and descendant:IsA("BasePart") and not descendant:IsA("Terrain") then
                         if descendant.Transparency < 1 and not descendant:GetAttribute("IsReflectionLayer") then
-                            ReflectionManager.ApplyReflection(descendant)
+                            if not CharacterPartsFilter[descendant.Name] then
+                                ReflectionManager.ApplyReflection(descendant)
+                            end
                         end
                     end
                 end)
@@ -133,43 +145,17 @@ function ReflectionManager.Toggle(state)
         print("[Mugiwara HUB] Reflection layers successfully generated.")
     else
         print("[Mugiwara HUB] Removing existing reflection layers...")
-        -- Bersihkan semua event listener
         for _, conn in ipairs(ReflectionManager.Connections) do
             if conn then conn:Disconnect() end
         end
         table.clear(ReflectionManager.Connections)
         
-        -- Hancurkan langsung Global Model beserta semua isinya (jauh lebih instan & anti-lag!)
         if ReflectionManager.GlobalModel then
             ReflectionManager.GlobalModel:Destroy()
             ReflectionManager.GlobalModel = nil
         end
         
         print("[Mugiwara HUB] Reflection layers completely removed.")
-    end
-end
-
-function ReflectionManager.UpdateSettings(transparency, offset)
-    if transparency then ReflectionManager.Transparency = transparency end
-    if offset then ReflectionManager.Offset = offset end
-    
-    if not ReflectionManager.Enabled or not ReflectionManager.GlobalModel then return end
-    
-    local count = 0
-    -- Kita cuma perlu nge-loop di dalam Global Model aja sekarang! Lebih ringan.
-    for _, v in ipairs(ReflectionManager.GlobalModel:GetChildren()) do
-        if v:IsA("BasePart") and v:GetAttribute("IsReflectionLayer") then
-            local origSize = v:GetAttribute("OriginalSize")
-            if origSize then
-                v.Size = origSize + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
-            end
-            v.Transparency = ReflectionManager.Transparency
-            
-            count = count + 1
-            if count % 200 == 0 then
-                task.wait(0.5)
-            end
-        end
     end
 end
 
