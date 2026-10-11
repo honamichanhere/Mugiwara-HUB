@@ -4,41 +4,62 @@ local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
--- ==========================================
--- MESIN PEMBUAT FOLDER
--- ==========================================
 if makefolder and isfolder then
     if not isfolder("HonamiHub") then makefolder("HonamiHub") end
     if not isfolder("HonamiHub/Presets") then makefolder("HonamiHub/Presets") end
 end
 
--- ==========================================
--- DATABASE PRESET BAWAAN
--- ==========================================
 LightingModule.BuiltInPresets = {
-    ["Horor Vibe"] = {
-        Desc = "Tema gelap, berkabut merah, dan mencekam.",
-        Skybox = "5157589613",
+    ["Default Roblox"] = {
+        Desc = "Roblox default Lighting.",
+        Skybox = "18504982898",
         Values = {
-            Lighting = { Brightness = 0.2, ClockTime = 0, Ambient = Color3.fromRGB(10, 0, 0), OutdoorAmbient = Color3.fromRGB(5,0,0), ColorShift_Top = Color3.fromRGB(0,0,0), ColorShift_Bottom = Color3.fromRGB(0,0,0), GlobalShadows = true },
-            Atmosphere = { Density = 0.8, Color = Color3.fromRGB(20, 5, 5), Decay = Color3.fromRGB(10, 0, 0), Haze = 5, Glare = 0, Offset = 0 },
-            ColorCorrection = { Enabled = true, Brightness = -0.1, Contrast = 0.5, Saturation = -0.5, TintColor = Color3.fromRGB(255,200,200) }
-        }
-    },
-    ["Cozy Sunset"] = {
-        Desc = "Hangat, estetik, cocok buat hangout sore.",
-        Skybox = "5186800496",
-        Values = {
-            Lighting = { Brightness = 2.5, ClockTime = 17.5, ExposureCompensation = 0.2, Ambient = Color3.fromRGB(100, 80, 50), OutdoorAmbient = Color3.fromRGB(150, 100, 50), GlobalShadows = true },
-            SunRays = { Enabled = true, Intensity = 0.2, Spread = 0.8 },
-            Bloom = { Enabled = true, Intensity = 0.5, Size = 20, Threshold = 2 }
+            Lighting = {
+                Ambient = Color3.fromRGB(70, 70, 70),
+                Brightness = 3,
+                ColorShift_Top = Color3.fromRGB(0, 0, 0),
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                EnvironmentDiffuseScale = 1,
+                EnvironmentSpecularScale = 1,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(70, 70, 70),
+                ClockTime = 14.5,
+                ExposureCompensation = 0
+            },
+            Atmosphere = {
+                Density = 0.3,
+                Offset = 0.25,
+                Color = Color3.fromRGB(199, 199, 199),
+                Decay = Color3.fromRGB(106, 112, 125),
+                Glare = 0,
+                Haze = 0
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 1,
+                Size = 24,
+                Threshold = 2
+            },
+            Blur = {
+                Enabled = false,
+                Size = 24
+            },
+            DepthOfField = {
+                Enabled = false,
+                FarIntensity = 0.1,
+                FocusDistance = 0.05,
+                InFocusRadius = 30,
+                NearIntensity = 0.75
+            },
+            SunRays = {
+                Enabled = true,
+                Intensity = 0.01,
+                Spread = 0.1
+            }
         }
     }
 }
 
--- ==========================================
--- SYSTEM VARIABLES
--- ==========================================
 LightingModule.LockEnabled = false
 LightingModule.DefaultSkybox = nil 
 LightingModule.ActiveSkybox = nil 
@@ -77,9 +98,6 @@ LightingModule.SkyboxDatabase = {
 LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
 
--- ==========================================
--- 1. INIT: VALIDASI & MIRRORING VALUE
--- ==========================================
 function LightingModule.Init()
     local requiredEffects = { Atmosphere = "Atmosphere", Bloom = "BloomEffect", Blur = "BlurEffect", ColorCorrection = "ColorCorrectionEffect", DepthOfField = "DepthOfFieldEffect", SunRays = "SunRaysEffect" }
 
@@ -121,9 +139,6 @@ function LightingModule.Init()
 end
 LightingModule.Init()
 
--- ==========================================
--- 2. FUNGSI UPDATE DARI UI
--- ==========================================
 function LightingModule.UpdateValue(category, property, value)
     if LightingModule.TargetValues[category] then
         LightingModule.TargetValues[category][property] = value
@@ -139,9 +154,6 @@ function LightingModule.ToggleEffect(category, isEnabled)
     LightingModule.UpdateValue(category, "Enabled", isEnabled)
 end
 
--- ==========================================
--- 3. MESIN SKYBOX & PRESET (ANTI DUPLIKAT)
--- ==========================================
 function LightingModule.LoadSkybox(id)
     if id == "" or id == "Default" then return end
     local success, result = pcall(function() return game:GetObjects("rbxassetid://" .. id) end)
@@ -223,7 +235,7 @@ function LightingModule.SavePreset(presetName)
         writefile(path, data) 
         return true, isOverwrite and "Overwrite" or "New"
     end
-    return false, "Executor tidak support writefile"
+    return false, "The executor does not support writefile!"
 end
 
 function LightingModule.LoadPreset(presetName)
@@ -334,23 +346,20 @@ function LightingModule.LoadPreset(presetName)
     end
 end
 
--- ==========================================
--- MESIN COPY-PASTE SKYBOX 
--- ==========================================
 function LightingModule.CopySkybox()
     local sky = Lighting:FindFirstChildOfClass("Sky")
-    if not sky then return false, "Tidak ada Skybox bawaan di map ini!" end
+    if not sky then return false, "There is no built-in skybox on this map!" end
     local skyData = { SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt, SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp, SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount }
     if writefile then
         writefile("HonamiHub/CopiedSky.json", HttpService:JSONEncode(skyData))
-        return true, "Skybox berhasil dicopy!"
+        return true, "Skybox successfully copied!"
     end
-    return false, "Executor tidak support writefile!"
+    return false, "The executor does not support writefile!"
 end
 
 function LightingModule.PasteSkybox()
     local path = "HonamiHub/CopiedSky.json"
-    if not (readfile and isfile and isfile(path)) then return false, "Belum ada Skybox yang disalin!" end
+    if not (readfile and isfile and isfile(path)) then return false, "No Skybox has been copied yet!" end
     local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if success and decoded then
         LightingModule.ActiveSkybox = decoded
@@ -360,14 +369,11 @@ function LightingModule.PasteSkybox()
             sky.Name = "Honami_Sky"
         end
         for key, value in pairs(decoded) do pcall(function() sky[key] = value end) end
-        return true, "Skybox berhasil dipaste!"
+        return true, "Skybox successfully pasted!"
     end
-    return false, "Data CopiedSky rusak!"
+    return false, "CopiedSky data is corrupted!"
 end
 
--- ==========================================
--- 4. KASTA TERTINGGI: SINGULARITY ENGINE & LOCK / OBSERVER
--- ==========================================
 RunService.RenderStepped:Connect(function(deltaTime)
     local counts = {}
     for _, child in ipairs(Lighting:GetChildren()) do
@@ -418,7 +424,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
         LightingModule.LastObserve = (LightingModule.LastObserve or 0) + deltaTime
         if LightingModule.LastObserve >= 0.5 then
             LightingModule.LastObserve = 0
-            LightingModule.IsSyncing = true -- Tutup kuping UI biar gak berantem
+            LightingModule.IsSyncing = true
 
             for category, properties in pairs(LightingModule.TargetValues) do
                 local obj = LightingModule.Objects[category]
