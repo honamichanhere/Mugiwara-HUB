@@ -40,7 +40,6 @@ end
 function ReflectionManager.ApplyReflection(part)
     if part:GetAttribute("IsReflectionLayer") then return end
     if ReflectionManager.GlobalModel and part:IsDescendantOf(ReflectionManager.GlobalModel) then return end
-    
     if CharacterPartsFilter[part.Name] then return end
     
     local originalArchivable = part.Archivable
@@ -60,21 +59,40 @@ function ReflectionManager.ApplyReflection(part)
     
     clone.Name = part.Name .. "_reflection"
     clone:SetAttribute("IsReflectionLayer", true)
-    clone:SetAttribute("OriginalSize", part.Size)
     
     clone.CanCollide = false
     clone.Massless = true
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
     
-    if clone:IsA("UnionOperation") then
-        pcall(function() clone.UsePartColor = true end)
-    elseif clone:IsA("MeshPart") then
-        pcall(function() clone.TextureID = "" end)
-    end
+    local totalOffset = ReflectionManager.Offset * 2
     
-    clone.Size = part.Size + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
-    clone.CFrame = part.CFrame
+    if clone:IsA("WedgePart") then
+        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
+        clone.CFrame = part.CFrame * CFrame.new(0, ReflectionManager.Offset * 0.4, -ReflectionManager.Offset * 0.4)
+        
+    elseif clone:IsA("CornerWedgePart") then
+        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
+        clone.CFrame = part.CFrame * CFrame.new(ReflectionManager.Offset * 0.4, ReflectionManager.Offset * 0.4, -ReflectionManager.Offset * 0.4)
+        
+    elseif clone:IsA("MeshPart") or clone:IsA("UnionOperation") then
+        pcall(function() 
+            if clone:IsA("UnionOperation") then clone.UsePartColor = true 
+            else clone.TextureID = "" end 
+        end)
+        local maxAxis = math.max(part.Size.X, part.Size.Y, part.Size.Z)
+        local scale = (maxAxis + totalOffset) / maxAxis
+        clone.Size = part.Size * scale
+        clone.CFrame = part.CFrame * CFrame.new(0.01, 0.01, 0.01)
+        
+    else
+        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
+        if clone:IsA("Part") and clone.Shape ~= Enum.PartType.Block then
+            clone.CFrame = part.CFrame * CFrame.new(0.01, 0.01, 0.01)
+        else
+            clone.CFrame = part.CFrame
+        end
+    end
     
     clone.Parent = ReflectionManager.GlobalModel
     
