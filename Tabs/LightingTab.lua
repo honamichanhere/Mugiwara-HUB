@@ -117,14 +117,11 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    -- ==========================================
-    -- GRAPHIC HACKS (PREMIUM)
-    -- ==========================================
     TabLighting:Divider({ Title = "Graphic Hacks" })
 
     TabLighting:Toggle({
-        Title = "Glass Reflection Effect",
-        Desc = "Create deep reflections by exploiting glass material with out-of-bounds transparency.",
+        Title = "Reflection Effect",
+        Desc = "Create deep reflections on objects.",
         Locked = not isPremiumUser,
         Callback = function(Value)
             if Value then
@@ -138,38 +135,9 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    TabLighting:Slider({
-        Title = "Reflection Depth (Transparency)",
-        Desc = "Push transparency out of bounds for deeper reflections.",
-        Locked = not isPremiumUser,
-        Step = 0.5,
-        Value = { Min = 1, Max = 10, Default = 1.5 },
-        Callback = function(Value)
-            task.spawn(function()
-                ReflectionModule.UpdateSettings(Value, nil)
-            end)
-        end
-    })
-
-    TabLighting:Slider({
-        Title = "Reflection Shell Offset",
-        Desc = "Adjust the size offset of the reflection shell (studs).",
-        Locked = not isPremiumUser,
-        Step = 0.1,
-        Value = { Min = 0, Max = 5, Default = 0.5 },
-        Callback = function(Value)
-            task.spawn(function()
-                ReflectionModule.UpdateSettings(nil, Value)
-            end)
-        end
-    })
-
     TabLighting:Divider({ Title = "System Control" })
     TabLighting:Toggle({ Title = "Lock Lighting", Desc = "Force Override! Lock all values in this script; prevent the game from altering the lighting.", Locked = false, Callback = function(Value) LightingModule.LockEnabled = Value end })
 
-    -- ==========================================
-    -- MESIN SINKRONISASI UI (JEMBATAN DARI MANAGER)
-    -- ==========================================
     local UIElements = { Lighting = {}, Atmosphere = {}, Bloom = {}, Blur = {}, ColorCorrection = {}, DepthOfField = {}, SunRays = {} }
 
     LightingModule.OnPresetLoaded = function()
