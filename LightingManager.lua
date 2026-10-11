@@ -98,6 +98,9 @@ LightingModule.SkyboxDatabase = {
 LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
 
+-- ==========================================
+-- 1. INIT: VALIDASI & MIRRORING VALUE
+-- ==========================================
 function LightingModule.Init()
     local requiredEffects = { Atmosphere = "Atmosphere", Bloom = "BloomEffect", Blur = "BlurEffect", ColorCorrection = "ColorCorrectionEffect", DepthOfField = "DepthOfFieldEffect", SunRays = "SunRaysEffect" }
 
@@ -139,6 +142,9 @@ function LightingModule.Init()
 end
 LightingModule.Init()
 
+-- ==========================================
+-- 2. FUNGSI UPDATE DARI UI
+-- ==========================================
 function LightingModule.UpdateValue(category, property, value)
     if LightingModule.TargetValues[category] then
         LightingModule.TargetValues[category][property] = value
@@ -154,6 +160,9 @@ function LightingModule.ToggleEffect(category, isEnabled)
     LightingModule.UpdateValue(category, "Enabled", isEnabled)
 end
 
+-- ==========================================
+-- 3. MESIN SKYBOX & PRESET (ANTI DUPLIKAT)
+-- ==========================================
 function LightingModule.LoadSkybox(id)
     if id == "" or id == "Default" then return end
     local success, result = pcall(function() return game:GetObjects("rbxassetid://" .. id) end)
@@ -235,7 +244,7 @@ function LightingModule.SavePreset(presetName)
         writefile(path, data) 
         return true, isOverwrite and "Overwrite" or "New"
     end
-    return false, "The executor does not support writefile!"
+    return false, "Executor tidak support writefile"
 end
 
 function LightingModule.LoadPreset(presetName)
@@ -346,20 +355,23 @@ function LightingModule.LoadPreset(presetName)
     end
 end
 
+-- ==========================================
+-- MESIN COPY-PASTE SKYBOX 
+-- ==========================================
 function LightingModule.CopySkybox()
     local sky = Lighting:FindFirstChildOfClass("Sky")
-    if not sky then return false, "There is no built-in skybox on this map!" end
+    if not sky then return false, "Tidak ada Skybox bawaan di map ini!" end
     local skyData = { SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt, SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp, SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount }
     if writefile then
         writefile("HonamiHub/CopiedSky.json", HttpService:JSONEncode(skyData))
-        return true, "Skybox successfully copied!"
+        return true, "Skybox berhasil dicopy!"
     end
-    return false, "The executor does not support writefile!"
+    return false, "Executor tidak support writefile!"
 end
 
 function LightingModule.PasteSkybox()
     local path = "HonamiHub/CopiedSky.json"
-    if not (readfile and isfile and isfile(path)) then return false, "No Skybox has been copied yet!" end
+    if not (readfile and isfile and isfile(path)) then return false, "Belum ada Skybox yang disalin!" end
     local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if success and decoded then
         LightingModule.ActiveSkybox = decoded
@@ -369,11 +381,14 @@ function LightingModule.PasteSkybox()
             sky.Name = "Honami_Sky"
         end
         for key, value in pairs(decoded) do pcall(function() sky[key] = value end) end
-        return true, "Skybox successfully pasted!"
+        return true, "Skybox berhasil dipaste!"
     end
-    return false, "CopiedSky data is corrupted!"
+    return false, "Data CopiedSky rusak!"
 end
 
+-- ==========================================
+-- 4. KASTA TERTINGGI: SINGULARITY ENGINE & LOCK / OBSERVER
+-- ==========================================
 RunService.RenderStepped:Connect(function(deltaTime)
     local counts = {}
     for _, child in ipairs(Lighting:GetChildren()) do
@@ -424,7 +439,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
         LightingModule.LastObserve = (LightingModule.LastObserve or 0) + deltaTime
         if LightingModule.LastObserve >= 0.5 then
             LightingModule.LastObserve = 0
-            LightingModule.IsSyncing = true
+            LightingModule.IsSyncing = true -- Tutup kuping UI biar gak berantem
 
             for category, properties in pairs(LightingModule.TargetValues) do
                 local obj = LightingModule.Objects[category]
