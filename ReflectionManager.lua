@@ -5,20 +5,35 @@ local ReflectionManager = {}
 ReflectionManager.Enabled = false
 ReflectionManager.Transparency = 1.5
 ReflectionManager.Offset = 0.5
-ReflectionManager.Connection = nil
+ReflectionManager.Connections = {}
+ReflectionManager.GlobalModel = nil
 
--- Fungsi pembersih agresif
 local function StripVisuals(instance)
     for _, child in ipairs(instance:GetDescendants()) do
-        -- Hancurkan segala jenis tekstur, decal, atau PBR (SurfaceAppearance)
         if child:IsA("SurfaceAppearance") or child:IsA("Decal") or child:IsA("Texture") or child:IsA("ParticleEmitter") or child:IsA("Fire") or child:IsA("Smoke") or child:IsA("Sparkles") then
             child:Destroy()
         end
     end
 end
 
+local function SetupGlobalModel()
+    if ReflectionManager.GlobalModel then return end
+    
+    ReflectionManager.GlobalModel = Instance.new("Model")
+    ReflectionManager.GlobalModel.Name = "Mugiwara_Reflection_Global"
+    
+    local globalHighlight = Instance.new("Highlight")
+    globalHighlight.FillTransparency = 1
+    globalHighlight.OutlineTransparency = 1
+    globalHighlight.Parent = ReflectionManager.GlobalModel
+    
+    ReflectionManager.GlobalModel.Parent = workspace
+end
+
 function ReflectionManager.ApplyReflection(part)
     if part:GetAttribute("IsReflectionLayer") then return end
+    -- Jangan proses bagian dari GlobalModel kita sendiri
+    if ReflectionManager.GlobalModel and part:IsDescendantOf(ReflectionManager.GlobalModel) then return end
     
     local originalArchivable = part.Archivable
     part.Archivable = true
@@ -27,10 +42,8 @@ function ReflectionManager.ApplyReflection(part)
     
     if not clone then return end
     
-    -- Bersihkan semua embel-embel visual bawaan
     StripVisuals(clone)
     
-    -- Hapus script/komponen fungsional lain agar tidak duplicate logic
     for _, child in ipairs(clone:GetChildren()) do
         if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ProximityPrompt") or child:IsA("ClickDetector") then
             child:Destroy()
@@ -46,7 +59,6 @@ function ReflectionManager.ApplyReflection(part)
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
     
-    -- Pisahkan logic Union dan MeshPart, ditambah pcall biar anti-crash kalau property di-lock game
     if clone:IsA("UnionOperation") then
         pcall(function() clone.UsePartColor = true end)
     elseif clone:IsA("MeshPart") then
@@ -56,7 +68,8 @@ function ReflectionManager.ApplyReflection(part)
     clone.Size = part.Size + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
     clone.CFrame = part.CFrame
     
-    clone.Parent = part
+    -- Parenting ke Global Model agar cukup pakai 1 Highlight
+    clone.Parent = ReflectionManager.GlobalModel
     
     if not part.Anchored then
         clone.Anchored = false
@@ -68,10 +81,17 @@ function ReflectionManager.ApplyReflection(part)
         clone.Anchored = true
     end
     
-    local highlight = Instance.new("Highlight")
-    highlight.FillTransparency = 1
-    highlight.OutlineTransparency = 1
-    highlight.Parent = clone
+    -- Auto-cleanup: Jika part asli dihapus, hancurkan clone-nya
+    local cleanConn
+    cleanConn = part.AncestryChanged:Connect(function(_, newParent)
+        if not newParent then
+            if clone and clone.Parent then
+                clone:Destroy()
+            end
+            if cleanConn then cleanConn:Disconnect() end
+        end
+    end)
+    table.insert(ReflectionManager.Connections, cleanConn)
 end
 
 function ReflectionManager.Toggle(state)
@@ -79,10 +99,12 @@ function ReflectionManager.Toggle(state)
     
     if state then
         print("[Mugiwara HUB] Initiating reflection layer generation. Processing all parts...")
+        SetupGlobalModel()
+        
         local count = 0
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("BasePart") and not v:IsA("Terrain") and v.Transparency < 1 then
-                if not v:GetAttribute("IsReflectionLayer") then
+                if not v:GetAttribute("IsReflectionLayer") and not v:IsDescendantOf(ReflectionManager.GlobalModel) then
                     ReflectionManager.ApplyReflection(v)
                     count = count + 1
                     
@@ -93,40 +115,36 @@ function ReflectionManager.Toggle(state)
             end
         end
         
-        if not ReflectionManager.Connection then
-            print("[Mugiwara HUB] Attaching DescendantAdded listener for new objects...")
-            ReflectionManager.Connection = workspace.DescendantAdded:Connect(function(descendant)
-                if ReflectionManager.Enabled then
-                    task.spawn(function()
-                        task.wait(0.5)
-                        if descendant and descendant.Parent and descendant:IsA("BasePart") and not descendant:IsA("Terrain") then
-                            if descendant.Transparency < 1 and not descendant:GetAttribute("IsReflectionLayer") then
-                                ReflectionManager.ApplyReflection(descendant)
-                            end
+        -- Event Listener untuk objek baru
+        local addConn = workspace.DescendantAdded:Connect(function(descendant)
+            if ReflectionManager.Enabled then
+                task.spawn(function()
+                    task.wait(0.5)
+                    if descendant and descendant.Parent and descendant:IsA("BasePart") and not descendant:IsA("Terrain") then
+                        if descendant.Transparency < 1 and not descendant:GetAttribute("IsReflectionLayer") then
+                            ReflectionManager.ApplyReflection(descendant)
                         end
-                    end)
-                end
-            end)
-        end
+                    end
+                end)
+            end
+        end)
+        table.insert(ReflectionManager.Connections, addConn)
+        
         print("[Mugiwara HUB] Reflection layers successfully generated.")
     else
-        print("[Mugiwara HUB] Removing existing reflection layers and detaching listener...")
-        if ReflectionManager.Connection then
-            ReflectionManager.Connection:Disconnect()
-            ReflectionManager.Connection = nil
+        print("[Mugiwara HUB] Removing existing reflection layers...")
+        -- Bersihkan semua event listener
+        for _, conn in ipairs(ReflectionManager.Connections) do
+            if conn then conn:Disconnect() end
+        end
+        table.clear(ReflectionManager.Connections)
+        
+        -- Hancurkan langsung Global Model beserta semua isinya (jauh lebih instan & anti-lag!)
+        if ReflectionManager.GlobalModel then
+            ReflectionManager.GlobalModel:Destroy()
+            ReflectionManager.GlobalModel = nil
         end
         
-        local count = 0
-        for _, v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("BasePart") and v:GetAttribute("IsReflectionLayer") then
-                v:Destroy()
-                count = count + 1
-                
-                if count % 500 == 0 then
-                    task.wait(0.5)
-                end
-            end
-        end
         print("[Mugiwara HUB] Reflection layers completely removed.")
     end
 end
@@ -135,16 +153,16 @@ function ReflectionManager.UpdateSettings(transparency, offset)
     if transparency then ReflectionManager.Transparency = transparency end
     if offset then ReflectionManager.Offset = offset end
     
-    if not ReflectionManager.Enabled then return end
+    if not ReflectionManager.Enabled or not ReflectionManager.GlobalModel then return end
     
     local count = 0
-    for _, v in ipairs(workspace:GetDescendants()) do
+    -- Kita cuma perlu nge-loop di dalam Global Model aja sekarang! Lebih ringan.
+    for _, v in ipairs(ReflectionManager.GlobalModel:GetChildren()) do
         if v:IsA("BasePart") and v:GetAttribute("IsReflectionLayer") then
             local origSize = v:GetAttribute("OriginalSize")
             if origSize then
                 v.Size = origSize + Vector3.new(ReflectionManager.Offset * 2, ReflectionManager.Offset * 2, ReflectionManager.Offset * 2)
             end
-            
             v.Transparency = ReflectionManager.Transparency
             
             count = count + 1
