@@ -1,7 +1,8 @@
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
-ReflectionManager.Transparency = 1 
-ReflectionManager.Offset = 0.1 
+ReflectionManager.Transparency = 0
+ReflectionManager.Offset = 0
+ReflectionManager.Reflectance 0.5
 ReflectionManager.Connections = {}
 ReflectionManager.GlobalModel = nil
 
