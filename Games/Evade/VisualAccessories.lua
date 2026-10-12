@@ -1,16 +1,12 @@
--- ==========================================
--- MODULE: VISUAL ACCESSORIES (EVADE)
--- ==========================================
 local VisualAccessories = {}
 local Players = game:GetService("Players")
 
--- Database Template Aksesoris
 VisualAccessories.Templates = {
-    ["Valkyrie Helm"] = 1365767,
-    ["Dominus Infernus"] = 31101625,
-    ["Black Iron Wings"] = 1222955986,
-    ["Korblox Bone Leg (Visual)"] = 398672920,
-    ["Headless Head (Visual)"] = 134082579
+    ["Violet Valkyrie"] = 1402432199,
+    ["8-Bit Royal Crown"] = 10159600649,
+    ["Fiery Horns of the Netherworld"] = 215718515,
+    ["Frozen Horns of the Frigid Planes"] = 74891470,
+    ["Poisoned Horns of the Toxic Wasteland"] = 1744060292,
 }
 
 local function GetCharacter()
