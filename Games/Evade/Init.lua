@@ -1,4 +1,5 @@
 local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
+local AutoReviveModule = loadstring(game:HttpGet("URL_GITHUB_AUTO_REVIVE.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -125,4 +126,24 @@ return function(Window, isPremiumUser, WindUI)
     end
 
     pcall(function() Window:SelectTab(2) end)
+
+    TabMain:Divider({ Title = "Evade Utilities" })
+    
+    local UtilSection = TabMain:Section({ 
+        Title = "Game Utilities", 
+        Icon = "lucide:activity", 
+        Opened = true, 
+        Box = true 
+    })
+    
+    UtilSection:Toggle({
+        Title = "Auto Revive (Aura)",
+        Desc = "Automatically teleports to downed players, revives them, and returns to your spot.",
+        Locked = false, -- Fitur Free
+        Callback = function(Value)
+            task.spawn(function()
+                if AutoReviveModule then AutoReviveModule.Toggle(Value, WindUI) end
+            end)
+        end
+    })
 end
