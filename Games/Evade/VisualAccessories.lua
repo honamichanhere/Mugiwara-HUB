@@ -13,7 +13,7 @@ VisualAccessories.State = {
     Headless = false,
     LeftKorblox = false,
     RightKorblox = false,
-    Accessories = {} -- Menyimpan ID aksesoris yang sedang aktif
+    Accessories = {}
 }
 
 VisualAccessories.OriginalData = {
@@ -24,15 +24,12 @@ VisualAccessories.OriginalData = {
 local Cache = {
     KorbloxR15 = nil, KorbloxR6 = nil,
     OriR15 = nil, OriR6 = nil,
-    LoadedAccessories = {} -- Cache agar tidak perlu download ulang saat respawn
+    LoadedAccessories = {}
 }
 
 local KORBLOX_LEFT_LEG = 139607718
 local KORBLOX_RIGHT_LEG = 139607673
 
--- ==========================================
--- BACKGROUND CACHE LOADER 
--- ==========================================
 task.spawn(function()
     local cacheFolder = workspace:FindFirstChild("Mugiwara_Bundle_Cache")
     if not cacheFolder then
@@ -105,9 +102,6 @@ local function FindBodyAttachment(character, attachmentName)
     return nil
 end
 
--- ==========================================
--- LOGIC KORLESS VISUAL (ANTI-BUG)
--- ==========================================
 local function hilangkanKepala(rigTarget, state)
     if not rigTarget then return end
     local head = rigTarget:FindFirstChild("Head")
@@ -207,12 +201,10 @@ local function runTahap1(side, state, myRig, myHum)
                 ankle.Part0 = newLower
                 ankle.Part1 = newFoot
 
-                -- FIX FATAL: Amankan Motor6D agar tidak ikut hancur saat toggle off
                 if hip.Parent == oldUpper then hip.Parent = newUpper end
                 if knee.Parent == oldUpper or knee.Parent == oldLower then knee.Parent = newUpper end
                 if ankle.Parent == oldLower or ankle.Parent == oldFoot then ankle.Parent = newLower end
 
-                -- FIX PHYSICS: Matikan total properti fisik agar tidak berat/miring
                 local noPhys = PhysicalProperties.new(0.01, 0, 0, 0, 0)
                 for _, p in ipairs({newUpper, newLower, newFoot}) do
                     p.Massless = true
@@ -251,13 +243,14 @@ local function runTahap1(side, state, myRig, myHum)
 
             local bPartEnum = side == "Left" and Enum.BodyPart.LeftLeg or Enum.BodyPart.RightLeg
             
+            for _, oldMesh in ipairs(myRig:GetChildren()) do
+                if oldMesh:IsA("CharacterMesh") and oldMesh.BodyPart == bPartEnum then
+                    oldMesh:Destroy()
+                end
+            end
+            
             for _, obj in ipairs(sourceRig:GetChildren()) do
                 if obj:IsA("CharacterMesh") and obj.BodyPart == bPartEnum then
-                    for _, oldMesh in ipairs(myRig:GetChildren()) do
-                        if oldMesh:IsA("CharacterMesh") and oldMesh.BodyPart == bPartEnum then
-                            oldMesh:Destroy()
-                        end
-                    end
                     obj:Clone().Parent = myRig
                 end
             end
@@ -269,7 +262,6 @@ local function runTahap1(side, state, myRig, myHum)
             targetLeg.CanCollide = false
             targetLeg.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0, 0, 0, 0)
             
-            -- FIX FATAL MOTOR6D (R6)
             if hipMotor.Parent == myOldLeg then hipMotor.Parent = targetLeg end
 
             local myColors = myRig:FindFirstChildOfClass("BodyColors")
@@ -285,9 +277,6 @@ local function runTahap1(side, state, myRig, myHum)
     return sukses
 end
 
--- ==========================================
--- AUTO APPLY SYSTEM (RESPAWN & RECREATE)
--- ==========================================
 local function ApplyActiveStates(rig)
     if not rig then return end
     local hum = rig:WaitForChild("Humanoid", 3)
@@ -297,13 +286,11 @@ local function ApplyActiveStates(rig)
     if VisualAccessories.State.LeftKorblox then runTahap1("Left", true, rig, hum) end
     if VisualAccessories.State.RightKorblox then runTahap1("Right", true, rig, hum) end
 
-    -- Auto-apply semua aksesoris yang sedang aktif
     for assetId, _ in pairs(VisualAccessories.State.Accessories) do
         VisualAccessories.Apply(assetId, nil, true)
     end
 end
 
--- Scanner Pintar (Menangkap regenerasi nakal Evade)
 task.spawn(function()
     local lastChar = nil
     while task.wait(1) do
@@ -316,9 +303,6 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- EXPORTED FUNCTIONS (UI)
--- ==========================================
 function VisualAccessories.ToggleHeadless(state)
     VisualAccessories.State.Headless = state
     local character, _ = GetCharacter()
@@ -335,7 +319,6 @@ function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
     local character, humanoid = GetCharacter()
     if not character or not humanoid then return end
 
-    -- Cek jika sudah di-cache agar tidak nge-lag saat respawn
     local cachedAcc = Cache.LoadedAccessories[assetId]
     
     if not cachedAcc then
@@ -368,10 +351,9 @@ function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
         return
     end
 
-    -- Hindari duplikasi jika karakter sudah punya aksesoris ini
     for _, child in ipairs(character:GetChildren()) do
         if child:IsA("Accessory") and child:GetAttribute("AssetId") == assetId then
-            return -- Sudah dipakai
+            return 
         end
     end
 
