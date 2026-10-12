@@ -12,7 +12,7 @@ return function(Window, isPremiumUser, WindUI)
         Image = gameIcon,
         ImageSize = 75
     })
-
+    
     TabMain:Divider({ Title = "Evade Premium Features" })
     
     local AccSection = TabMain:Section({ 
@@ -36,7 +36,7 @@ return function(Window, isPremiumUser, WindUI)
         Values = templateNames,
         Value = "",
         Callback = function(Option)
-            if Option and VisualAccModule then
+            if Option and Option ~= "" and VisualAccModule then
                 local selectedId = nil
                 for i, item in ipairs(VisualAccModule.Templates) do
                     if item.Name == Option then
@@ -61,6 +61,8 @@ return function(Window, isPremiumUser, WindUI)
         Locked = not isPremiumUser,
         Placeholder = "e.g., 10159600649",
         Callback = function(Text)
+            if not Text or Text == "" then return end 
+            
             local assetId = tonumber(Text)
             if assetId then
                 task.spawn(function()
@@ -82,14 +84,7 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    local ModSection = TabMain:Section({ 
-        Title = '<font color="#ffff82">Visual Modifications</font>', 
-        Icon = "lucide:bone", 
-        Opened = true, 
-        Box = true 
-    })
-
-    ModSection:Toggle({
+    AccSection:Toggle({
         Title = "Headless Head",
         Desc = "Visually removes your character's head.",
         Locked = not isPremiumUser,
@@ -100,7 +95,7 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    ModSection:Toggle({
+    AccSection:Toggle({
         Title = "Korblox Left Leg",
         Desc = "Applies Korblox visual mesh to the left leg.",
         Locked = not isPremiumUser,
@@ -111,7 +106,7 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    ModSection:Toggle({
+    AccSection:Toggle({
         Title = "Korblox Right Leg",
         Desc = "Applies Korblox visual mesh to the right leg.",
         Locked = not isPremiumUser,
