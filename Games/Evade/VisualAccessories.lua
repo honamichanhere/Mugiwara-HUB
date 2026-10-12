@@ -2,12 +2,47 @@ local VisualAccessories = {}
 local Players = game:GetService("Players")
 
 VisualAccessories.Templates = {
-    ["Violet Valkyrie"] = 1402432199,
-    ["8-Bit Royal Crown"] = 10159600649,
-    ["Fiery Horns of the Netherworld"] = 215718515,
-    ["Frozen Horns of the Frigid Planes"] = 74891470,
-    ["Poisoned Horns of the Toxic Wasteland"] = 1744060292,
+    { Name = "Violet Valkyrie", ID = 1402432199 },
+    { Name = "8-Bit Royal Crown", ID = 10159600649 },
+    { Name = "Fiery Horns of the Netherworld", ID = 215718515 },
+    { Name = "Frozen Horns of the Frigid Planes", ID = 74891470 },
+    { Name = "Poisoned Horns of the Toxic Wasteland", ID = 1744060292 }
 }
+
+VisualAccessories.OriginalData = {
+    Head = {}, LeftLeg = {}, RightLeg = {}
+}
+
+task.spawn(function()
+    local cacheFolder = workspace:FindFirstChild("Mugiwara_Bundle_Cache")
+    if not cacheFolder then
+        cacheFolder = Instance.new("Folder")
+        cacheFolder.Name = "Mugiwara_Bundle_Cache"
+        cacheFolder.Parent = workspace
+    end
+
+    local assetsToLoad = { Left = 398672920, Right = 398673196 }
+
+    for side, id in pairs(assetsToLoad) do
+        pcall(function()
+            local objs = game:GetObjects("rbxassetid://" .. id)
+            if objs and objs[1] then
+                local asset = objs[1]
+                asset.Parent = cacheFolder
+                
+                for _, part in ipairs(asset:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = true
+                        part.CanCollide = false
+                        part.CFrame = CFrame.new(5000, 5000, side == "Left" and 5000 or -5000)
+                    end
+                end
+                VisualAccessories.OriginalData["Cache" .. side] = asset
+                print("[Mugiwara HUB] Cached Korblox " .. side .. " Leg at Y=5000")
+            end
+        end)
+    end
+end)
 
 local function GetCharacter()
     local player = Players.LocalPlayer
@@ -133,6 +168,123 @@ function VisualAccessories.Clear(WindUI)
             end
         end
         if WindUI then WindUI:Notify({ Title = "Cleaned", Content = "Removed " .. count .. " custom accessories.", Duration = 3 }) end
+    end
+end
+
+function VisualAccessories.ToggleHeadless(state)
+    local character, humanoid = GetCharacter()
+    if not character or not humanoid then return end
+
+    local head = character:FindFirstChild("Head")
+    if not head then return end
+
+    if state then
+        if not VisualAccessories.OriginalData.Head.Transparency then
+            VisualAccessories.OriginalData.Head.Transparency = head.Transparency
+        end
+        head.Transparency = 1
+        
+        local face = head:FindFirstChildOfClass("Decal")
+        if face then 
+            VisualAccessories.OriginalData.Head.FaceCache = face:Clone()
+            face:Destroy()
+        end
+    else
+        if VisualAccessories.OriginalData.Head.Transparency then
+            head.Transparency = VisualAccessories.OriginalData.Head.Transparency
+        end
+        
+        local currentFace = head:FindFirstChildOfClass("Decal")
+        if not currentFace and VisualAccessories.OriginalData.Head.FaceCache then
+            VisualAccessories.OriginalData.Head.FaceCache:Clone().Parent = head
+        end
+    end
+end
+
+function VisualAccessories.ToggleKorblox(state, side)
+    local character, humanoid = GetCharacter()
+    if not character or not humanoid then return end
+
+    local isR15 = humanoid.RigType == Enum.HumanoidRigType.R15
+
+    local targetParts = {}
+    if side == "Left" then
+        targetParts = isR15 and {"LeftUpperLeg", "LeftLowerLeg", "LeftFoot"} or {"Left Leg"}
+    else
+        targetParts = isR15 and {"RightUpperLeg", "RightLowerLeg", "RightFoot"} or {"Right Leg"}
+    end
+
+    for _, partName in ipairs(targetParts) do
+        local part = character:FindFirstChild(partName)
+        if part then
+            if state then
+                if not VisualAccessories.OriginalData[side .. "Leg"][partName] then
+                    VisualAccessories.OriginalData[side .. "Leg"][partName] = part.Transparency
+                end
+                
+                part.Transparency = 1 
+                part:SetAttribute("HasKorblox", true)
+                
+                local cachedBundle = VisualAccessories.OriginalData["Cache" .. side]
+                local fakeLeg
+                
+                if cachedBundle and isR15 then
+                    local cachedPart = cachedBundle:FindFirstChild(partName, true)
+                    if cachedPart and cachedPart:IsA("MeshPart") then
+                        fakeLeg = cachedPart:Clone()
+                        fakeLeg.Name = "FakeKorblox" .. side .. partName
+                        fakeLeg.Anchored = false
+                        fakeLeg.CanCollide = false
+                        fakeLeg.Massless = true
+                        
+                        for _, child in ipairs(fakeLeg:GetChildren()) do
+                            if child:IsA("Attachment") or child:IsA("Motor6D") then
+                                child:Destroy()
+                            end
+                        end
+                    end
+                end
+                
+                if not fakeLeg then
+                    fakeLeg = Instance.new("Part")
+                    fakeLeg.Name = "FakeKorblox" .. side .. partName
+                    fakeLeg.Size = part.Size
+                    fakeLeg.CanCollide = false
+                    fakeLeg.Massless = true
+                    fakeLeg.Transparency = 0
+                    
+                    local mesh = Instance.new("SpecialMesh")
+                    mesh.MeshId = side == "Left" and "rbxassetid://902942093" or "rbxassetid://902942096"
+                    mesh.Parent = fakeLeg
+                end
+
+                local bodyColor = character:FindFirstChildOfClass("BodyColors")
+                if bodyColor then
+                    fakeLeg.Color = side == "Left" and bodyColor.LeftLegColor3 or bodyColor.RightLegColor3
+                else
+                    fakeLeg.Color = part.Color
+                end
+
+                fakeLeg.Parent = character
+
+                local weld = Instance.new("WeldConstraint")
+                weld.Part0 = part
+                weld.Part1 = fakeLeg
+                weld.Parent = fakeLeg
+                
+                fakeLeg.CFrame = part.CFrame
+            else
+                if VisualAccessories.OriginalData[side .. "Leg"][partName] then
+                    part.Transparency = VisualAccessories.OriginalData[side .. "Leg"][partName]
+                else
+                    part.Transparency = 0
+                end
+                part:SetAttribute("HasKorblox", nil)
+                
+                local fakeLeg = character:FindFirstChild("FakeKorblox" .. side .. partName)
+                if fakeLeg then fakeLeg:Destroy() end
+            end
+        end
     end
 end
 
