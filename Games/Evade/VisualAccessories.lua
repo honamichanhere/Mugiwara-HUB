@@ -1,6 +1,3 @@
--- ==========================================
--- MODULE: VISUAL ACCESSORIES (EVADE)
--- ==========================================
 local VisualAccessories = {}
 local Players = game:GetService("Players")
 
@@ -12,7 +9,6 @@ VisualAccessories.Templates = {
     { Name = "Poisoned Horns of the Toxic Wasteland", ID = 1744060292 }
 }
 
--- Database untuk Toggle State & Data Asli
 VisualAccessories.State = {
     Headless = false,
     LeftKorblox = false,
@@ -24,7 +20,10 @@ VisualAccessories.OriginalData = {
     AvatarDesc = nil
 }
 
--- Ambil data Avatar asli player di background saat module di-load
+-- ID Catalog Asset resmi (Bukan ID Mesh mentah, jadi anti-error R15ArtistIntent)
+local KORBLOX_LEFT_LEG = 139607718
+local KORBLOX_RIGHT_LEG = 139607673
+
 task.spawn(function()
     local success, desc = pcall(function() 
         return Players:GetHumanoidDescriptionFromUserId(Players.LocalPlayer.UserId) 
@@ -87,7 +86,6 @@ local function hilangkanKepala(rigTarget, state)
     end
 end
 
--- Menyambungkan ulang part custom/script game ke tulang baru
 local function reconnectCustomParts(oldPart, newPart, rig)
     if not oldPart or not newPart or not rig then return end
 
@@ -124,23 +122,23 @@ local function reconnectCustomParts(oldPart, newPart, rig)
     end
 end
 
--- Mesin utama perakit tulang (Support R6 & R15, Kiri & Kanan, On & Off)
 local function runTahap1(side, state, myRig, myHum)
     if not myRig or not myHum then return false end
     if not VisualAccessories.OriginalData.AvatarDesc then return false end
 
-    -- Clone deskripsi asli, manipulasi ID Kakinya dengan Bundle ID Korblox
+    -- Clone deskripsi asli & sisipkan ID Catalog resmi Bundle Korblox
     local dummyDesc = VisualAccessories.OriginalData.AvatarDesc:Clone()
     if state then
-        if side == "Left" then dummyDesc.LeftLeg = 398672920 end
-        if side == "Right" then dummyDesc.RightLeg = 398673196 end
+        if side == "Left" then dummyDesc.LeftLeg = KORBLOX_LEFT_LEG end
+        if side == "Right" then dummyDesc.RightLeg = KORBLOX_RIGHT_LEG end
     end
 
     local isR15 = myHum.RigType == Enum.HumanoidRigType.R15
     local dummyRig = Players:CreateHumanoidModelFromDescription(dummyDesc, myHum.RigType)
     dummyRig.Name = "TumbalKorblox_" .. side
     dummyRig.Parent = workspace 
-    task.wait(0.1) -- Beri waktu sedikit untuk physics joint Roblox memuat
+    -- Lempar jauh ke atas langit agar ter-cache tapi tidak terlihat
+    dummyRig:PivotTo(CFrame.new(5000, 5000, 5000))
     
     local sukses = false
 
@@ -201,7 +199,6 @@ local function runTahap1(side, state, myRig, myHum)
             end
         end
     else
-        -- Eksekusi R6
         local legName = side .. " Leg"
         local myOldLeg = myRig:FindFirstChild(legName)
         local jointsFolder = myRig:FindFirstChild("Joints")
@@ -250,24 +247,17 @@ local function ApplyActiveStates(rig)
     local hum = rig:WaitForChild("Humanoid", 3)
     if not hum then return end
     
-    if VisualAccessories.State.Headless then 
-        hilangkanKepala(rig, true) 
-    end
-    if VisualAccessories.State.LeftKorblox then 
-        runTahap1("Left", true, rig, hum) 
-    end
-    if VisualAccessories.State.RightKorblox then 
-        runTahap1("Right", true, rig, hum) 
-    end
+    if VisualAccessories.State.Headless then hilangkanKepala(rig, true) end
+    if VisualAccessories.State.LeftKorblox then runTahap1("Left", true, rig, hum) end
+    if VisualAccessories.State.RightKorblox then runTahap1("Right", true, rig, hum) end
 end
 
--- Event Listener: Auto-Apply saat karakter spawn ulang di Evade
 task.spawn(function()
     local rigsFolder = workspace:WaitForChild("Rigs", 10)
     if rigsFolder then
         rigsFolder.ChildAdded:Connect(function(child)
             if child.Name == Players.LocalPlayer.Name then
-                task.wait(0.5) -- Beri waktu sedikit untuk load dari server
+                task.wait(0.5) 
                 ApplyActiveStates(child)
             end
         end)
@@ -312,7 +302,7 @@ function VisualAccessories.Apply(assetId, WindUI)
     local success, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(assetId)) end)
 
     if not success or not objects or not objects[1] then
-        if WindUI then WindUI:Notify({ Title = "Failed", Content = "Failed to load asset ID: " .. tostring(assetId), Duration = 3 }) end
+        if WindUI then WindUI:Notify({ Title = "Failed", Content = "Failed to load asset ID.", Duration = 3 }) end
         return
     end
 
@@ -346,7 +336,6 @@ function VisualAccessories.Apply(assetId, WindUI)
         if bodyAttachment then
             local bodyPart = bodyAttachment.Parent
             accessory.Parent = character
-
             local oldWeld = handle:FindFirstChild("AccessoryWeld")
             if oldWeld then oldWeld:Destroy() end
 
