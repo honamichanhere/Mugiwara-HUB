@@ -1,3 +1,6 @@
+-- ==========================================
+-- MODULE: VISUAL ACCESSORIES (EVADE)
+-- ==========================================
 local VisualAccessories = {}
 local Players = game:GetService("Players")
 
@@ -16,22 +19,67 @@ VisualAccessories.State = {
 }
 
 VisualAccessories.OriginalData = {
-    Head = {}, 
-    AvatarDesc = nil
+    Head = {}
 }
 
--- ID Catalog Asset resmi (Bukan ID Mesh mentah, jadi anti-error R15ArtistIntent)
-local KORBLOX_LEFT_LEG = 139607718
-local KORBLOX_RIGHT_LEG = 139607673
+-- Database Cache Karakter (Disimpan di koordinat Y=5000)
+local Cache = {
+    KorbloxR15 = nil, KorbloxR6 = nil,
+    OriR15 = nil, OriR6 = nil
+}
 
+-- ==========================================
+-- BACKGROUND CACHE LOADER (SPAWN UTUH)
+-- ==========================================
 task.spawn(function()
-    local success, desc = pcall(function() 
-        return Players:GetHumanoidDescriptionFromUserId(Players.LocalPlayer.UserId) 
-    end)
-    if success and desc then
-        VisualAccessories.OriginalData.AvatarDesc = desc
-        print("[Mugiwara HUB] Original Avatar Description cached successfully.")
+    local cacheFolder = workspace:FindFirstChild("Mugiwara_Bundle_Cache")
+    if not cacheFolder then
+        cacheFolder = Instance.new("Folder")
+        cacheFolder.Name = "Mugiwara_Bundle_Cache"
+        cacheFolder.Parent = workspace
     end
+
+    -- 1. Merakit Avatar Asli Player
+    local myDesc = Instance.new("HumanoidDescription")
+    pcall(function() 
+        local desc = Players:GetHumanoidDescriptionFromUserId(Players.LocalPlayer.UserId)
+        if desc then myDesc = desc end
+    end)
+
+    Cache.OriR15 = Players:CreateHumanoidModelFromDescription(myDesc, Enum.HumanoidRigType.R15)
+    Cache.OriR15.Name = "Cache_OriR15"
+    Cache.OriR15.Parent = cacheFolder
+    Cache.OriR15:PivotTo(CFrame.new(5000, 5000, 5000))
+    if Cache.OriR15:FindFirstChild("HumanoidRootPart") then Cache.OriR15.HumanoidRootPart.Anchored = true end
+
+    Cache.OriR6 = Players:CreateHumanoidModelFromDescription(myDesc, Enum.HumanoidRigType.R6)
+    Cache.OriR6.Name = "Cache_OriR6"
+    Cache.OriR6.Parent = cacheFolder
+    Cache.OriR6:PivotTo(CFrame.new(5010, 5000, 5000))
+    if Cache.OriR6:FindFirstChild("HumanoidRootPart") then Cache.OriR6.HumanoidRootPart.Anchored = true end
+
+    -- 2. Merakit Bundle Korblox Deathspeaker Secara Utuh (Pake ID Catalog Resmi)
+    local kbDesc = Instance.new("HumanoidDescription")
+    kbDesc.LeftLeg = 139607718
+    kbDesc.RightLeg = 139607673
+    kbDesc.Head = 139607677
+    kbDesc.Torso = 139607693
+    kbDesc.LeftArm = 139607684
+    kbDesc.RightArm = 139607736
+
+    Cache.KorbloxR15 = Players:CreateHumanoidModelFromDescription(kbDesc, Enum.HumanoidRigType.R15)
+    Cache.KorbloxR15.Name = "Cache_KorbloxR15"
+    Cache.KorbloxR15.Parent = cacheFolder
+    Cache.KorbloxR15:PivotTo(CFrame.new(5020, 5000, 5000))
+    if Cache.KorbloxR15:FindFirstChild("HumanoidRootPart") then Cache.KorbloxR15.HumanoidRootPart.Anchored = true end
+
+    Cache.KorbloxR6 = Players:CreateHumanoidModelFromDescription(kbDesc, Enum.HumanoidRigType.R6)
+    Cache.KorbloxR6.Name = "Cache_KorbloxR6"
+    Cache.KorbloxR6.Parent = cacheFolder
+    Cache.KorbloxR6:PivotTo(CFrame.new(5030, 5000, 5000))
+    if Cache.KorbloxR6:FindFirstChild("HumanoidRootPart") then Cache.KorbloxR6.HumanoidRootPart.Anchored = true end
+
+    print("[Mugiwara HUB] Korblox & Original Character Cached di Y=5000 secara utuh!")
 end)
 
 local function GetCharacter()
@@ -124,22 +172,19 @@ end
 
 local function runTahap1(side, state, myRig, myHum)
     if not myRig or not myHum then return false end
-    if not VisualAccessories.OriginalData.AvatarDesc then return false end
-
-    -- Clone deskripsi asli & sisipkan ID Catalog resmi Bundle Korblox
-    local dummyDesc = VisualAccessories.OriginalData.AvatarDesc:Clone()
-    if state then
-        if side == "Left" then dummyDesc.LeftLeg = KORBLOX_LEFT_LEG end
-        if side == "Right" then dummyDesc.RightLeg = KORBLOX_RIGHT_LEG end
-    end
-
-    local isR15 = myHum.RigType == Enum.HumanoidRigType.R15
-    local dummyRig = Players:CreateHumanoidModelFromDescription(dummyDesc, myHum.RigType)
-    dummyRig.Name = "TumbalKorblox_" .. side
-    dummyRig.Parent = workspace 
-    -- Lempar jauh ke atas langit agar ter-cache tapi tidak terlihat
-    dummyRig:PivotTo(CFrame.new(5000, 5000, 5000))
     
+    local isR15 = myHum.RigType == Enum.HumanoidRigType.R15
+    local sourceRig
+    
+    -- Ambil referensi dari Cache di langit
+    if state then
+        sourceRig = isR15 and Cache.KorbloxR15 or Cache.KorbloxR6
+    else
+        sourceRig = isR15 and Cache.OriR15 or Cache.OriR6
+    end
+    
+    if not sourceRig then return false end
+
     local sukses = false
 
     if isR15 then
@@ -151,11 +196,16 @@ local function runTahap1(side, state, myRig, myHum)
         local oldLower = myRig:FindFirstChild(lowerName)
         local oldFoot = myRig:FindFirstChild(footName)
 
-        local newUpper = dummyRig:FindFirstChild(upperName)
-        local newLower = dummyRig:FindFirstChild(lowerName)
-        local newFoot = dummyRig:FindFirstChild(footName)
+        local srcUpper = sourceRig:FindFirstChild(upperName)
+        local srcLower = sourceRig:FindFirstChild(lowerName)
+        local srcFoot = sourceRig:FindFirstChild(footName)
 
-        if oldUpper and oldLower and oldFoot and newUpper and newLower and newFoot then
+        if oldUpper and oldLower and oldFoot and srcUpper and srcLower and srcFoot then
+            -- CLONE PART DARI CACHE AGAR CACHE TIDAK HILANG
+            local newUpper = srcUpper:Clone()
+            local newLower = srcLower:Clone()
+            local newFoot = srcFoot:Clone()
+
             local joints = myRig:FindFirstChild("Joints")
             local hipName = side .. "Hip"
             local kneeName = side .. "Knee"
@@ -166,6 +216,11 @@ local function runTahap1(side, state, myRig, myHum)
             local ankle = (joints and joints:FindFirstChild(ankleName)) or oldFoot:FindFirstChild(ankleName)
 
             if hip and knee and ankle then
+                -- Hapus sendi bawaan hasil clone agar tidak menabrak sendi asli karakter
+                for _, v in ipairs(newUpper:GetChildren()) do if v:IsA("Motor6D") then v:Destroy() end end
+                for _, v in ipairs(newLower:GetChildren()) do if v:IsA("Motor6D") then v:Destroy() end end
+                for _, v in ipairs(newFoot:GetChildren()) do if v:IsA("Motor6D") then v:Destroy() end end
+
                 newUpper.Parent = myRig
                 newLower.Parent = myRig
                 newFoot.Parent = myRig
@@ -199,23 +254,27 @@ local function runTahap1(side, state, myRig, myHum)
             end
         end
     else
+        -- Eksekusi R6
         local legName = side .. " Leg"
         local myOldLeg = myRig:FindFirstChild(legName)
         local jointsFolder = myRig:FindFirstChild("Joints")
         local hipMotor = jointsFolder and jointsFolder:FindFirstChild(legName)
-        local targetLeg = dummyRig:FindFirstChild(legName)
+        local srcLeg = sourceRig:FindFirstChild(legName)
 
-        if myOldLeg and hipMotor and targetLeg then
+        if myOldLeg and hipMotor and srcLeg then
+            local targetLeg = srcLeg:Clone()
+            for _, v in ipairs(targetLeg:GetChildren()) do if v:IsA("Motor6D") then v:Destroy() end end
+
             local bPartEnum = side == "Left" and Enum.BodyPart.LeftLeg or Enum.BodyPart.RightLeg
             
-            for _, obj in ipairs(dummyRig:GetChildren()) do
+            for _, obj in ipairs(sourceRig:GetChildren()) do
                 if obj:IsA("CharacterMesh") and obj.BodyPart == bPartEnum then
                     for _, oldMesh in ipairs(myRig:GetChildren()) do
                         if oldMesh:IsA("CharacterMesh") and oldMesh.BodyPart == bPartEnum then
                             oldMesh:Destroy()
                         end
                     end
-                    obj.Parent = myRig
+                    obj:Clone().Parent = myRig
                 end
             end
 
@@ -235,12 +294,11 @@ local function runTahap1(side, state, myRig, myHum)
         end
     end
 
-    dummyRig:Destroy()
     return sukses
 end
 
 -- ==========================================
--- APLIKASI STATE OTOMATIS
+-- APLIKASI STATE OTOMATIS SAAT RESPAWN
 -- ==========================================
 local function ApplyActiveStates(rig)
     if not rig then return end
@@ -281,12 +339,6 @@ end
 function VisualAccessories.ToggleKorblox(state, side)
     VisualAccessories.State[side .. "Korblox"] = state
     local character, humanoid = GetCharacter()
-    
-    if not VisualAccessories.OriginalData.AvatarDesc then
-        warn("[Mugiwara HUB] Avatar Data belum termuat sepenuhnya!")
-        return
-    end
-
     runTahap1(side, state, character, humanoid)
 end
 
