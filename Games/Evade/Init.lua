@@ -24,8 +24,8 @@ return function(Window, isPremiumUser, WindUI)
 
     local templateNames = {}
     if VisualAccModule and VisualAccModule.Templates then
-        for name, _ in pairs(VisualAccModule.Templates) do 
-            table.insert(templateNames, name) 
+        for i, item in ipairs(VisualAccModule.Templates) do 
+            table.insert(templateNames, item.Name) 
         end
     end
 
@@ -36,10 +36,20 @@ return function(Window, isPremiumUser, WindUI)
         Values = templateNames,
         Value = "",
         Callback = function(Option)
-            if Option and VisualAccModule and VisualAccModule.Templates[Option] then
-                task.spawn(function()
-                    VisualAccModule.Apply(VisualAccModule.Templates[Option], WindUI)
-                end)
+            if Option and VisualAccModule then
+                local selectedId = nil
+                for i, item in ipairs(VisualAccModule.Templates) do
+                    if item.Name == Option then
+                        selectedId = item.ID
+                        break
+                    end
+                end
+                
+                if selectedId then
+                    task.spawn(function()
+                        VisualAccModule.Apply(selectedId, WindUI)
+                    end)
+                end
             end
         end
     })
@@ -49,7 +59,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Load Custom Asset ID",
         Desc = "Enter a valid Marketplace Accessory ID.",
         Locked = not isPremiumUser,
-        Placeholder = "Asset ID",
+        Placeholder = "e.g., 10159600649",
         Callback = function(Text)
             local assetId = tonumber(Text)
             if assetId then
@@ -69,6 +79,46 @@ return function(Window, isPremiumUser, WindUI)
         Locked = not isPremiumUser,
         Callback = function()
             if VisualAccModule then VisualAccModule.Clear(WindUI) end
+        end
+    })
+
+    local ModSection = TabMain:Section({ 
+        Title = '<font color="#ffff82">Visual Modifications</font>', 
+        Icon = "lucide:bone", 
+        Opened = true, 
+        Box = true 
+    })
+
+    ModSection:Toggle({
+        Title = "Headless Head",
+        Desc = "Visually removes your character's head.",
+        Locked = not isPremiumUser,
+        Callback = function(Value)
+            task.spawn(function()
+                if VisualAccModule then VisualAccModule.ToggleHeadless(Value) end
+            end)
+        end
+    })
+
+    ModSection:Toggle({
+        Title = "Korblox Left Leg",
+        Desc = "Applies Korblox visual mesh to the left leg.",
+        Locked = not isPremiumUser,
+        Callback = function(Value)
+            task.spawn(function()
+                if VisualAccModule then VisualAccModule.ToggleKorblox(Value, "Left") end
+            end)
+        end
+    })
+
+    ModSection:Toggle({
+        Title = "Korblox Right Leg",
+        Desc = "Applies Korblox visual mesh to the right leg.",
+        Locked = not isPremiumUser,
+        Callback = function(Value)
+            task.spawn(function()
+                if VisualAccModule then VisualAccModule.ToggleKorblox(Value, "Right") end
+            end)
         end
     })
 
