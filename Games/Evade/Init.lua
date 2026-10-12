@@ -1,23 +1,15 @@
-local MarketplaceService = game:GetService("MarketplaceService")
-
 local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
-    local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ghost" })
+    local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ship" })
     
-    local gameIcon = ""
-    pcall(function()
-        local info = MarketplaceService:GetProductInfo(game.PlaceId)
-        if info and info.IconImageAssetId then
-            gameIcon = "rbxassetid://" .. info.IconImageAssetId
-        end
-    end)
+    local gameIcon = "rbxthumb://type=Asset&id=" .. game.PlaceId .. "&w=150&h=150"
     
     TabMain:Paragraph({
         Title = "Evade Mode Active",
         Desc = "Exclusive features for Evade loaded successfully.",
-        Image = gameIcon ~= "" and gameIcon or nil,
+        Image = gameIcon,
         ImageSize = 75
     })
 
@@ -57,7 +49,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Load Custom Asset ID",
         Desc = "Enter a valid Marketplace Accessory ID.",
         Locked = not isPremiumUser,
-        Placeholder = "e.g., 10159600649",
+        Placeholder = "Asset ID",
         Callback = function(Text)
             local assetId = tonumber(Text)
             if assetId then
