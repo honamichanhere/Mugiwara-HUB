@@ -10,7 +10,7 @@ getgenv().HonamiHub_Executed = true
 
 local queue_on_tp = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 if queue_on_tp then
-    queue_on_tp('loadstring(game:HttpGet("LINK_RAW_SCRIPT_UTAMA_LU"))()')
+    queue_on_tp('loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Main.lua"))()')
 end
 
 local Players = game:GetService("Players")
