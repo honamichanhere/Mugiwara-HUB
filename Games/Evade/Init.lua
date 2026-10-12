@@ -1,23 +1,34 @@
--- ==========================================
--- EVADE LOADER (GAMES/EVADE/INIT.LUA)
--- ==========================================
+local MarketplaceService = game:GetService("MarketplaceService")
+
 local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
-    local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ship" })
+    local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ghost" })
+    
+    local gameIcon = ""
+    pcall(function()
+        local info = MarketplaceService:GetProductInfo(game.PlaceId)
+        if info and info.IconImageAssetId then
+            gameIcon = "rbxassetid://" .. info.IconImageAssetId
+        end
+    end)
     
     TabMain:Paragraph({
         Title = "Evade Mode Active",
-        Desc = "Exclusive features for Evade loaded successfully."
+        Desc = "Exclusive features for Evade loaded successfully.",
+        Image = gameIcon ~= "" and gameIcon or nil,
+        ImageSize = 75
     })
 
-    -- ==========================================
-    -- UI: PREMIUM ACCESSORIES SECTION
-    -- ==========================================
     TabMain:Divider({ Title = "Evade Premium Features" })
     
-    local AccSection = TabMain:Section({ Title = "Visual Accessories", Icon = "lucide:gem", Opened = true, Box = true })
+    local AccSection = TabMain:Section({ 
+        Title = '<font color="#ffff82">Premium Features</font>', 
+        Icon = "rbxassetid://74594159374416", 
+        Opened = true, 
+        Box = true 
+    })
 
     local templateNames = {}
     if VisualAccModule and VisualAccModule.Templates then
@@ -35,7 +46,6 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function(Option)
             if Option and VisualAccModule and VisualAccModule.Templates[Option] then
                 task.spawn(function()
-                    -- Panggil logic dari module, dan lempar WindUI biar bisa notif
                     VisualAccModule.Apply(VisualAccModule.Templates[Option], WindUI)
                 end)
             end
@@ -70,12 +80,9 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    -- ==========================================
-    -- UI: UNIVERSAL MOVEMENT SECTION (BOTTOM)
-    -- ==========================================
     TabMain:Divider({ Title = "Universal Modules" })
     
-    local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/Movement.lua"))
+    local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/MovementInjector.lua"))
     if injectMovement then 
         injectMovement()(TabMain, isPremiumUser, WindUI) 
     end
