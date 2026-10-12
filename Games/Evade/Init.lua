@@ -1,5 +1,5 @@
 local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
-local AutoReviveModule = loadstring(game:HttpGet("URL_GITHUB_AUTO_REVIVE.lua"))()
+local AutoReviveModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/AutoRevive.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
