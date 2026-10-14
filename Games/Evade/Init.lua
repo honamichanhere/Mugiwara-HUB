@@ -1,5 +1,9 @@
+-- ==========================================
+-- EVADE LOADER (GAMES/EVADE/INIT.LUA)
+-- ==========================================
 local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
-local AutoReviveModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/AutoRevive.lua"))()
+-- Load Avatar Changer Module lu
+local AvatarChangerModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/AvatarChanger.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -13,7 +17,49 @@ return function(Window, isPremiumUser, WindUI)
         Image = gameIcon,
         ImageSize = 75
     })
+
+    -- ==========================================
+    -- UI: PLAYER MODIFICATIONS (AVATAR CHANGER)
+    -- ==========================================
+    TabMain:Divider({ Title = "Player Modifications" })
     
+    local ModSection = TabMain:Section({ 
+        Title = "Avatar Changer", 
+        Icon = "lucide:user", 
+        Opened = true, 
+        Box = true 
+    })
+
+    local AvatarInput
+    AvatarInput = ModSection:Input({
+        Title = "Morph By Username",
+        Desc = "Copy any player's avatar exactly 1:1.",
+        Locked = false,
+        Placeholder = "Ketik username target...",
+        Callback = function(Text)
+            -- Cegah bug fire otomatis dari WindUI pas pertama kali render
+            if not Text or Text == "" then return end 
+            
+            task.spawn(function()
+                if AvatarChangerModule then AvatarChangerModule.Apply(Text, WindUI) end
+            end)
+            -- Bersihin kolom input otomatis setelah di-enter
+            pcall(function() AvatarInput:Set("") end)
+        end
+    })
+
+    ModSection:Button({
+        Title = "Revert to Original",
+        Desc = "Hapus morph dan kembali ke wujud asli lu.",
+        Locked = false,
+        Callback = function()
+            if AvatarChangerModule then AvatarChangerModule.Clear(true, WindUI) end
+        end
+    })
+
+    -- ==========================================
+    -- UI: PREMIUM FEATURES (VISUAL ACCESSORIES)
+    -- ==========================================
     TabMain:Divider({ Title = "Evade Premium Features" })
     
     local AccSection = TabMain:Section({ 
@@ -45,7 +91,6 @@ return function(Window, isPremiumUser, WindUI)
                         break
                     end
                 end
-                
                 if selectedId then
                     task.spawn(function()
                         VisualAccModule.Apply(selectedId, WindUI)
@@ -63,7 +108,6 @@ return function(Window, isPremiumUser, WindUI)
         Placeholder = "e.g., 10159600649",
         Callback = function(Text)
             if not Text or Text == "" then return end 
-            
             local assetId = tonumber(Text)
             if assetId then
                 task.spawn(function()
@@ -118,6 +162,9 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
+    -- ==========================================
+    -- UI: UNIVERSAL MOVEMENT SECTION (BOTTOM)
+    -- ==========================================
     TabMain:Divider({ Title = "Universal Modules" })
     
     local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/MovementInjector.lua"))
@@ -126,24 +173,4 @@ return function(Window, isPremiumUser, WindUI)
     end
 
     pcall(function() Window:SelectTab(2) end)
-
-    TabMain:Divider({ Title = "Evade Utilities" })
-    
-    local UtilSection = TabMain:Section({ 
-        Title = "Game Utilities", 
-        Icon = "lucide:activity", 
-        Opened = true, 
-        Box = true 
-    })
-    
-    UtilSection:Toggle({
-        Title = "Auto Revive (Aura)",
-        Desc = "Automatically teleports to downed players, revives them, and returns to your spot.",
-        Locked = false, -- Fitur Free
-        Callback = function(Value)
-            task.spawn(function()
-                if AutoReviveModule then AutoReviveModule.Toggle(Value, WindUI) end
-            end)
-        end
-    })
 end
