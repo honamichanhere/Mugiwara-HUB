@@ -14,46 +14,12 @@ return function(Window, isPremiumUser, WindUI)
         ImageSize = 75
     })
 
-    TabMain:Divider({ Title = "Player Modifications" })
-    
-    local ModSection = TabMain:Section({ 
-        Title = "Avatar Changer", 
-        Icon = "lucide:user", 
-        Opened = true, 
-        Box = true 
-    })
-
-    local AvatarInput
-    AvatarInput = ModSection:Input({
-        Title = "Morph By Username",
-        Desc = "Copy any player's avatar exactly 1:1.",
-        Locked = false,
-        Placeholder = "Ketik username target...",
-        Callback = function(Text)
-            if not Text or Text == "" then return end 
-            
-            task.spawn(function()
-                if AvatarChangerModule then AvatarChangerModule.Apply(Text, WindUI) end
-            end)
-            pcall(function() AvatarInput:Set("") end)
-        end
-    })
-
-    ModSection:Button({
-        Title = "Revert to Original",
-        Desc = "Hapus morph dan kembali ke wujud asli lu.",
-        Locked = false,
-        Callback = function()
-            if AvatarChangerModule then AvatarChangerModule.Clear(true, WindUI) end
-        end
-    })
-
     TabMain:Divider({ Title = "Evade Premium Features" })
     
     local AccSection = TabMain:Section({ 
         Title = '<font color="#ffff82">Premium Features</font>', 
         Icon = "rbxassetid://74594159374416", 
-        Opened = true, 
+        Opened = false, 
         Box = true 
     })
 
@@ -147,6 +113,31 @@ return function(Window, isPremiumUser, WindUI)
             task.spawn(function()
                 if VisualAccModule then VisualAccModule.ToggleKorblox(Value, "Right") end
             end)
+        end
+    })
+
+    local AvatarInput
+    AvatarInput = AccSection:Input({
+        Title = "Morph By Username",
+        Desc = "Copy any player's avatar exactly 1:1.",
+        Locked = false,
+        Placeholder = "Username...",
+        Callback = function(Text)
+            if not Text or Text == "" then return end 
+            
+            task.spawn(function()
+                if AvatarChangerModule then AvatarChangerModule.Apply(Text, WindUI) end
+            end)
+            pcall(function() AvatarInput:Set("") end)
+        end
+    })
+
+    AccSection:Button({
+        Title = "Revert to Original",
+        Desc = "Back to original avatar.",
+        Locked = false,
+        Callback = function()
+            if AvatarChangerModule then AvatarChangerModule.Clear(true, WindUI) end
         end
     })
 
