@@ -1,8 +1,4 @@
--- ==========================================
--- EVADE LOADER (GAMES/EVADE/INIT.LUA)
--- ==========================================
 local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
--- Load Avatar Changer Module lu
 local AvatarChangerModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/AvatarChanger.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
@@ -18,9 +14,6 @@ return function(Window, isPremiumUser, WindUI)
         ImageSize = 75
     })
 
-    -- ==========================================
-    -- UI: PLAYER MODIFICATIONS (AVATAR CHANGER)
-    -- ==========================================
     TabMain:Divider({ Title = "Player Modifications" })
     
     local ModSection = TabMain:Section({ 
@@ -37,13 +30,11 @@ return function(Window, isPremiumUser, WindUI)
         Locked = false,
         Placeholder = "Ketik username target...",
         Callback = function(Text)
-            -- Cegah bug fire otomatis dari WindUI pas pertama kali render
             if not Text or Text == "" then return end 
             
             task.spawn(function()
                 if AvatarChangerModule then AvatarChangerModule.Apply(Text, WindUI) end
             end)
-            -- Bersihin kolom input otomatis setelah di-enter
             pcall(function() AvatarInput:Set("") end)
         end
     })
@@ -57,9 +48,6 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    -- ==========================================
-    -- UI: PREMIUM FEATURES (VISUAL ACCESSORIES)
-    -- ==========================================
     TabMain:Divider({ Title = "Evade Premium Features" })
     
     local AccSection = TabMain:Section({ 
@@ -162,9 +150,6 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    -- ==========================================
-    -- UI: UNIVERSAL MOVEMENT SECTION (BOTTOM)
-    -- ==========================================
     TabMain:Divider({ Title = "Universal Modules" })
     
     local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/MovementInjector.lua"))
