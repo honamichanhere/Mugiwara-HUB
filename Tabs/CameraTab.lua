@@ -1,15 +1,9 @@
--- ==========================================
--- CAMERA MANAGER LOADER
--- ==========================================
-local CameraModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/CameraManager.lua"))()
+local CameraModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Camera.lua"))()
 
 return function(Window, isPremiumUser, WindUI)
     
     local TabCamera = Window:Tab({ Title = "Camera", Icon = "lucide:video" })
 
-    -- ==========================================
-    -- 1. PREMIUM CAMERA CONTROLS
-    -- ==========================================
     local PremiumSection = TabCamera:Section({ Title = '<font color="#ffff82">Premium Camera Controls</font>', Icon = "lucide:crown", Opened = true, Box = true })
     
     PremiumSection:Toggle({
@@ -95,9 +89,6 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    -- ==========================================
-    -- 2. FIELD OF VIEW & ZOOM CONTROLS (FREE)
-    -- ==========================================
     local FovSection = TabCamera:Section({ Title = "Field of View & Zoom Configuration", Icon = "lucide:eye", Opened = true, Box = true })
 
     local ToggleFOV
@@ -147,9 +138,6 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    -- ==========================================
-    -- 3. UI SYNC ENGINE (OBSERVER HANYA FOV)
-    -- ==========================================
     CameraModule.OnFOVChanged = function(newValue)
         if SliderFOV then
             pcall(function() 
