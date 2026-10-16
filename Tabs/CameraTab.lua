@@ -4,7 +4,7 @@ return function(Window, isPremiumUser, WindUI)
     
     local TabCamera = Window:Tab({ Title = "Camera", Icon = "lucide:video" })
 
-    local PremiumSection = TabCamera:Section({ Title = '<font color="#ffff82">Premium Camera Controls</font>', Icon = "lucide:crown", Opened = true, Box = true })
+    local PremiumSection = TabCamera:Section({ Title = '<font color="#ffff82">Premium Features</font>', Icon = "rbxassetid://74594159374416", Opened = false, Box = true })
     
     PremiumSection:Toggle({
         Title = "Enable Free Camera",
@@ -69,7 +69,7 @@ return function(Window, isPremiumUser, WindUI)
 
     PremiumSection:Slider({
         Title = "Position Stabilizer",
-        Desc = "Adds spring-like lag to character tracking. 0 = Instant, 1 = Max Smoothness.",
+        Desc = "Adds spring-like lag to character tracking.",
         Locked = not isPremiumUser,
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
@@ -80,7 +80,7 @@ return function(Window, isPremiumUser, WindUI)
 
     PremiumSection:Slider({
         Title = "Rotation Stabilizer",
-        Desc = "Smooths out camera aiming for a cinematic feel. 0 = Instant, 1 = Max Smoothness.",
+        Desc = "Smooths out camera aiming for a cinematic feel.",
         Locked = not isPremiumUser,
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
@@ -89,7 +89,7 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    local FovSection = TabCamera:Section({ Title = "Field of View & Zoom Configuration", Icon = "lucide:eye", Opened = true, Box = true })
+    local FovSection = TabCamera:Section({ Title = "Field of View", Icon = "lucide:eye", Opened = false, Box = true })
 
     local ToggleFOV
     ToggleFOV = FovSection:Toggle({
@@ -114,9 +114,9 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
     
-    FovSection:Divider({ Title = "Zoom Controls" })
+    local ZoomSection = TabCamera:Section({ Title = "Zoom Configurations", Icon = "lucide:fullscreen", Opened = false, Box = true })
 
-    FovSection:Toggle({
+    ZoomSection:Toggle({
         Title = "Force Lock Zoom",
         Desc = "Lock camera distance. Prevents game or scrolling from altering zoom.",
         Callback = function(Value)
@@ -128,9 +128,9 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    FovSection:Slider({
+    ZoomSection:Slider({
         Title = "Adjust Zoom Distance",
-        Desc = "Set manual distance (Fire and Forget). Max 200.",
+        Desc = "Set manual distance.",
         Step = 0.5,
         Value = { Min = 0, Max = 200, Default = 12.5 },
         Callback = function(Value)
