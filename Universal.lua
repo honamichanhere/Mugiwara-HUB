@@ -1,6 +1,3 @@
--- ==========================================
--- UNIVERSAL LOADER (FALLBACK MODE)
--- ==========================================
 return function(Window, isPremiumUser, WindUI)
     
     local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ship" })
@@ -10,7 +7,7 @@ return function(Window, isPremiumUser, WindUI)
         Desc = "This game is not explicitly supported. Loading universal character movements as fallback."
     })
 
-    local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/MovementInjector.lua"))
+    local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Movement.lua"))
     if injectMovement then injectMovement()(TabMain, isPremiumUser, WindUI) end
 
     pcall(function() Window:SelectTab(2) end)
