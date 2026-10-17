@@ -147,14 +147,33 @@ if not isPremiumUser then
                 end
                 return true 
             else
-                WindUI:Notify({ Title = "Validation Failed!", Content = result.message or result.error or "Invalid Key!", Duration = 3 })
+                WindUI:Notify({ Title = "Validation Failed!", Content = result.message or result.error or result.reason or "Invalid Key!", Duration = 3 })
                 return false
             end
         end
     }
 end
 
+-- Tombol "Get key" bawaan WindUI cuma nyalin link tanpa notifikasi. Selama jendela
+-- key terbuka, setclipboard dibungkus supaya muncul notify saat link key disalin,
+-- lalu dikembalikan ke aslinya begitu jendela dibuat.
+local originalSetClipboard = setclipboard
+if not isPremiumUser and originalSetClipboard and windowConfig.KeySystem then
+    local keyUrl = windowConfig.KeySystem.URL
+    getgenv().setclipboard = function(text, ...)
+        local ok, err = pcall(originalSetClipboard, text, ...)
+        if ok and text == keyUrl then
+            pcall(function()
+                WindUI:Notify({ Title = "Key Link Copied", Content = "Paste it in your browser to get your key.", Duration = 4 })
+            end)
+        end
+        if not ok then error(err, 0) end
+    end
+end
+
 local Window = WindUI:CreateWindow(windowConfig)
+
+if originalSetClipboard then getgenv().setclipboard = originalSetClipboard end
 Window:Tag({ Title = "v1.0.0", Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
 
 -- Lock/unlock fitur dihitung saat tab dibuat, jadi setelah aktivasi lewat tombol
@@ -216,7 +235,7 @@ if not isPremiumUser then
                 if VIPSection then VIPSection:Destroy() end
                 UnlockPremiumFeatures()
             else
-                WindUI:Notify({ Title = "Authentication Failed", Content = result.message or result.error or "Invalid, expired, or non-premium key provided.", Duration = 3 })
+                WindUI:Notify({ Title = "Authentication Failed", Content = result.message or result.error or result.reason or "Invalid, expired, or non-premium key provided.", Duration = 3 })
             end
         end
     })
