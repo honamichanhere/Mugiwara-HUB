@@ -1,4 +1,4 @@
-local CameraModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Camera.lua"))()
+local CameraModule = getgenv().MugiwaraImport("Manager/Camera.lua")
 
 return function(Window, isPremiumUser, WindUI)
     

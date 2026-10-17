@@ -29,6 +29,15 @@ local lastJumpTime = 0
 local flyBodyVelocity = nil
 local flyBodyGyro = nil
 
+-- Kalau hub dieksekusi ulang, putuskan semua koneksi dari instance lama.
+-- Sebelumnya tiap reload nambah Heartbeat/Stepped baru, jadi speed/noclip/fly numpuk.
+local env = getgenv()
+if env.MugiwaraMovementConns then
+    for _, conn in ipairs(env.MugiwaraMovementConns) do pcall(function() conn:Disconnect() end) end
+end
+local connections = {}
+env.MugiwaraMovementConns = connections
+
 local function UpdateOriginalStats(character)
     local humanoid = character:WaitForChild("Humanoid", 5)
     if humanoid then
@@ -38,7 +47,6 @@ local function UpdateOriginalStats(character)
 end
 
 if LocalPlayer.Character then task.spawn(UpdateOriginalStats, LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(UpdateOriginalStats)
 
 function Movement.RestoreSpeed()
     local char = LocalPlayer.Character
@@ -54,14 +62,23 @@ function Movement.RestoreJump()
     end
 end
 
+local function DestroyFlyObjects()
+    if flyBodyVelocity then flyBodyVelocity:Destroy() flyBodyVelocity = nil end
+    if flyBodyGyro then flyBodyGyro:Destroy() flyBodyGyro = nil end
+end
+
 function Movement.ToggleFly(state)
     Movement.FlyEnabled = state
+    -- Selalu bersihin objek lama dulu supaya toggle ON berkali-kali nggak numpuk BodyVelocity.
+    DestroyFlyObjects()
+    if not state then return end
+
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
     local hrp = char.HumanoidRootPart
 
-    if state then
+    do
         flyBodyVelocity = Instance.new("BodyVelocity")
         flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
         flyBodyVelocity.Velocity = Vector3.zero
@@ -72,13 +89,20 @@ function Movement.ToggleFly(state)
         flyBodyGyro.P = 9e4
         flyBodyGyro.CFrame = hrp.CFrame
         flyBodyGyro.Parent = hrp
-    else
-        if flyBodyVelocity then flyBodyVelocity:Destroy() end
-        if flyBodyGyro then flyBodyGyro:Destroy() end
     end
 end
 
-RunService.Heartbeat:Connect(function(deltaTime)
+-- Respawn: objek fly ikut hancur bersama karakter lama, pasang ulang kalau Fly masih ON.
+table.insert(connections, LocalPlayer.CharacterAdded:Connect(function(character)
+    UpdateOriginalStats(character)
+    flyBodyVelocity, flyBodyGyro = nil, nil
+    if Movement.FlyEnabled then
+        character:WaitForChild("HumanoidRootPart", 5)
+        Movement.ToggleFly(true)
+    end
+end))
+
+table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime)
     local character = LocalPlayer.Character
     if not character then return end
 
@@ -107,19 +131,22 @@ RunService.Heartbeat:Connect(function(deltaTime)
         humanoid.UseJumpPower = true
         humanoid.JumpPower = Movement.JumpValue
     end
-end)
+end))
 
-RunService.RenderStepped:Connect(function()
+table.insert(connections, RunService.RenderStepped:Connect(function()
     if Movement.FlyEnabled and flyBodyVelocity and flyBodyGyro then
         local cam = workspace.CurrentCamera
         local moveDir = Vector3.zero
 
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+        -- Jangan baca tombol saat user lagi ngetik di chat / textbox.
+        if not UserInputService:GetFocusedTextBox() then
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+        end
 
         if moveDir.Magnitude == 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             moveDir = LocalPlayer.Character.Humanoid.MoveDirection
@@ -132,9 +159,9 @@ RunService.RenderStepped:Connect(function()
         flyBodyVelocity.Velocity = moveDir * Movement.FlySpeed
         flyBodyGyro.CFrame = cam.CFrame
     end
-end)
+end))
 
-RunService.Stepped:Connect(function()
+table.insert(connections, RunService.Stepped:Connect(function()
     if Movement.NoclipEnabled then
         local character = LocalPlayer.Character
         if character then
@@ -145,9 +172,9 @@ RunService.Stepped:Connect(function()
             end
         end
     end
-end)
+end))
 
-UserInputService.JumpRequest:Connect(function()
+table.insert(connections, UserInputService.JumpRequest:Connect(function()
     if Movement.InfJumpEnabled then
         local character = LocalPlayer.Character
         if character then
@@ -163,7 +190,7 @@ UserInputService.JumpRequest:Connect(function()
             end
         end
     end
-end)
+end))
 
 function Movement.SetAnimSpeed(value)
     pcall(function()

@@ -1,4 +1,3 @@
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -10,19 +9,6 @@ return function(Window, isPremiumUser, WindUI)
     local success, gameInfo = pcall(function() return MarketplaceService:GetProductInfo(game.PlaceId) end)
     local gameName = (success and gameInfo and gameInfo.Name) or "Unknown Game"
 
-    local clientLocation = "Fetching data..."
-    task.spawn(function()
-        pcall(function()
-            local response = game:HttpGet("http://ip-api.com/json/")
-            local data = HttpService:JSONDecode(response)
-            if data and data.country and data.city then
-                clientLocation = data.city .. ", " .. data.country
-            else
-                clientLocation = "Undisclosed Region"
-            end
-        end)
-    end)
-
     local premiumStatus = (LocalPlayer.MembershipType == Enum.MembershipType.Premium) and "Premium" or "Free"
     
     local UserInfo = TabHome:Paragraph({
@@ -32,17 +18,23 @@ return function(Window, isPremiumUser, WindUI)
         ImageSize = 100,
     })
 
+    -- Loop berhenti sendiri kalau hub di-reload/dieksekusi ulang (token berubah),
+    -- supaya nggak numpuk loop lama yang update UI yang sudah dihapus.
+    local env = getgenv()
+    env.MugiwaraHomeLoop = (env.MugiwaraHomeLoop or 0) + 1
+    local myLoop = env.MugiwaraHomeLoop
+
     task.spawn(function()
-        while task.wait(1) do
+        while task.wait(1) and env.MugiwaraHomeLoop == myLoop do
             local realPing = 0
             pcall(function() realPing = math.round(LocalPlayer:GetNetworkPing() * 1000) end)
-            
+
             local fps = 0
             pcall(function() fps = math.round(1 / RunService.RenderStepped:Wait()) end)
 
-            local newDesc = string.format("User ID: %d\nAccount Age: %d Days\nRoblox Premium: %s\nKey Status: %s\nLocation: %s\nPing: %s ms | FPS: %s",
-                LocalPlayer.UserId, LocalPlayer.AccountAge, premiumStatus, (isPremiumUser and "Premium Access" or "Free Access"), clientLocation, tostring(realPing), tostring(fps))
-            
+            local newDesc = string.format("User ID: %d\nAccount Age: %d Days\nRoblox Premium: %s\nKey Status: %s\nPing: %s ms | FPS: %s",
+                LocalPlayer.UserId, LocalPlayer.AccountAge, premiumStatus, (isPremiumUser and "Premium Access" or "Free Access"), tostring(realPing), tostring(fps))
+
             pcall(function() UserInfo:SetDesc(newDesc) end)
         end
     end)
@@ -51,7 +43,7 @@ return function(Window, isPremiumUser, WindUI)
     
     TabHome:Paragraph({ 
         Title = gameName, 
-        Desc = string.format("Place ID: %d\nJob ID: %s\nActive Players: %d / %d\nExecution Mode: Client-Side\nClient Region: %s", game.PlaceId, game.JobId, #Players:GetPlayers(), Players.MaxPlayers, clientLocation) 
+        Desc = string.format("Place ID: %d\nJob ID: %s\nActive Players: %d / %d\nExecution Mode: Client-Side", game.PlaceId, game.JobId, #Players:GetPlayers(), Players.MaxPlayers)
     })
 
     TabHome:Divider({ Title = "Developer & Administration" })

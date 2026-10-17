@@ -1,18 +1,9 @@
-local LightingModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Lighting.lua"))()
-local ReflectionModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Reflection.lua"))()
+local LightingModule = getgenv().MugiwaraImport("Manager/Lighting.lua")
+local ReflectionModule = getgenv().MugiwaraImport("Manager/Reflection.lua")
 
 return function(Window, isPremiumUser, WindUI)
     
     local TabLighting = Window:Tab({ Title = "Lighting", Icon = "lucide:sun" })
-
-    local lockMsg = "Buy premium to unlock!"
-
-    local skyboxNames = {}
-    if LightingModule.SkyboxDatabase then
-        for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames, name) end
-    else
-        table.insert(skyboxNames, "Default Sky")
-    end
 
     local VipLoadPreset = TabLighting:Dropdown({
         Title = "Load Presets",

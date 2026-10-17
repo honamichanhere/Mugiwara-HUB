@@ -1,4 +1,4 @@
-local MovementModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Movement.lua"))()
+local MovementModule = getgenv().MugiwaraImport("Manager/Movement.lua")
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -29,5 +29,5 @@ return function(TargetTab, isPremiumUser, WindUI)
     MovementSection:Toggle({ Title = "Enable Noclip", Callback = function(Value) MovementModule.NoclipEnabled = Value end })
 
     MovementSection:Divider({ Title = "Animation Controls" })
-    MovementSection:Input({ Title = "Animation Speed", Desc = "Adjust Current Animation Speed.", PlaceholderText = "Number", ClearTextOnFocus = false, Callback = function(Text) local num = tonumber(Text) if num then MovementModule.SetAnimSpeed(num) end end })
+    MovementSection:Input({ Title = "Animation Speed", Desc = "Adjust Current Animation Speed.", Placeholder = "Number (e.g. 1.5)", Callback = function(Text) local num = tonumber(Text) if num then MovementModule.SetAnimSpeed(num) end end })
 end

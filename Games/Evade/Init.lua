@@ -1,5 +1,5 @@
-local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
-local AvatarChangerModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/AvatarChanger.lua"))()
+local VisualAccModule = getgenv().MugiwaraImport("Games/Evade/VisualAccessories.lua")
+local AvatarChangerModule = getgenv().MugiwaraImport("Games/Evade/AvatarChanger.lua")
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -143,9 +143,9 @@ return function(Window, isPremiumUser, WindUI)
 
     TabMain:Divider({ Title = "Universal Modules" })
     
-    local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/MovementInjector.lua"))
-    if injectMovement then 
-        injectMovement()(TabMain, isPremiumUser, WindUI) 
+    local injectMovement = getgenv().MugiwaraImport("Tabs/MovementInjector.lua")
+    if injectMovement then
+        injectMovement(TabMain, isPremiumUser, WindUI)
     end
 
     pcall(function() Window:SelectTab(2) end)

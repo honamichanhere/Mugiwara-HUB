@@ -8,9 +8,29 @@ if getgenv().HonamiHub_Executed then
 end
 getgenv().HonamiHub_Executed = true
 
+-- Semua file hub di-load lewat satu base URL ini. Untuk rilis stabil, ganti
+-- "refs/heads/main" jadi commit hash (refs/heads/main -> <hash>) supaya push
+-- yang tidak sengaja ke main tidak langsung kejalan di semua user.
+local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/"
+local MAX_KEY_LENGTH = 128
+
+getgenv().MugiwaraImport = function(path)
+    local ok, result = pcall(function()
+        return loadstring(game:HttpGet(BASE_URL .. path))()
+    end)
+    if not ok then
+        warn("[Mugiwara HUB] Gagal load " .. path .. ": " .. tostring(result))
+        return nil
+    end
+    return result
+end
+
 local queue_on_tp = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
-if queue_on_tp then
-    queue_on_tp('loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Main.lua"))()')
+-- Cuma di-queue sekali per sesi, kalau nggak hub jalan dobel setelah teleport
+-- (tiap reload premium bakal nambah antrean baru).
+if queue_on_tp and not getgenv().HonamiHub_TeleportQueued then
+    getgenv().HonamiHub_TeleportQueued = true
+    queue_on_tp('loadstring(game:HttpGet("' .. BASE_URL .. 'Main.lua"))()')
 end
 
 local Players = game:GetService("Players")
@@ -22,28 +42,50 @@ local isPremiumUser = false
 
 if makefolder and isfolder and not isfolder("HonamiHub") then makefolder("HonamiHub") end
 
-local PUSL = loadstring(game:HttpGet("https://secure.pandauth.com/pv4/lib"))()
-if not PUSL or type(PUSL.configure) ~= "function" then
+local libOk, PUSL = pcall(function() return loadstring(game:HttpGet("https://secure.pandauth.com/pv4/lib"))() end)
+if not libOk or type(PUSL) ~= "table" or type(PUSL.configure) ~= "function" then
     LocalPlayer:Kick("[Panda Auth] Library failed to initialize.")
     return
 end
 
 PUSL.configure({ serviceId = "honami" })
 
+-- Premium HANYA ditentukan oleh flag isPremium dari server Panda Auth.
+-- Sebelumnya: key yang tidak diawali "PANDA" otomatis dianggap premium,
+-- jadi status premium bergantung pada format teks key, bukan jawaban server.
 local function ValidateKey(inputKey)
-    local result = PUSL.validate(inputKey)
-    local customPremiumCheck = not string.match(inputKey, "^PANDA")
-    return result.success, (result.isPremium or customPremiumCheck), result
+    inputKey = tostring(inputKey or ""):match("^%s*(.-)%s*$")
+    if inputKey == "" or #inputKey > MAX_KEY_LENGTH then
+        return false, false, { message = "Invalid key format." }
+    end
+
+    local ok, result = pcall(PUSL.validate, inputKey)
+    if not ok or type(result) ~= "table" then
+        return false, false, { message = "Could not reach the auth server.", offline = true }
+    end
+    return result.success == true, result.isPremium == true, result
 end
 
 if readfile and isfile and isfile(savedKeyPath) then
-    local savedKey = readfile(savedKeyPath)
-    local isValid, isPrem, _ = ValidateKey(savedKey)
-    if isValid and isPrem then isPremiumUser = true else if delfile then delfile(savedKeyPath) end end
+    local okRead, savedKey = pcall(readfile, savedKeyPath)
+    if okRead then
+        local isValid, isPrem, result = ValidateKey(savedKey)
+        if isValid and isPrem then
+            isPremiumUser = true
+        elseif delfile and not (result and result.offline) then
+            -- Hapus key tersimpan hanya kalau server benar-benar menolaknya,
+            -- bukan karena internet user lagi putus.
+            pcall(delfile, savedKeyPath)
+        end
+    end
 end
 
 -- SETUP WIND UI & THEME
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local uiOk, WindUI = pcall(function() return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))() end)
+if not uiOk or type(WindUI) ~= "table" then
+    LocalPlayer:Kick("[Mugiwara HUB] UI library failed to load. Please try again.")
+    return
+end
 local ThemesList = WindUI:GetThemes()
 
 ThemesList["Luffy"] = {}
@@ -95,10 +137,11 @@ if not isPremiumUser then
             local isValid, isPrem, result = ValidateKey(inputKey)
             if isValid then
                 if isPrem then
+                    -- Window baru dibuat setelah key valid, jadi tab-tab di bawah
+                    -- otomatis ke-load dalam mode premium (nggak perlu reload).
                     isPremiumUser = true
-                    if writefile then writefile(savedKeyPath, inputKey) end 
+                    if writefile then pcall(writefile, savedKeyPath, (tostring(inputKey):match("^%s*(.-)%s*$"))) end
                     WindUI:Notify({ Title = "Premium Access!", Content = "Premium Key Valid!", Duration = 3 })
-                    task.spawn(function() task.wait(1); if UnlockPremiumFeatures then UnlockPremiumFeatures() end end)
                 else
                     WindUI:Notify({ Title = "Free Access!", Content = "Free Key Valid!", Duration = 3 })
                 end
@@ -113,6 +156,17 @@ end
 
 local Window = WindUI:CreateWindow(windowConfig)
 Window:Tag({ Title = "v1.0.0", Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
+
+-- Lock/unlock fitur dihitung saat tab dibuat, jadi setelah aktivasi lewat tombol
+-- "Verify & Activate" hub di-reload supaya semua fitur premium kebuka.
+UnlockPremiumFeatures = function()
+    WindUI:Notify({ Title = "Premium Unlocked", Content = "Reloading hub to unlock premium features...", Duration = 3 })
+    task.delay(1.5, function()
+        pcall(function() Window:Destroy() end)
+        local ok, err = pcall(function() loadstring(game:HttpGet(BASE_URL .. "Main.lua"))() end)
+        if not ok then warn("[Mugiwara HUB] Reload gagal: " .. tostring(err)) end
+    end)
+end
 
 -- TAB PREMIUM ACCESS (GLOBAL)
 local TabPremium = Window:Tab({ Title = '<font color="#ffff82">Premium Access</font>', Icon = "lucide:crown", IconColor = Color3.fromHex("#ffff82") })
@@ -152,15 +206,15 @@ if not isPremiumUser then
             
             local isValid, isPrem, result = ValidateKey(InputKeyPremium)
             if isValid and isPrem then
-                if writefile then writefile(savedKeyPath, InputKeyPremium) end
+                if writefile then pcall(writefile, savedKeyPath, (tostring(InputKeyPremium):match("^%s*(.-)%s*$"))) end
                 isPremiumUser = true
                 WindUI:Notify({ Title = "Authentication Successful", Content = "Premium access granted and key safely stored.", Duration = 3 })
-                
-                if UnlockPremiumFeatures then UnlockPremiumFeatures() end
+
                 PremiumParagraph:SetDesc('<font color="#ffffff">You are already a Premium user! Thank you for your continued support.</font>')
-                
+
                 if BtnBuyPremium then BtnBuyPremium:Destroy() end
                 if VIPSection then VIPSection:Destroy() end
+                UnlockPremiumFeatures()
             else
                 WindUI:Notify({ Title = "Authentication Failed", Content = result.message or result.error or "Invalid, expired, or non-premium key provided.", Duration = 3 })
             end
@@ -169,32 +223,33 @@ if not isPremiumUser then
 end
 
 -- GLOBAL TABS & GAME DETECTOR
+local GlobalTabs = { "Tabs/HomeTab.lua", "Tabs/LightingTab.lua", "Tabs/CameraTab.lua" }
+
 local function LoadGlobalTabs()
-    local loadHome = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/HomeTab.lua"))
-    if loadHome then loadHome()(Window, isPremiumUser, WindUI) end
-    
-    local loadLighting = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/LightingTab.lua"))
-    if loadLighting then loadLighting()(Window, isPremiumUser, WindUI) end
-    
-    local loadCamera = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/CameraTab.lua"))
-    if loadCamera then loadCamera()(Window, isPremiumUser, WindUI) end
+    for _, path in ipairs(GlobalTabs) do
+        local build = getgenv().MugiwaraImport(path)
+        if type(build) == "function" then
+            local ok, err = pcall(build, Window, isPremiumUser, WindUI)
+            if not ok then warn("[Mugiwara HUB] Tab " .. path .. " error: " .. tostring(err)) end
+        end
+    end
 end
 
 LoadGlobalTabs()
 
 local currentPlaceId = game.PlaceId
-local UniversalModuleURL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Universal.lua" 
-local TargetModuleURL = nil
+local UniversalModulePath = "Universal.lua"
+local TargetModulePath = nil
 
+-- Tambah game baru di sini. (Violence District belum ada isinya, jadi belum didaftarin.)
 local SupportedGames = {
-    Evade = { PlaceIds = { 9872472334, 99214917572799, 10668472534 }, URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/Init.lua" },
-    VD = { PlaceIds = { 1234567890 }, URL = "URL_GITHUBLU_NANTI_VD_INIT.LUA" }
+    Evade = { PlaceIds = { 9872472334, 99214917572799, 10668472534 }, Path = "Games/Evade/Init.lua" },
 }
 
 for _, data in pairs(SupportedGames) do
     for _, id in ipairs(data.PlaceIds) do
         if id == currentPlaceId then
-            TargetModuleURL = data.URL
+            TargetModulePath = data.Path
             break
         end
     end
@@ -202,17 +257,17 @@ end
 
 local moduleLoaded = false
 
-if TargetModuleURL then
-    local success, func = pcall(function() return loadstring(game:HttpGet(TargetModuleURL))() end)
-    if success and type(func) == "function" then
+if TargetModulePath then
+    local func = getgenv().MugiwaraImport(TargetModulePath)
+    if type(func) == "function" then
         task.spawn(func, Window, isPremiumUser, WindUI)
         moduleLoaded = true
     end
 end
 
 if not moduleLoaded then
-    local success, func = pcall(function() return loadstring(game:HttpGet(UniversalModuleURL))() end)
-    if success and type(func) == "function" then
+    local func = getgenv().MugiwaraImport(UniversalModulePath)
+    if type(func) == "function" then
         task.spawn(func, Window, isPremiumUser, WindUI)
     end
 end
