@@ -6,20 +6,17 @@ local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 local VIPCommands = getgenv().MugiwaraImport("Games/Evade/VIPCommands.lua")
-local RoundState = getgenv().MugiwaraImport("Games/Evade/RoundState.lua")
 local Movement = getgenv().MugiwaraImport("Manager/Movement.lua")
 
 local ROOT = getgenv().MugiwaraFolder or "MugiwaraHub"
 local PATH = ROOT .. "/AfkFarm.json"
 
 -- Pemicu yang bisa dipilih untuk tiap event.
+-- Pemicu fase ronde (intermission/ronde mulai) belum ada karena sumber eventnya belum diketahui.
 AfkFarm.Triggers = {
     "None",
     "Character Died",
     "Character Spawned",
-    "Intermission Started",
-    "Round Started",
-    "When Enabled",
 }
 AfkFarm.MaxRules = 10  -- batas jumlah event supaya UI tidak membengkak
 AfkFarm.MaxDelay = 120 -- detik
@@ -181,9 +178,7 @@ end
 
 function AfkFarm.SetAutoExec(state)
     AfkFarm.AutoExecEnabled = state
-    if state then
-        Fire("When Enabled")
-    else
+    if not state then
         generation = generation + 1
         table.clear(queue)
     end
@@ -208,17 +203,6 @@ table.insert(connections, LocalPlayer.CharacterAdded:Connect(function(character)
     task.spawn(WatchCharacter, character)
 end))
 if LocalPlayer.Character then task.spawn(WatchCharacter, LocalPlayer.Character) end
-
-if RoundState then
-    local stop = RoundState.OnChanged(function(phase)
-        if phase == "Intermission" then
-            Fire("Intermission Started")
-        elseif phase == "Round" then
-            Fire("Round Started")
-        end
-    end)
-    table.insert(connections, { Disconnect = stop })
-end
 
 -- ==========================================
 -- AFK FARM (tahan di koordinat AFK memakai Fly)

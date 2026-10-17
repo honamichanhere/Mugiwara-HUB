@@ -296,7 +296,7 @@ if not isPremiumUser then
         end
     })
 
-    local VIPSection = TabPremium:Section({ Title = "Premium Activation", Icon = "lucide:key", Opened = false, Box = true })
+    local VIPSection = TabPremium:Section({ Title = "Premium Activation", Icon = "lucide:key", Opened = true, Box = true })
     
     VIPSection:Input({ 
         Title = "Premium Key", 

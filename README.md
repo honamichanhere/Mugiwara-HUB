@@ -104,16 +104,16 @@ module.
 
 ## Evade AFK Farm and Auto Commands
 
-Evade Main tab order: Halloween Ticket Farm, Premium Features, AFK Farm, Auto Commands, Character Movement. All sections start collapsed.
+Evade Main tab order: Premium Features (AFK Farm on top, then the visual features), Halloween Ticket
+Farm, Auto Commands, Character Movement. All sections start collapsed, except Premium Activation.
 
-- **AFK Farm** (premium) > **Auto Farm**: parks the character at saved coordinates (`x, y, z`) and keeps Fly on so it hovers
-  there. With no coordinates saved it holds the spot where it was turned on.
-- **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each `Command > Trigger > Delay`. Triggers: Character
-  Died, Character Spawned, Intermission Started, Round Started, When Enabled. After the trigger fires
-  the hub waits the delay, then sends the command through `VIPCommands`.
+- **AFK Farm** (premium, inside Premium Features): parks the character at saved coordinates (`x, y, z`)
+  and keeps Fly on so it hovers there. With no coordinates saved it holds the spot where it was turned on.
+- **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
+  `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned. After the trigger fires the
+  hub waits the delay, then sends the command through `VIPCommands`. Round-phase triggers (intermission,
+  round start) are not offered because the game event they would come from is still unknown.
 - Events and coordinates are saved in `MugiwaraHub/AfkFarm.json`; the toggles always start OFF.
-- `Games/Evade/RoundState.lua` detects intermission/round from the HUD's "INTERMISSION" label
-  (best effort; change `INTERMISSION_KEYWORD` if the HUD text changes).
 
 `VIPCommands` matches asset arguments (special rounds, maps, tools, NPCs...) against the same folder
 the VIP menu lists (`commandStringParents`), ignoring case and spaces, so `!specialround Plushie Hell`

@@ -1,28 +1,26 @@
 local AfkFarm = getgenv().MugiwaraImport("Games/Evade/AfkFarm.lua")
 local VIPCommands = getgenv().MugiwaraImport("Games/Evade/VIPCommands.lua")
 
--- Membuat dua section di tab Main (berurutan):
---   1. "AFK Farm"      (premium): tahan posisi AFK memakai Fly
---   2. "Auto Commands" (gratis) : event Command > Trigger > Delay lewat VIP command
-return function(TabMain, isPremiumUser, WindUI)
-    if not AfkFarm or not VIPCommands then return end
+-- Dua bagian UI, dipanggil terpisah oleh Init.lua supaya urutan section bisa diatur di sana:
+--   BuildFarm(Section, ...)    : AFK Farm (premium), ditaruh di dalam section Premium Features
+--   BuildCommands(TabMain, ...) : section "Auto Commands" (gratis), event Command > Trigger > Delay
+local UI = {}
 
-    local function Notify(title, content, duration)
+local function MakeNotify(WindUI)
+    return function(title, content, duration)
         WindUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
     end
+end
 
-    -- ==========================================
-    -- AFK FARM (premium)
-    -- ==========================================
-    local FarmSection = TabMain:Section({
-        Title = '<font color="#ffff82">AFK Farm</font>',
-        Icon = "rbxassetid://74594159374416",
-        Opened = false,
-        Box = true
-    })
+-- ==========================================
+-- AFK FARM (premium)
+-- ==========================================
+function UI.BuildFarm(Section, isPremiumUser, WindUI)
+    if not AfkFarm then return end
+    local Notify = MakeNotify(WindUI)
 
-    FarmSection:Toggle({
-        Title = "Auto Farm",
+    Section:Toggle({
+        Title = "AFK Farm",
         Desc = "Hold the AFK spot, floating with Fly.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -35,7 +33,7 @@ return function(TabMain, isPremiumUser, WindUI)
     local CoordinateInput
     local updatingInput = false
 
-    CoordinateInput = FarmSection:Input({
+    CoordinateInput = Section:Input({
         Title = "AFK Coordinates",
         Desc = "Format: x, y, z. Empty = your current spot.",
         Placeholder = "x, y, z",
@@ -53,7 +51,7 @@ return function(TabMain, isPremiumUser, WindUI)
         end
     })
 
-    FarmSection:Button({
+    Section:Button({
         Title = "Use Current Position",
         Desc = "Save where you stand as the AFK spot.",
         Icon = "lucide:map-pin",
@@ -72,10 +70,15 @@ return function(TabMain, isPremiumUser, WindUI)
             Notify("AFK Coordinates", "Saved: " .. result, 2)
         end
     })
+end
 
-    -- ==========================================
-    -- AUTO COMMANDS (gratis)
-    -- ==========================================
+-- ==========================================
+-- AUTO COMMANDS (gratis)
+-- ==========================================
+function UI.BuildCommands(TabMain, isPremiumUser, WindUI)
+    if not AfkFarm or not VIPCommands then return end
+    local Notify = MakeNotify(WindUI)
+
     local Section = TabMain:Section({
         Title = "Auto Commands",
         Icon = "lucide:terminal",
@@ -224,3 +227,5 @@ return function(TabMain, isPremiumUser, WindUI)
         BuildEvent(rule)
     end
 end
+
+return UI
