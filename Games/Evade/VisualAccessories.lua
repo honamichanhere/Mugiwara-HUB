@@ -30,13 +30,18 @@ local Cache = {
 local KORBLOX_LEFT_LEG = 139607718
 local KORBLOX_RIGHT_LEG = 139607673
 
+local CACHE_FOLDER_NAME = "Mugiwara_Bundle_Cache"
+
+-- Folder cache sisa sesi sebelumnya dibuang dulu supaya model cache tidak dobel.
+do
+    local stale = workspace:FindFirstChild(CACHE_FOLDER_NAME)
+    if stale then stale:Destroy() end
+end
+
 task.spawn(pcall, function()
-    local cacheFolder = workspace:FindFirstChild("Mugiwara_Bundle_Cache")
-    if not cacheFolder then
-        cacheFolder = Instance.new("Folder")
-        cacheFolder.Name = "Mugiwara_Bundle_Cache"
-        cacheFolder.Parent = workspace
-    end
+    local cacheFolder = Instance.new("Folder")
+    cacheFolder.Name = CACHE_FOLDER_NAME
+    cacheFolder.Parent = workspace
 
     local myDesc = Instance.new("HumanoidDescription")
     pcall(function() 
@@ -102,7 +107,7 @@ local function FindBodyAttachment(character, attachmentName)
     return nil
 end
 
-local function hilangkanKepala(rigTarget, state)
+local function SetHeadHidden(rigTarget, state)
     if not rigTarget then return end
     local head = rigTarget:FindFirstChild("Head")
     if not head then return end
@@ -152,13 +157,13 @@ local function reconnectCustomParts(oldPart, newPart, rig)
     end
 end
 
-local function runTahap1(side, state, myRig, myHum)
+local function ReplaceLegs(side, state, myRig, myHum)
     if not myRig or not myHum then return false end
     local isR15 = myHum.RigType == Enum.HumanoidRigType.R15
     local sourceRig = state and (isR15 and Cache.KorbloxR15 or Cache.KorbloxR6) or (isR15 and Cache.OriR15 or Cache.OriR6)
     if not sourceRig then return false end
 
-    local sukses = false
+    local replaced = false
 
     if isR15 then
         local upperName = side .. "UpperLeg"
@@ -227,7 +232,7 @@ local function runTahap1(side, state, myRig, myHum)
                 oldUpper:Destroy()
                 oldLower:Destroy()
                 oldFoot:Destroy()
-                sukses = true
+                replaced = true
             end
         end
     else
@@ -270,11 +275,11 @@ local function runTahap1(side, state, myRig, myHum)
             reconnectCustomParts(myOldLeg, targetLeg, myRig)
 
             myOldLeg:Destroy()
-            sukses = true
+            replaced = true
         end
     end
 
-    return sukses
+    return replaced
 end
 
 local function ApplyActiveStates(rig)
@@ -282,18 +287,20 @@ local function ApplyActiveStates(rig)
     local hum = rig:WaitForChild("Humanoid", 3)
     if not hum then return end
     
-    if VisualAccessories.State.Headless then hilangkanKepala(rig, true) end
-    if VisualAccessories.State.LeftKorblox then runTahap1("Left", true, rig, hum) end
-    if VisualAccessories.State.RightKorblox then runTahap1("Right", true, rig, hum) end
+    if VisualAccessories.State.Headless then SetHeadHidden(rig, true) end
+    if VisualAccessories.State.LeftKorblox then ReplaceLegs("Left", true, rig, hum) end
+    if VisualAccessories.State.RightKorblox then ReplaceLegs("Right", true, rig, hum) end
 
     for assetId, _ in pairs(VisualAccessories.State.Accessories) do
         VisualAccessories.Apply(assetId, nil, true)
     end
 end
 
+local alive = true -- diset false oleh cleanup supaya loop di bawah berhenti
+
 task.spawn(function()
     local lastChar = nil
-    while task.wait(1) do
+    while task.wait(1) and alive do
         local char, _ = GetCharacter()
         if char and char ~= lastChar then
             lastChar = char
@@ -306,13 +313,13 @@ end)
 function VisualAccessories.ToggleHeadless(state)
     VisualAccessories.State.Headless = state
     local character, _ = GetCharacter()
-    hilangkanKepala(character, state)
+    SetHeadHidden(character, state)
 end
 
 function VisualAccessories.ToggleKorblox(state, side)
     VisualAccessories.State[side .. "Korblox"] = state
     local character, humanoid = GetCharacter()
-    runTahap1(side, state, character, humanoid)
+    ReplaceLegs(side, state, character, humanoid)
 end
 
 function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
@@ -404,5 +411,22 @@ function VisualAccessories.Clear(WindUI)
         if WindUI then WindUI:Notify({ Title = "Cleaned", Content = "Removed " .. count .. " custom accessories.", Duration = 3 }) end
     end
 end
+
+-- Full teardown on re-execute: stop the watcher loop, undo visual changes, drop the cache.
+getgenv().MugiwaraRegisterCleanup(function()
+    alive = false
+
+    pcall(function()
+        local state = VisualAccessories.State
+        -- Kaki dikembalikan sebelum cache dihapus, karena ReplaceLegs mengambil model asli dari cache.
+        if state.LeftKorblox then VisualAccessories.ToggleKorblox(false, "Left") end
+        if state.RightKorblox then VisualAccessories.ToggleKorblox(false, "Right") end
+        if state.Headless then VisualAccessories.ToggleHeadless(false) end
+        VisualAccessories.Clear()
+    end)
+
+    local cacheFolder = workspace:FindFirstChild(CACHE_FOLDER_NAME)
+    if cacheFolder then cacheFolder:Destroy() end
+end)
 
 return VisualAccessories

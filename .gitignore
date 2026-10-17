@@ -6,8 +6,9 @@ desktop.ini
 .idea/
 
 # Local executor workspace files (keys, saved presets) - never commit these
-HonamiHub/
-HonamiHubConfig/
+MugiwaraHub/
+MugiwaraHubConfig/
 *.key
 PremiumKey.txt
 .env
+HonamiHub/

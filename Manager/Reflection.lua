@@ -180,4 +180,13 @@ function ReflectionManager.Toggle(state)
     end
 end
 
+-- Remove every reflection layer and connection when the hub is re-executed.
+getgenv().MugiwaraRegisterCleanup(function()
+    ReflectionManager.Toggle(false)
+    if ReflectionManager.GlobalModel then
+        ReflectionManager.GlobalModel:Destroy()
+        ReflectionManager.GlobalModel = nil
+    end
+end)
+
 return ReflectionManager

@@ -20,12 +20,11 @@ return function(Window, isPremiumUser, WindUI)
 
     -- Loop berhenti sendiri kalau hub di-reload/dieksekusi ulang (token berubah),
     -- supaya nggak numpuk loop lama yang update UI yang sudah dihapus.
-    local env = getgenv()
-    env.MugiwaraHomeLoop = (env.MugiwaraHomeLoop or 0) + 1
-    local myLoop = env.MugiwaraHomeLoop
+    local running = true
+    getgenv().MugiwaraRegisterCleanup(function() running = false end)
 
     task.spawn(function()
-        while task.wait(1) and env.MugiwaraHomeLoop == myLoop do
+        while task.wait(1) and running do
             local realPing = 0
             pcall(function() realPing = math.round(LocalPlayer:GetNetworkPing() * 1000) end)
 

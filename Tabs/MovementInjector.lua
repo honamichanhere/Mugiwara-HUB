@@ -18,16 +18,19 @@ return function(TargetTab, isPremiumUser, WindUI)
     MovementSection:Divider({ Title = "Jump" })
     MovementSection:Toggle({ Title = "Enable Jump Power", Callback = function(Value) MovementModule.JumpEnabled = Value; if not Value then MovementModule.RestoreJump() end end })
     MovementSection:Slider({ Title = "Jump Power Value", Step = 1, Value = { Min = 0, Max = 200, Default = defaultJumpPower }, Callback = function(Value) MovementModule.JumpValue = Value end })
-    MovementSection:Toggle({ Title = "Enable Infinite Jump", Callback = function(Value) MovementModule.InfJumpEnabled = Value end })
+    local ToggleInfJump = MovementSection:Toggle({ Title = "Enable Infinite Jump", Callback = function(Value) MovementModule.InfJumpEnabled = Value end })
     MovementSection:Slider({ Title = "Infinite Jump Cap", Step = 1, Value = { Min = 0, Max = 200, Default = 200 }, Callback = function(Value) MovementModule.InfJumpMax = Value end })
 
     MovementSection:Divider({ Title = "Flight" })
-    MovementSection:Toggle({ Title = "Enable Fly", Callback = function(Value) MovementModule.ToggleFly(Value) end })
+    local ToggleFly = MovementSection:Toggle({ Title = "Enable Fly", Callback = function(Value) MovementModule.ToggleFly(Value) end })
     MovementSection:Slider({ Title = "Fly Speed", Step = 1, Value = { Min = 0, Max = 500, Default = 16 }, Callback = function(Value) MovementModule.FlySpeed = Value end })
 
     MovementSection:Divider({ Title = "Collision" })
-    MovementSection:Toggle({ Title = "Enable Noclip", Callback = function(Value) MovementModule.NoclipEnabled = Value end })
+    local ToggleNoclip = MovementSection:Toggle({ Title = "Enable Noclip", Callback = function(Value) MovementModule.NoclipEnabled = Value end })
 
     MovementSection:Divider({ Title = "Animation Controls" })
     MovementSection:Input({ Title = "Animation Speed", Desc = "Adjust Current Animation Speed.", Placeholder = "Number (e.g. 1.5)", Callback = function(Text) local num = tonumber(Text) if num then MovementModule.SetAnimSpeed(num) end end })
+
+    -- Referensi toggle dipakai shortcut keyboard (tab Misc) supaya tombol UI ikut berubah.
+    MovementModule.UI = { Speed = ToggleSpeed, InfJump = ToggleInfJump, Fly = ToggleFly, Noclip = ToggleNoclip }
 end
