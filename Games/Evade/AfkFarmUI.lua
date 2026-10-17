@@ -73,13 +73,13 @@ return function(TabMain, isPremiumUser, WindUI)
     })
 
     -- ==========================================
-    -- AUTO EXECUTE COMMAND
+    -- AUTO EXECUTE EVENTS
     -- ==========================================
-    Section:Divider({ Title = "Auto Execute Command" })
+    Section:Divider({ Title = "Auto Execute" })
 
     Section:Toggle({
-        Title = "Auto Execute Command",
-        Desc = "Send the command when the trigger happens.",
+        Title = "Auto Execute",
+        Desc = "Send each event's command when its trigger happens.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Value = false,
@@ -88,57 +88,118 @@ return function(TabMain, isPremiumUser, WindUI)
         end
     })
 
-    AfkFarm.OnResult = function(_, ok, message)
-        Notify(ok and "Command Sent" or "Command Not Sent", tostring(message), ok and 2 or 4)
+    AfkFarm.OnResult = function(rule, ok, message)
+        Notify(
+            "Event #" .. rule.Id .. (ok and ": Sent" or ": Not Sent"),
+            tostring(message),
+            ok and 2 or 4
+        )
     end
 
-    local rule = AfkFarm.GetRule(1)
+    -- Tiap event punya UI sendiri. Elemen yang dibuat ditampung supaya bisa dihapus bersamaan.
+    local eventCount = 0
 
-    Section:Input({
-        Title = "Command",
-        Desc = "For example !timer 1",
-        Placeholder = "!timer 1",
-        Value = rule.Command,
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function(Text)
-            AfkFarm.SetRule(1, "Command", tostring(Text or ""))
+    local function BuildEvent(rule)
+        local elements = {}
+        local label = "Event #" .. rule.Id
+
+        local function Track(element)
+            table.insert(elements, element)
+            return element
         end
-    })
+
+        Track(Section:Divider({ Title = label }))
+
+        Track(Section:Input({
+            Title = label .. ": Command",
+            Desc = "For example !timer 1",
+            Placeholder = "!timer 1",
+            Value = rule.Command,
+            Locked = not isPremiumUser,
+            LockedTitle = "Premium Only",
+            Callback = function(Text)
+                AfkFarm.UpdateRule(rule, "Command", tostring(Text or ""))
+            end
+        }))
+
+        Track(Section:Button({
+            Title = "Send Command",
+            Desc = "Send the command above now.",
+            Icon = "lucide:send",
+            Locked = not isPremiumUser,
+            LockedTitle = "Premium Only",
+            Callback = function()
+                local ok, result = VIPCommands.RunText(rule.Command)
+                Notify(ok and "Command Sent" or "Command Not Sent", tostring(result), ok and 2 or 4)
+            end
+        }))
+
+        Track(Section:Dropdown({
+            Title = label .. ": Trigger",
+            Desc = "The event that starts the command.",
+            Values = AfkFarm.Triggers,
+            Value = rule.Trigger,
+            Locked = not isPremiumUser,
+            LockedTitle = "Premium Only",
+            Callback = function(Option)
+                if type(Option) == "string" then AfkFarm.UpdateRule(rule, "Trigger", Option) end
+            end
+        }))
+
+        Track(Section:Slider({
+            Title = label .. ": Delay (seconds)",
+            Desc = "Wait this long after the trigger.",
+            Step = 0.5,
+            Value = { Min = 0, Max = AfkFarm.MaxDelay, Default = rule.Delay },
+            Locked = not isPremiumUser,
+            LockedTitle = "Premium Only",
+            Callback = function(Value)
+                AfkFarm.UpdateRule(rule, "Delay", Value)
+            end
+        }))
+
+        Track(Section:Button({
+            Title = "Delete " .. label,
+            Desc = "Remove this event.",
+            Icon = "lucide:trash-2",
+            Locked = not isPremiumUser,
+            LockedTitle = "Premium Only",
+            Callback = function()
+                AfkFarm.RemoveRule(rule)
+                eventCount = eventCount - 1
+
+                -- Dihapus dari yang terakhir ke yang pertama supaya urutan internal WindUI tetap benar.
+                for index = #elements, 1, -1 do
+                    local element = elements[index]
+                    local ok = element.Destroy and pcall(function() element:Destroy() end)
+                    if not ok and element.ElementFrame then pcall(function() element.ElementFrame:Destroy() end) end
+                end
+                table.clear(elements)
+            end
+        }))
+    end
 
     Section:Button({
-        Title = "Send Command",
-        Desc = "Send the command above now.",
-        Icon = "lucide:send",
+        Title = "Create New Event",
+        Desc = "Add another Command, Trigger and Delay. Up to " .. AfkFarm.MaxRules .. ".",
+        Icon = "lucide:plus",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Callback = function()
-            local ok, result = VIPCommands.RunText(AfkFarm.GetRule(1).Command)
-            Notify(ok and "Command Sent" or "Command Not Sent", tostring(result), ok and 2 or 4)
+            local rule, reason = AfkFarm.AddRule()
+            if not rule then
+                Notify("Cannot Add Event", tostring(reason), 3)
+                return
+            end
+
+            eventCount = eventCount + 1
+            BuildEvent(rule)
+            Notify("Event Created", "Event #" .. rule.Id .. " was added at the bottom of this section.", 3)
         end
     })
 
-    Section:Dropdown({
-        Title = "Trigger",
-        Desc = "The event that starts the command.",
-        Values = AfkFarm.Triggers,
-        Value = rule.Trigger,
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function(Option)
-            if type(Option) == "string" then AfkFarm.SetRule(1, "Trigger", Option) end
-        end
-    })
-
-    Section:Slider({
-        Title = "Delay (seconds)",
-        Desc = "Wait this long after the trigger.",
-        Step = 0.5,
-        Value = { Min = 0, Max = AfkFarm.MaxDelay, Default = rule.Delay },
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function(Value)
-            AfkFarm.SetRule(1, "Delay", Value)
-        end
-    })
+    for _, rule in ipairs(AfkFarm.GetRules()) do
+        eventCount = eventCount + 1
+        BuildEvent(rule)
+    end
 end

@@ -42,6 +42,10 @@ return function(Window, isPremiumUser, WindUI)
         Multi = false,
         Values = CameraModule.GetPlayerList(),
         Callback = function(Value)
+            -- WindUI memanggil callback dropdown saat UI dibuat (nilai kosong); abaikan supaya
+            -- tidak muncul notifikasi "Observation Active" tiap hub dijalankan.
+            if type(Value) ~= "string" or Value == "" then return end
+
             local success, msg = CameraModule.SetSpectate(Value)
             WindUI:Notify({ Title = success and "Observation Active" or "Observation Failed", Content = msg, Duration = 3 })
         end

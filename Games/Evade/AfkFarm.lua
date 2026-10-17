@@ -12,7 +12,7 @@ local Movement = getgenv().MugiwaraImport("Manager/Movement.lua")
 local ROOT = getgenv().MugiwaraFolder or "MugiwaraHub"
 local PATH = ROOT .. "/AfkFarm.json"
 
--- Pemicu yang bisa dipilih untuk tiap aturan auto execute.
+-- Pemicu yang bisa dipilih untuk tiap event.
 AfkFarm.Triggers = {
     "None",
     "Character Died",
@@ -21,7 +21,7 @@ AfkFarm.Triggers = {
     "Round Started",
     "When Enabled",
 }
-AfkFarm.RuleCount = 1
+AfkFarm.MaxRules = 10  -- batas jumlah event supaya UI tidak membengkak
 AfkFarm.MaxDelay = 120 -- detik
 
 local MAX_COMMAND_LENGTH = 200
@@ -32,9 +32,11 @@ local alive = true
 local connections = {}
 
 -- ==========================================
--- SETTINGS (disimpan: posisi AFK dan aturan; toggle selalu mulai OFF)
+-- SETTINGS (disimpan: posisi AFK dan daftar event; toggle selalu mulai OFF)
 -- ==========================================
-local settings = { Position = nil, Rules = {} }
+-- Rule = { Id, Command, Trigger, Delay }. Id naik terus dan tidak dipakai ulang, jadi label
+-- "Event #n" di UI tetap stabil walau ada event yang dihapus.
+local settings = { Position = nil, Rules = {}, NextId = 1 }
 
 local function IsValidTrigger(name)
     return table.find(AfkFarm.Triggers, name) ~= nil
@@ -45,12 +47,12 @@ local function SanitizeRule(raw)
     local command = type(raw.Command) == "string" and string.sub(raw.Command, 1, MAX_COMMAND_LENGTH) or ""
     local trigger = IsValidTrigger(raw.Trigger) and raw.Trigger or "None"
     local delay = math.clamp(tonumber(raw.Delay) or 0, 0, AfkFarm.MaxDelay)
-    return { Command = command, Trigger = trigger, Delay = delay }
+    return { Id = tonumber(raw.Id), Command = command, Trigger = trigger, Delay = delay }
 end
 
 local function Save()
     if not writefile then return end
-    local data = { Position = settings.Position, Rules = settings.Rules }
+    local data = { Position = settings.Position, Rules = settings.Rules, NextId = settings.NextId }
     pcall(function() writefile(PATH, HttpService:JSONEncode(data)) end)
 end
 
@@ -61,8 +63,30 @@ do
         if ok and type(decoded) == "table" then loaded = decoded end
     end
 
-    for i = 1, AfkFarm.RuleCount do
-        settings.Rules[i] = SanitizeRule(loaded and loaded.Rules and loaded.Rules[i])
+    local maxId = 0
+    if loaded and type(loaded.Rules) == "table" then
+        for _, raw in ipairs(loaded.Rules) do
+            if #settings.Rules >= AfkFarm.MaxRules then break end
+            local rule = SanitizeRule(raw)
+            if rule.Id then
+                maxId = math.max(maxId, rule.Id)
+            else
+                maxId = maxId + 1
+                rule.Id = maxId
+            end
+            -- Event yang sama sekali kosong (misalnya slot sisa versi lama) tidak dimuat.
+            local isEmpty = rule.Command == "" and rule.Trigger == "None" and rule.Delay == 0
+            if not isEmpty then table.insert(settings.Rules, rule) end
+        end
+    end
+    settings.NextId = math.max(maxId + 1, (loaded and tonumber(loaded.NextId)) or 1)
+
+    -- Selalu ada minimal satu event supaya section tidak kosong saat pertama dibuka.
+    if #settings.Rules == 0 then
+        local rule = SanitizeRule({})
+        rule.Id = settings.NextId
+        settings.NextId = settings.NextId + 1
+        table.insert(settings.Rules, rule)
     end
 
     local pos = loaded and loaded.Position
@@ -72,21 +96,40 @@ do
 end
 
 -- ==========================================
--- RULES
+-- EVENTS (rules)
 -- ==========================================
-function AfkFarm.GetRule(index)
-    local rule = settings.Rules[index]
-    if not rule then return nil end
-    return { Command = rule.Command, Trigger = rule.Trigger, Delay = rule.Delay }
+-- Daftar hidup: UI memegang tabel rule yang sama dan mengubahnya lewat UpdateRule.
+function AfkFarm.GetRules()
+    return settings.Rules
 end
 
-function AfkFarm.SetRule(index, field, value)
-    local rule = settings.Rules[index]
-    if not rule then return end
+function AfkFarm.AddRule()
+    if #settings.Rules >= AfkFarm.MaxRules then
+        return nil, "You can have at most " .. AfkFarm.MaxRules .. " events."
+    end
 
-    local candidate = { Command = rule.Command, Trigger = rule.Trigger, Delay = rule.Delay }
+    local rule = SanitizeRule({})
+    rule.Id = settings.NextId
+    settings.NextId = settings.NextId + 1
+    table.insert(settings.Rules, rule)
+    Save()
+    return rule
+end
+
+function AfkFarm.RemoveRule(rule)
+    local index = table.find(settings.Rules, rule)
+    if index then
+        table.remove(settings.Rules, index)
+        Save()
+    end
+end
+
+function AfkFarm.UpdateRule(rule, field, value)
+    local candidate = { Id = rule.Id, Command = rule.Command, Trigger = rule.Trigger, Delay = rule.Delay }
     candidate[field] = value
-    settings.Rules[index] = SanitizeRule(candidate)
+
+    local clean = SanitizeRule(candidate)
+    rule.Command, rule.Trigger, rule.Delay = clean.Command, clean.Trigger, clean.Delay
     Save()
 end
 
@@ -94,9 +137,9 @@ end
 -- AUTO EXECUTE
 -- ==========================================
 AfkFarm.AutoExecEnabled = false
-AfkFarm.OnResult = nil -- diisi UI: function(ruleIndex, ok, message)
+AfkFarm.OnResult = nil -- diisi UI: function(rule, ok, message)
 
--- Command dikirim satu per satu lewat antrean supaya dua aturan yang terpicu bersamaan
+-- Command dikirim satu per satu lewat antrean supaya dua event yang terpicu bersamaan
 -- tidak ditolak oleh batas kecepatan kirim.
 local queue = {}
 local pumping = false
@@ -111,7 +154,7 @@ local function Pump()
             local item = table.remove(queue, 1)
             if AfkFarm.AutoExecEnabled and VIPCommands then
                 local ok, result = VIPCommands.RunText(item.Command)
-                if AfkFarm.OnResult then pcall(AfkFarm.OnResult, item.Index, ok, result) end
+                if AfkFarm.OnResult then pcall(AfkFarm.OnResult, item.Rule, ok, result) end
             end
             task.wait((VIPCommands and VIPCommands.MinInterval or 0.5) + 0.1)
         end
@@ -123,13 +166,13 @@ local function Fire(trigger)
     if not AfkFarm.AutoExecEnabled then return end
     local myGeneration = generation
 
-    for index, rule in ipairs(settings.Rules) do
+    for _, rule in ipairs(table.clone(settings.Rules)) do
         if rule.Trigger == trigger and rule.Command ~= "" then
             task.delay(rule.Delay, function()
                 if not alive or not AfkFarm.AutoExecEnabled or generation ~= myGeneration then return end
-                -- Command dibaca saat dijalankan, jadi perubahan teks selama delay ikut terpakai.
-                if rule.Command == "" then return end
-                table.insert(queue, { Index = index, Command = rule.Command })
+                -- Event bisa dihapus atau diubah selama delay; baca keadaan terbaru.
+                if not table.find(settings.Rules, rule) or rule.Command == "" then return end
+                table.insert(queue, { Rule = rule, Command = rule.Command })
                 Pump()
             end)
         end
