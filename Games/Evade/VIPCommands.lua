@@ -12,7 +12,6 @@ local LocalPlayer = Players.LocalPlayer
 -- bisa menjalankan apa yang memang boleh dilakukan pemilik server lewat menu VIP.
 
 VIPCommands.MinInterval = 0.5               -- detik minimal antar command (anti-spam)
-VIPCommands.AllowRewardDisabling = false    -- command yang mematikan reward diblokir secara default
 
 -- Dipakai hanya kalau daftar command tidak bisa dimuat sama sekali (game maupun salinan lokal).
 local FALLBACK_ALLOWED = { timer = true }
@@ -235,9 +234,6 @@ function VIPCommands.Run(name, ...)
     if entry then
         if entry.VIPMenuAccessible ~= true then
             return false, "'" .. name .. "' is not available through the VIP menu."
-        end
-        if entry.VIPCommandDisablesRewards == true and not VIPCommands.AllowRewardDisabling then
-            return false, "'" .. name .. "' disables rewards for this server. Enable reward-disabling commands to use it."
         end
         canonical = (entry.CommandNames and entry.CommandNames[1]) or name
     elseif not FALLBACK_ALLOWED[string.lower(name)] then

@@ -97,7 +97,7 @@ on-screen switch stays in sync.
 
 `Games/Evade/VIPCommands.lua` sends VIP commands exactly like the in-game VIP menu does:
 `ReplicatedStorage.Events.Admin.VIPCommand:FireServer("!timer 1")`.
-It only runs commands the game marks as `VIPMenuAccessible`, needs the `VIPCommandsAccess`
+It only runs commands the game marks as `VIPMenuAccessible` and needs the `VIPCommandsAccess`
 attribute (server owners), and blocks commands flagged `VIPCommandDisablesRewards` unless the
 user explicitly allows them. The command list is read from the game's own
 `ReplicatedStorage.Shared.Admin.Commands.Commands` module.
@@ -110,7 +110,7 @@ Section "AFK Farm" on the Evade Main tab:
   there. With no coordinates saved it holds the spot where it was turned on.
 - **Auto Execute**: any number of events (up to 10, "Create New Event"), each `Command > Trigger > Delay`. Triggers: Character
   Died, Character Spawned, Intermission Started, Round Started, When Enabled. After the trigger fires
-  the hub waits the delay, then sends the command through `VIPCommands`. Commands the game flags as disabling rewards are blocked.
+  the hub waits the delay, then sends the command through `VIPCommands`.
 - Events and coordinates are saved in `MugiwaraHub/AfkFarm.json`; the toggles always start OFF.
 - `Games/Evade/RoundState.lua` detects intermission/round from the HUD's "INTERMISSION" label
   (best effort; change `INTERMISSION_KEYWORD` if the HUD text changes).
