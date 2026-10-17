@@ -101,3 +101,16 @@ It only runs commands the game marks as `VIPMenuAccessible`, needs the `VIPComma
 attribute (server owners), and blocks commands flagged `VIPCommandDisablesRewards` unless the
 user explicitly allows them. The command list is read from the game's own
 `ReplicatedStorage.Shared.Admin.Commands.Commands` module.
+
+## Evade AFK Farm (premium)
+
+Section "AFK Farm" on the Evade Main tab:
+
+- **Auto Farm**: parks the character at saved coordinates (`x, y, z`) and keeps Fly on so it hovers
+  there. With no coordinates saved it holds the spot where it was turned on.
+- **Auto Execute Commands**: up to 3 rules, each `Command > Trigger > Delay`. Triggers: Character
+  Died, Character Spawned, Intermission Started, Round Started, When Enabled. After the trigger fires
+  the hub waits the delay, then sends the command through `VIPCommands`.
+- Rules and coordinates are saved in `MugiwaraHub/AfkFarm.json`; the toggles always start OFF.
+- `Games/Evade/RoundState.lua` detects intermission/round from the HUD's "INTERMISSION" label
+  (best effort; change `INTERMISSION_KEYWORD` if the HUD text changes).

@@ -1,7 +1,6 @@
 local VisualAccModule = getgenv().MugiwaraImport("Games/Evade/VisualAccessories.lua")
 local AvatarChangerModule = getgenv().MugiwaraImport("Games/Evade/AvatarChanger.lua")
 local TicketFarmModule = getgenv().MugiwaraImport("Games/Evade/TicketFarm.lua")
-local VIPCommandsModule = getgenv().MugiwaraImport("Games/Evade/VIPCommands.lua")
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -192,62 +191,14 @@ return function(Window, isPremiumUser, WindUI)
     end
 
     -- ==========================================
-    -- AFK FARM (premium) - work in progress
+    -- AFK FARM (premium)
     -- ==========================================
     TabMain:Divider({ Title = "AFK Farm" })
 
-    if VIPCommandsModule then
-        local AfkSection = TabMain:Section({
-            Title = '<font color="#ffff82">AFK Farm</font>',
-            Icon = "rbxassetid://74594159374416",
-            Opened = false,
-            Box = true
-        })
-
-        AfkSection:Paragraph({
-            Title = "AFK Farm",
-            Desc = "Farms tokens, points and XP while you are away by cycling rounds quickly with VIP commands (for example Timer to skip the intermission). Needs VIP command access, so it only works in a server you own (Community or Private). Commands that disable rewards are blocked automatically. Full automation is still in development; use the console below to test commands."
-        })
-
-        local commandText = ""
-
-        AfkSection:Toggle({
-            Title = "Allow Reward-Disabling Commands",
-            Desc = "Off by default. Commands marked as disabling rewards (God, Speed, Tool, and others) drop this server's reward multiplier to 0.",
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
-            Value = false,
-            Callback = function(Value)
-                VIPCommandsModule.AllowRewardDisabling = Value
-            end
-        })
-
-        AfkSection:Input({
-            Title = "VIP Command Console",
-            Desc = "Type a command the way you would in chat, for example !timer 1. Then press Send Command.",
-            Placeholder = "!timer 1",
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
-            Callback = function(Text)
-                commandText = tostring(Text or "")
-            end
-        })
-
-        AfkSection:Button({
-            Title = "Send Command",
-            Desc = "Sends the command above to the server through the VIP menu channel.",
-            Icon = "lucide:send",
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
-            Callback = function()
-                local ok, result = VIPCommandsModule.RunText(commandText)
-                WindUI:Notify({
-                    Title = ok and "Command Sent" or "Command Not Sent",
-                    Content = tostring(result),
-                    Duration = ok and 2 or 4
-                })
-            end
-        })
+    local buildAfkFarm = getgenv().MugiwaraImport("Games/Evade/AfkFarmUI.lua")
+    if type(buildAfkFarm) == "function" then
+        local ok, err = pcall(buildAfkFarm, TabMain, isPremiumUser, WindUI)
+        if not ok then warn("[Mugiwara HUB] AFK Farm UI error: " .. tostring(err)) end
     end
 
     TabMain:Divider({ Title = "Universal Modules" })
