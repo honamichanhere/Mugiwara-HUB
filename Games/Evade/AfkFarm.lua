@@ -21,7 +21,7 @@ AfkFarm.Triggers = {
     "Round Started",
     "When Enabled",
 }
-AfkFarm.RuleCount = 3
+AfkFarm.RuleCount = 1
 AfkFarm.MaxDelay = 120 -- detik
 
 local MAX_COMMAND_LENGTH = 200

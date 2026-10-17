@@ -15,11 +15,6 @@ return function(TabMain, isPremiumUser, WindUI)
         Box = true
     })
 
-    Section:Paragraph({
-        Title = "AFK Farm",
-        Desc = "Farms tokens, points and XP while you are away. Auto Farm parks you at an AFK spot using Fly, and Auto Execute runs VIP commands (for example Timer to skip the intermission) when something happens in the game. Needs VIP command access, so it only works in a server you own (Community or Private). Commands that disable rewards are blocked automatically."
-    })
-
     -- ==========================================
     -- AUTO FARM
     -- ==========================================
@@ -27,7 +22,7 @@ return function(TabMain, isPremiumUser, WindUI)
 
     Section:Toggle({
         Title = "Auto Farm",
-        Desc = "Keeps you at the AFK coordinates below, floating with Fly. If no coordinates are saved, it holds the spot where you turned it on. Do not use it together with Auto Farm Tickets.",
+        Desc = "Hold the AFK spot, floating with Fly.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Value = false,
@@ -41,7 +36,7 @@ return function(TabMain, isPremiumUser, WindUI)
 
     CoordinateInput = Section:Input({
         Title = "AFK Coordinates",
-        Desc = "Format: x, y, z (for example 0, 500, 0). Leave empty to hold your current spot.",
+        Desc = "Format: x, y, z. Empty = your current spot.",
         Placeholder = "x, y, z",
         Value = AfkFarm.FormatPosition(),
         Locked = not isPremiumUser,
@@ -59,7 +54,7 @@ return function(TabMain, isPremiumUser, WindUI)
 
     Section:Button({
         Title = "Use Current Position",
-        Desc = "Save where you are standing right now as the AFK spot.",
+        Desc = "Save where you stand as the AFK spot.",
         Icon = "lucide:map-pin",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -78,13 +73,13 @@ return function(TabMain, isPremiumUser, WindUI)
     })
 
     -- ==========================================
-    -- AUTO EXECUTE COMMANDS
+    -- AUTO EXECUTE COMMAND
     -- ==========================================
-    Section:Divider({ Title = "Auto Execute Commands" })
+    Section:Divider({ Title = "Auto Execute Command" })
 
     Section:Toggle({
-        Title = "Auto Execute Commands",
-        Desc = "Runs the rules below. Each rule: when the trigger happens, wait the delay, then send the command.",
+        Title = "Auto Execute Command",
+        Desc = "Send the command when the trigger happens.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Value = false,
@@ -93,94 +88,57 @@ return function(TabMain, isPremiumUser, WindUI)
         end
     })
 
-    AfkFarm.OnResult = function(index, ok, message)
-        Notify(
-            ok and ("Rule " .. index .. ": Sent") or ("Rule " .. index .. ": Not Sent"),
-            tostring(message),
-            ok and 2 or 4
-        )
+    AfkFarm.OnResult = function(_, ok, message)
+        Notify(ok and "Command Sent" or "Command Not Sent", tostring(message), ok and 2 or 4)
     end
 
-    for index = 1, AfkFarm.RuleCount do
-        local rule = AfkFarm.GetRule(index)
-
-        Section:Divider({ Title = "Rule " .. index })
-
-        Section:Input({
-            Title = "Command",
-            Desc = "What to send, for example !timer 1",
-            Placeholder = "!timer 1",
-            Value = rule.Command,
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
-            Callback = function(Text)
-                AfkFarm.SetRule(index, "Command", tostring(Text or ""))
-            end
-        })
-
-        Section:Dropdown({
-            Title = "Trigger",
-            Desc = "The event that starts this rule.",
-            Values = AfkFarm.Triggers,
-            Value = rule.Trigger,
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
-            Callback = function(Option)
-                if type(Option) == "string" then AfkFarm.SetRule(index, "Trigger", Option) end
-            end
-        })
-
-        Section:Slider({
-            Title = "Delay (seconds)",
-            Desc = "How long to wait after the trigger before sending.",
-            Step = 0.5,
-            Value = { Min = 0, Max = AfkFarm.MaxDelay, Default = rule.Delay },
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
-            Callback = function(Value)
-                AfkFarm.SetRule(index, "Delay", Value)
-            end
-        })
-    end
-
-    -- ==========================================
-    -- TOOLS
-    -- ==========================================
-    Section:Divider({ Title = "Tools" })
-
-    Section:Toggle({
-        Title = "Allow Reward-Disabling Commands",
-        Desc = "Off by default. Commands marked as disabling rewards (God, Speed, Tool, and others) drop this server's reward multiplier to 0.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Value = false,
-        Callback = function(Value)
-            VIPCommands.AllowRewardDisabling = Value
-        end
-    })
-
-    local consoleText = ""
+    local rule = AfkFarm.GetRule(1)
 
     Section:Input({
-        Title = "VIP Command Console",
-        Desc = "Type a command the way you would in chat, then press Send Command.",
+        Title = "Command",
+        Desc = "For example !timer 1",
         Placeholder = "!timer 1",
+        Value = rule.Command,
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Callback = function(Text)
-            consoleText = tostring(Text or "")
+            AfkFarm.SetRule(1, "Command", tostring(Text or ""))
         end
     })
 
     Section:Button({
         Title = "Send Command",
-        Desc = "Sends the command above through the VIP menu channel.",
+        Desc = "Send the command above now.",
         Icon = "lucide:send",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Callback = function()
-            local ok, result = VIPCommands.RunText(consoleText)
+            local ok, result = VIPCommands.RunText(AfkFarm.GetRule(1).Command)
             Notify(ok and "Command Sent" or "Command Not Sent", tostring(result), ok and 2 or 4)
+        end
+    })
+
+    Section:Dropdown({
+        Title = "Trigger",
+        Desc = "The event that starts the command.",
+        Values = AfkFarm.Triggers,
+        Value = rule.Trigger,
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Callback = function(Option)
+            if type(Option) == "string" then AfkFarm.SetRule(1, "Trigger", Option) end
+        end
+    })
+
+    Section:Slider({
+        Title = "Delay (seconds)",
+        Desc = "Wait this long after the trigger.",
+        Step = 0.5,
+        Value = { Min = 0, Max = AfkFarm.MaxDelay, Default = rule.Delay },
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Callback = function(Value)
+            AfkFarm.SetRule(1, "Delay", Value)
         end
     })
 end
