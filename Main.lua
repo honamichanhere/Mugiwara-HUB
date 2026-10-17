@@ -9,13 +9,21 @@ local VERSION = "1.1.0"
 -- ==========================================================
 local env = getgenv()
 
-if env.MugiwaraCleanup then
-    for i = #env.MugiwaraCleanup, 1, -1 do
-        local ok, err = pcall(env.MugiwaraCleanup[i])
+local function RunCleanups()
+    local cleanups = env.MugiwaraCleanup
+    env.MugiwaraCleanup = {}
+    if not cleanups then return end
+    for i = #cleanups, 1, -1 do
+        local ok, err = pcall(cleanups[i])
         if not ok then warn("[Mugiwara HUB] Cleanup error: " .. tostring(err)) end
     end
 end
-env.MugiwaraCleanup = {}
+
+RunCleanups()
+
+-- Used by the "Unload Hub" button: same teardown as a re-execute, without loading again.
+-- A teleport already queued by queue_on_teleport cannot be cancelled by the executor.
+env.MugiwaraUnload = RunCleanups
 
 env.MugiwaraRegisterCleanup = function(fn)
     if type(fn) == "function" then table.insert(env.MugiwaraCleanup, fn) end

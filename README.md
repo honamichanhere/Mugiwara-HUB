@@ -11,7 +11,7 @@ Roblox script hub by Honami, built on [WindUI](https://github.com/Footagesus/Win
 | Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, reflection effect |
 | Camera | Free camera, spectate, FOV and zoom lock, stabilizers |
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
-| Misc | Global utilities: Rejoin |
+| Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, Unload Hub |
 
 Supported games: **Evade** (accessories, avatar morph). Every other game gets the **Universal** movement module.
 
