@@ -13,7 +13,7 @@ Roblox script hub by Honami, built on [WindUI](https://github.com/Footagesus/Win
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
 | Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, rebindable keyboard shortcuts, Unload Hub |
 
-Supported games: **Evade** (accessories, avatar morph). Every other game gets the **Universal** movement module.
+Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm with NextBot avoidance). Every other game gets the **Universal** movement module.
 
 ## Folder structure
 
