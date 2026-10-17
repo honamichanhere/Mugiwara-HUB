@@ -1,4 +1,4 @@
-local CameraModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Camera.lua"))()
+local CameraModule = getgenv().MugiwaraImport("Manager/Camera.lua")
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -10,6 +10,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Enable Free Camera",
         Desc = "Detach camera. Move with WASD/QE. Rotate by holding Right-Click or using Arrow Keys.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function(Value)
             CameraModule.ToggleFreecam(Value)
         end
@@ -19,6 +20,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Free Camera Speed",
         Desc = "Adjust the movement speed of the free camera.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Step = 1,
         Value = { Min = 0, Max = 500, Default = 16 },
         Callback = function(Value)
@@ -33,6 +35,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Spectate Player",
         Desc = "Select a player from the server to observe their perspective.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Multi = false,
         Values = CameraModule.GetPlayerList(),
         Callback = function(Value)
@@ -45,6 +48,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Refresh Player List",
         Desc = "Update the dropdown with the current active players in the server.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Icon = "lucide:refresh-cw",
         Callback = function()
             if DropdownSpectate and DropdownSpectate.Refresh then
@@ -58,6 +62,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Stop Spectating",
         Desc = "Return the camera to your own local character.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Icon = "lucide:user-x",
         Callback = function()
             local success, msg = CameraModule.SetSpectate(nil)
@@ -71,6 +76,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Position Stabilizer",
         Desc = "Adds spring-like lag to character tracking.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
         Callback = function(Value)
@@ -82,6 +88,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Rotation Stabilizer",
         Desc = "Smooths out camera aiming for a cinematic feel.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Step = 0.01,
         Value = { Min = 0, Max = 1, Default = 0 },
         Callback = function(Value)

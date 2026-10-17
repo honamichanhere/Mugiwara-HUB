@@ -39,7 +39,8 @@ end
 
 function ReflectionManager.ApplyReflection(part)
     if part:GetAttribute("IsReflectionLayer") then return end
-    if ReflectionManager.GlobalModel and part:IsDescendantOf(ReflectionManager.GlobalModel) then return end
+    if not ReflectionManager.GlobalModel then return end
+    if part:IsDescendantOf(ReflectionManager.GlobalModel) then return end
     if CharacterPartsFilter[part.Name] then return end
     
     local originalArchivable = part.Archivable
@@ -119,8 +120,10 @@ function ReflectionManager.ApplyReflection(part)
 end
 
 function ReflectionManager.Toggle(state)
+    -- Toggle ON dua kali berturut-turut bikin layer dobel dan koneksi bocor.
+    if state and ReflectionManager.GlobalModel then return end
     ReflectionManager.Enabled = state
-    
+
     if state then
         print("[Mugiwara HUB] Initiating reflection layer generation. Processing all valid parts...")
         SetupGlobalModel()
@@ -135,6 +138,9 @@ function ReflectionManager.Toggle(state)
                         
                         if count % 1000 == 0 then
                             task.wait(0.5)
+                            -- User bisa matiin toggle selama generate; berhenti biar nggak
+                            -- lanjut nge-clone ke model yang sudah dihapus.
+                            if not ReflectionManager.Enabled or not ReflectionManager.GlobalModel then return end
                         end
                     end
                 end

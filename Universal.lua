@@ -7,8 +7,8 @@ return function(Window, isPremiumUser, WindUI)
         Desc = "This game is not explicitly supported. Loading universal character movements as fallback."
     })
 
-    local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/MovementInjector.lua"))
-    if injectMovement then injectMovement()(TabMain, isPremiumUser, WindUI) end
+    local injectMovement = getgenv().MugiwaraImport("Tabs/MovementInjector.lua")
+    if injectMovement then injectMovement(TabMain, isPremiumUser, WindUI) end
 
     pcall(function() Window:SelectTab(2) end)
 end

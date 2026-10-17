@@ -1,23 +1,15 @@
-local LightingModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Lighting.lua"))()
-local ReflectionModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Manager/Reflection.lua"))()
+local LightingModule = getgenv().MugiwaraImport("Manager/Lighting.lua")
+local ReflectionModule = getgenv().MugiwaraImport("Manager/Reflection.lua")
 
 return function(Window, isPremiumUser, WindUI)
     
     local TabLighting = Window:Tab({ Title = "Lighting", Icon = "lucide:sun" })
 
-    local lockMsg = "Buy premium to unlock!"
-
-    local skyboxNames = {}
-    if LightingModule.SkyboxDatabase then
-        for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames, name) end
-    else
-        table.insert(skyboxNames, "Default Sky")
-    end
-
     local VipLoadPreset = TabLighting:Dropdown({
         Title = "Load Presets",
         Desc = "Select presets.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Values = LightingModule.GetPresetsList and LightingModule.GetPresetsList() or {},
         Value = "Default",
         Callback = function(Option)
@@ -33,6 +25,7 @@ return function(Window, isPremiumUser, WindUI)
         Desc = "Save Lighting to a preset.",
         Placeholder = "Preset Name",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function(Text)
             if Text == "" then return end
             local success, status = LightingModule.SavePreset(Text) 
@@ -60,6 +53,7 @@ return function(Window, isPremiumUser, WindUI)
         Desc = "Change Sky Box.",
         Icon = "lucide:cloudy",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Values = skyboxNames2,
         Value = "Default Sky",
         Callback = function(Option)
@@ -73,6 +67,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Load Sky Box",
         Desc = "Load Sky Box via Asset ID.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Placeholder = "Asset ID",
         Callback = function(Text)
             if Text == "" then return end
@@ -85,6 +80,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Sky Box Animation",
         Desc = "Animate the skybox by rotating it.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function(Value) LightingModule.SkyAnimEnabled = Value end
     })
 
@@ -92,6 +88,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Rotation Speed",
         Desc = "Set the rotation speed of the skybox.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Step = 1,
         Value = { Min = 0, Max = 100, Default = 10 },
         Callback = function(Value) LightingModule.SkyAnimSpeed = Value end
@@ -101,6 +98,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Copy Sky Box",
         Desc = "Copy current Sky Box to Database.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function()
             local success, msg = LightingModule.CopySkybox()
             WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
@@ -111,6 +109,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Paste Sky Box",
         Desc = "Paste Sky Box from Database.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function()
             local success, msg = LightingModule.PasteSkybox()
             WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
@@ -123,6 +122,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Reflection Effect",
         Desc = "Create deep reflections on objects.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function(Value)
             if Value then
                 WindUI:Notify({ Title = "Processing", Content = "Generating reflection layers. Please wait...", Duration = 3 })

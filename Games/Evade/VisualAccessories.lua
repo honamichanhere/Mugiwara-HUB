@@ -30,7 +30,7 @@ local Cache = {
 local KORBLOX_LEFT_LEG = 139607718
 local KORBLOX_RIGHT_LEG = 139607673
 
-task.spawn(function()
+task.spawn(pcall, function()
     local cacheFolder = workspace:FindFirstChild("Mugiwara_Bundle_Cache")
     if not cacheFolder then
         cacheFolder = Instance.new("Folder")

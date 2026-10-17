@@ -1,5 +1,5 @@
-local VisualAccModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/VisualAccessories.lua"))()
-local AvatarChangerModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Games/Evade/AvatarChanger.lua"))()
+local VisualAccModule = getgenv().MugiwaraImport("Games/Evade/VisualAccessories.lua")
+local AvatarChangerModule = getgenv().MugiwaraImport("Games/Evade/AvatarChanger.lua")
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -34,6 +34,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Accessory Templates",
         Desc = "Choose from popular pre-defined accessories.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Values = templateNames,
         Value = "",
         Callback = function(Option)
@@ -59,6 +60,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Load Custom Asset ID",
         Desc = "Enter a valid Marketplace Accessory ID.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Placeholder = "e.g., 10159600649",
         Callback = function(Text)
             if not Text or Text == "" then return end 
@@ -78,6 +80,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Clear All Custom Accessories",
         Desc = "Remove all spawned accessories from your character.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function()
             if VisualAccModule then VisualAccModule.Clear(WindUI) end
         end
@@ -87,6 +90,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Headless Head",
         Desc = "Visually removes your character's head.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function(Value)
             task.spawn(function()
                 if VisualAccModule then VisualAccModule.ToggleHeadless(Value) end
@@ -98,6 +102,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Korblox Left Leg",
         Desc = "Applies Korblox visual mesh to the left leg.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function(Value)
             task.spawn(function()
                 if VisualAccModule then VisualAccModule.ToggleKorblox(Value, "Left") end
@@ -109,6 +114,7 @@ return function(Window, isPremiumUser, WindUI)
         Title = "Korblox Right Leg",
         Desc = "Applies Korblox visual mesh to the right leg.",
         Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function(Value)
             task.spawn(function()
                 if VisualAccModule then VisualAccModule.ToggleKorblox(Value, "Right") end
@@ -120,7 +126,8 @@ return function(Window, isPremiumUser, WindUI)
     AvatarInput = AccSection:Input({
         Title = "Morph By Username",
         Desc = "Copy any player's avatar exactly 1:1.",
-        Locked = false,
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Placeholder = "Username...",
         Callback = function(Text)
             if not Text or Text == "" then return end 
@@ -135,7 +142,8 @@ return function(Window, isPremiumUser, WindUI)
     AccSection:Button({
         Title = "Revert to Original",
         Desc = "Back to original avatar.",
-        Locked = false,
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
         Callback = function()
             if AvatarChangerModule then AvatarChangerModule.Clear(true, WindUI) end
         end
@@ -143,9 +151,9 @@ return function(Window, isPremiumUser, WindUI)
 
     TabMain:Divider({ Title = "Universal Modules" })
     
-    local injectMovement = loadstring(game:HttpGet("https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/Tabs/MovementInjector.lua"))
-    if injectMovement then 
-        injectMovement()(TabMain, isPremiumUser, WindUI) 
+    local injectMovement = getgenv().MugiwaraImport("Tabs/MovementInjector.lua")
+    if injectMovement then
+        injectMovement(TabMain, isPremiumUser, WindUI)
     end
 
     pcall(function() Window:SelectTab(2) end)

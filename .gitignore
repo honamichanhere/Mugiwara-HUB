@@ -1,0 +1,13 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Local executor workspace files (keys, saved presets) - never commit these
+HonamiHub/
+HonamiHubConfig/
+*.key
+PremiumKey.txt
+.env

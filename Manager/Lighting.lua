@@ -155,7 +155,8 @@ function LightingModule.ToggleEffect(category, isEnabled)
 end
 
 function LightingModule.LoadSkybox(id)
-    if id == "" or id == "Default" then return end
+    id = tostring(id or ""):match("^%s*(%d+)%s*$") -- hanya angka; buang input aneh
+    if not id then return end
     local success, result = pcall(function() return game:GetObjects("rbxassetid://" .. id) end)
     if success and result and result[1] then
         local asset = result[1]
@@ -204,8 +205,16 @@ function LightingModule.GetPresetsList()
     return list
 end
 
+-- Nama preset dipakai sebagai nama file. Buang karakter path ("../", "\", dll) supaya
+-- user nggak bisa nulis/baca file di luar folder HonamiHub/Presets.
+local function SanitizePresetName(name)
+    name = tostring(name or ""):gsub("[^%w _%-%.]", ""):gsub("%.%.+", "."):match("^%s*(.-)%s*$")
+    return string.sub(name, 1, 40)
+end
+
 function LightingModule.SavePreset(presetName)
-    if presetName == "" then return false, "Nama kosong" end
+    presetName = SanitizePresetName(presetName)
+    if presetName == "" then return false, "Nama preset tidak valid" end
     local path = "HonamiHub/Presets/" .. presetName .. ".json"
     local isOverwrite = (isfile and isfile(path))
     
@@ -298,6 +307,8 @@ function LightingModule.LoadPreset(presetName)
         return
     end
 
+    presetName = SanitizePresetName(presetName)
+    if presetName == "" then return end
     local path = "HonamiHub/Presets/" .. presetName .. ".json"
     if readfile and isfile and isfile(path) then
         local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
