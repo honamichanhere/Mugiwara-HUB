@@ -92,3 +92,12 @@ Shortcuts are **off by default** (Misc > Keyboard Shortcuts > Enable Keyboard Sh
 `getgenv().MugiwaraImport` caches modules per session, so a module imported by several tabs is
 always the same instance. Toggle shortcuts flip the real UI toggle (through `Module.UI`) so the
 on-screen switch stays in sync.
+
+## Evade VIP commands
+
+`Games/Evade/VIPCommands.lua` sends VIP commands exactly like the in-game VIP menu does:
+`ReplicatedStorage.Events.Admin.VIPCommand:FireServer("!timer 1")`.
+It only runs commands the game marks as `VIPMenuAccessible`, needs the `VIPCommandsAccess`
+attribute (server owners), and blocks commands flagged `VIPCommandDisablesRewards` unless the
+user explicitly allows them. The command list is read from the game's own
+`ReplicatedStorage.Shared.Admin.Commands.Commands` module.
