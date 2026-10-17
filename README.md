@@ -120,7 +120,7 @@ the VIP menu lists (`commandStringParents`), ignoring case and spaces, so `!spec
 is sent with the real instance name. If nothing matches it reports close names instead of sending.
 
 If the executor cannot `require` the game's command module, `VIPCommands` falls back to
-`Games/Evade/VIPCommandData.lua`, a local copy of the command definitions (names, argument
+the built-in copy inside `Games/Evade/VIPCommands.lua` (`BuildStaticList`) with the command definitions (names, argument
 layout, `VIPMenuAccessible`, `VIPCommandDisablesRewards`, asset folders). Commands from the
 modules that have not been decompiled yet (Admin, Fun, Camera, Data, Developer, Announcements)
-need to be added there.
+need to be added to that list.
