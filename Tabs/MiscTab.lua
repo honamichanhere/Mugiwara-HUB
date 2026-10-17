@@ -319,6 +319,18 @@ return function(Window, isPremiumUser, WindUI)
     -- ==========================================
     local HubSection = TabMisc:Section({ Title = "Hub", Icon = "lucide:power", Opened = true, Box = true })
 
+    local CursorModule = getgenv().MugiwaraImport("Manager/Cursor.lua")
+    if CursorModule then
+        HubSection:Toggle({
+            Title = "Free Cursor When Open",
+            Desc = "Unlock the mouse while this window is open, even with shift lock on.",
+            Value = CursorModule.Enabled,
+            Callback = function(Value)
+                CursorModule.SetEnabled(Value)
+            end
+        })
+    end
+
     HubSection:Button({
         Title = "Unload Hub",
         Desc = "Remove the hub and undo everything it changed. Re-execute the script to bring it back.",

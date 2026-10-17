@@ -21,7 +21,7 @@ Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm wit
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
 Tabs/                    UI tabs (Home, Lighting, Camera, Misc, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection, Server, Keybinds)
+Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection, Server, Keybinds, Cursor)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 
@@ -124,3 +124,12 @@ the built-in copy inside `Games/Evade/VIPCommands.lua` (`BuildStaticList`) with 
 layout, `VIPMenuAccessible`, `VIPCommandDisablesRewards`, asset folders). Commands from the
 modules that have not been decompiled yet (Admin, Fun, Camera, Data, Developer, Announcements)
 need to be added to that list.
+
+## Free cursor
+
+`Manager/Cursor.lua` frees the mouse while the hub window is open. Shift lock (Roblox's or a game's
+own, like Evade's) locks the mouse to the screen centre through `UserInputService.MouseBehavior`,
+which makes the UI unclickable. On open the previous `MouseBehavior`/`MouseIconEnabled` are saved
+and overridden every frame (render priority after the game's camera scripts); on close they are
+restored, so shift lock comes back if it was on. Hooked in `Main.lua` with `Window:OnOpen` and
+`Window:OnClose`; can be turned off with Misc > Hub > Free Cursor When Open.

@@ -253,6 +253,16 @@ if originalSetClipboard then getgenv().setclipboard = originalSetClipboard end
 Window:Tag({ Title = "v" .. VERSION, Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
 env.MugiwaraRegisterCleanup(function() Window:Destroy() end)
 
+-- Selama jendela hub terbuka kursor dibebaskan (shift lock mengunci mouse di tengah layar);
+-- saat ditutup, kondisi aslinya dikembalikan. Window:Open() sudah jalan sebelum callback
+-- dipasang, jadi keadaan awal dibaca dari Window.Closed.
+local Cursor = env.MugiwaraImport("Manager/Cursor.lua")
+if Cursor then
+    Window:OnOpen(function() Cursor.SetWindowOpen(true) end)
+    Window:OnClose(function() Cursor.SetWindowOpen(false) end)
+    Cursor.SetWindowOpen(not Window.Closed)
+end
+
 -- Locked state is decided when each element is created, so after activating through the
 -- "Verify & Activate" button the hub reloads to unlock every premium feature.
 UnlockPremiumFeatures = function()
