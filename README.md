@@ -77,12 +77,12 @@ Saved premium key, lighting presets and the copied skybox live in the executor w
 
 ## Keyboard shortcuts
 
-Defaults (all rebindable in Misc > Keyboard Shortcuts, saved in `MugiwaraHub/Keybinds.json`):
+Shortcuts are **off by default** (Misc > Keyboard Shortcuts > Enable Keyboard Shortcuts). Defaults, all rebindable and saved in `MugiwaraHub/Keybinds.json`:
 
 | Action | Key |
 | --- | --- |
-| Show / Hide Hub | `RightShift` |
-| Fly | `G` |
+| Show / Hide Hub | `K` |
+| Fly | `Y` |
 | Noclip | `N` |
 | Speed Hack | `Z` |
 | Infinite Jump | `J` |

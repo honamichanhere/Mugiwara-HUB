@@ -137,8 +137,24 @@ return function(Window, isPremiumUser, WindUI)
         local ShortcutSection = TabMisc:Section({ Title = "Keyboard Shortcuts", Icon = "lucide:keyboard", Opened = true, Box = true })
 
         ShortcutSection:Paragraph({
-            Title = "How to change a shortcut",
-            Desc = "Click a key box, then press the new key. Shortcuts do nothing while you type in chat, and mouse buttons are not supported. Keyboard only (PC)."
+            Title = "How shortcuts work",
+            Desc = "Shortcuts are OFF by default. Turn them on below, then click a key box and press a new key to change it. Shortcuts do nothing while you type in chat, and mouse buttons are not supported. Keyboard only (PC)."
+        })
+
+        -- Master switch. Default OFF; pilihan user disimpan.
+        local shortcutsEnabled = KeybindsModule.GetEnabled()
+        local RefreshUIKey -- didefinisikan setelah daftar shortcut dibuat
+
+        ShortcutSection:Toggle({
+            Title = "Enable Keyboard Shortcuts",
+            Desc = "When off, none of the keys below do anything (including Show / Hide Hub and Panic).",
+            Value = shortcutsEnabled,
+            Callback = function(Value)
+                shortcutsEnabled = Value
+                KeybindsModule.SetEnabled(Value)
+                if RefreshUIKey then RefreshUIKey() end
+                Notify("Keyboard Shortcuts", Value and "Turned ON" or "Turned OFF", 2)
+            end
         })
 
         -- Membalik toggle lewat elemen UI-nya (kalau sudah dibuat) supaya tombol di UI ikut
@@ -155,9 +171,9 @@ return function(Window, isPremiumUser, WindUI)
         end
 
         local Shortcuts = {
-            { Id = "ToggleUI", Title = "Show / Hide Hub", Desc = "Open or close this window.", Default = "RightShift" },
+            { Id = "ToggleUI", Title = "Show / Hide Hub", Desc = "Open or close this window.", Default = "K" },
             {
-                Id = "Fly", Title = "Fly", Desc = "Turn Fly on or off.", Default = "G",
+                Id = "Fly", Title = "Fly", Desc = "Turn Fly on or off.", Default = "Y",
                 Run = function()
                     if not MovementModule then return end
                     Flip(MovementModule.UI and MovementModule.UI.Fly, "Fly", function()
@@ -221,12 +237,16 @@ return function(Window, isPremiumUser, WindUI)
             },
         }
 
-        local function ApplyUIKey(keyName)
-            local keyCode = KeybindsModule.GetKeyCode(keyName)
-            if keyCode and Window.SetToggleKey then pcall(Window.SetToggleKey, Window, keyCode) end
+        local entries = {}
+        local uiEntry = nil -- entry "Show / Hide Hub"; tombolnya ditangani langsung oleh WindUI
+
+        -- Pasang tombol buka/tutup ke WindUI hanya saat shortcut aktif; saat OFF dikosongkan.
+        RefreshUIKey = function()
+            if not Window.SetToggleKey then return end
+            local keyCode = shortcutsEnabled and uiEntry and KeybindsModule.GetKeyCode(uiEntry.Last) or nil
+            pcall(Window.SetToggleKey, Window, keyCode)
         end
 
-        local entries = {}
         for _, def in ipairs(Shortcuts) do
             local initial = KeybindsModule.Get(def.Id, def.Default)
             local element = ShortcutSection:Keybind({
@@ -236,12 +256,14 @@ return function(Window, isPremiumUser, WindUI)
                 Locked = def.Premium and not isPremiumUser or false,
                 LockedTitle = "Premium Only",
                 Callback = function()
-                    if def.Run then def.Run() end
+                    if shortcutsEnabled and def.Run then def.Run() end
                 end
             })
-            table.insert(entries, { Def = def, Element = element, Last = initial })
-            if def.Id == "ToggleUI" then ApplyUIKey(initial) end
+            local entry = { Def = def, Element = element, Last = initial }
+            table.insert(entries, entry)
+            if def.Id == "ToggleUI" then uiEntry = entry end
         end
+        RefreshUIKey()
 
         ShortcutSection:Button({
             Title = "Reset Shortcuts",
@@ -278,7 +300,7 @@ return function(Window, isPremiumUser, WindUI)
 
                             entry.Last = value
                             KeybindsModule.Set(entry.Def.Id, value)
-                            if entry.Def.Id == "ToggleUI" then ApplyUIKey(value) end
+                            if entry.Def.Id == "ToggleUI" then RefreshUIKey() end
 
                             if conflict then
                                 Notify("Shortcut Saved", entry.Def.Title .. " = " .. value .. ". Note: " .. conflict .. " uses the same key.", 4)

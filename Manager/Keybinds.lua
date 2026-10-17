@@ -30,11 +30,25 @@ function Keybinds.Get(id, default)
     return default
 end
 
-function Keybinds.Set(id, name)
-    data[id] = name
+local function Save()
     if writefile then
         pcall(function() writefile(PATH, HttpService:JSONEncode(data)) end)
     end
+end
+
+function Keybinds.Set(id, name)
+    data[id] = name
+    Save()
+end
+
+-- Master switch for all shortcuts. Disimpan di key khusus "_enabled"; default OFF.
+function Keybinds.GetEnabled()
+    return data._enabled == true
+end
+
+function Keybinds.SetEnabled(state)
+    data._enabled = state == true
+    Save()
 end
 
 return Keybinds
