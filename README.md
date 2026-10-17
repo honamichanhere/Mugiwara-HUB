@@ -98,9 +98,9 @@ on-screen switch stays in sync.
 `Games/Evade/VIPCommands.lua` sends VIP commands exactly like the in-game VIP menu does:
 `ReplicatedStorage.Events.Admin.VIPCommand:FireServer("!timer 1")`.
 It only runs commands the game marks as `VIPMenuAccessible` and needs the `VIPCommandsAccess`
-attribute (server owners), and blocks commands flagged `VIPCommandDisablesRewards` unless the
-user explicitly allows them. The command list is read from the game's own
-`ReplicatedStorage.Shared.Admin.Commands.Commands` module.
+attribute (server owners). Commands that disable rewards are NOT blocked; the user decides.
+The command list is read from the game's own `ReplicatedStorage.Shared.Admin.Commands.Commands`
+module.
 
 ## Evade AFK Farm (premium)
 
