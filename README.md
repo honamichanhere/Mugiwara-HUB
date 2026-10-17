@@ -11,6 +11,7 @@ Roblox script hub by Honami, built on [WindUI](https://github.com/Footagesus/Win
 | Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, reflection effect |
 | Camera | Free camera, spectate, FOV and zoom lock, stabilizers |
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
+| Misc | Global utilities: Rejoin |
 
 Supported games: **Evade** (accessories, avatar morph). Every other game gets the **Universal** movement module.
 
@@ -19,8 +20,8 @@ Supported games: **Evade** (accessories, avatar morph). Every other game gets th
 ```
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
-Tabs/                    UI tabs (Home, Lighting, Camera, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection)
+Tabs/                    UI tabs (Home, Lighting, Camera, Misc, MovementInjector)
+Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection, Server)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 

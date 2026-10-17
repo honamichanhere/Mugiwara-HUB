@@ -349,4 +349,11 @@ if not moduleLoaded then
     end
 end
 
+-- Misc is global and is created after the game's Main tab so it always sits below it.
+local buildMisc = getgenv().MugiwaraImport("Tabs/MiscTab.lua")
+if type(buildMisc) == "function" then
+    local ok, err = pcall(buildMisc, Window, isPremiumUser, WindUI)
+    if not ok then warn("[Mugiwara HUB] Misc tab error: " .. tostring(err)) end
+end
+
 Window:EditOpenButton({ Title = "Open Mugiwara HUB", CornerRadius = UDim.new(1, 0), OnlyMobile = false, Enabled = true, Draggable = true })
