@@ -1,46 +1,104 @@
--- ANTI-DUPLICATE & AUTO-EXECUTE
-if getgenv().HonamiHub_Executed then
+local VERSION = "1.1.0"
+
+-- ==========================================================
+-- RE-EXECUTION SAFETY
+-- Every module registers a cleanup function through
+-- getgenv().MugiwaraRegisterCleanup(fn). When Main.lua runs again (re-execute or
+-- the premium reload) all previous cleanups run first, so connections, loops and
+-- instances from the old session never stack on top of the new one.
+-- ==========================================================
+local env = getgenv()
+
+if env.MugiwaraCleanup then
+    for i = #env.MugiwaraCleanup, 1, -1 do
+        local ok, err = pcall(env.MugiwaraCleanup[i])
+        if not ok then warn("[Mugiwara HUB] Cleanup error: " .. tostring(err)) end
+    end
+end
+env.MugiwaraCleanup = {}
+
+env.MugiwaraRegisterCleanup = function(fn)
+    if type(fn) == "function" then table.insert(env.MugiwaraCleanup, fn) end
+end
+
+if env.MugiwaraExecuted then
     pcall(function()
         for _, gui in pairs(game:GetService("CoreGui"):GetChildren()) do
             if gui:IsA("ScreenGui") and gui.Name == "WindUI" then gui:Destroy() end
         end
     end)
 end
-getgenv().HonamiHub_Executed = true
+env.MugiwaraExecuted = true
 
--- Semua file hub di-load lewat satu base URL ini. Untuk rilis stabil, ganti
--- "refs/heads/main" jadi commit hash (refs/heads/main -> <hash>) supaya push
--- yang tidak sengaja ke main tidak langsung kejalan di semua user.
-local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/"
+-- ==========================================================
+-- SOURCE LOCATION
+-- All hub files are loaded from one base URL. The branch defaults to "main".
+-- To test another branch (for example "dev") without editing any file, set
+-- getgenv().MugiwaraBranch = "dev" before loading Main.lua from that branch.
+-- For a pinned release, put a commit hash in MugiwaraBranch instead.
+-- ==========================================================
+local BRANCH = env.MugiwaraBranch or "main"
+local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/" .. BRANCH .. "/"
 local MAX_KEY_LENGTH = 128
 
-getgenv().MugiwaraImport = function(path)
+env.MugiwaraImport = function(path)
     local ok, result = pcall(function()
         return loadstring(game:HttpGet(BASE_URL .. path))()
     end)
     if not ok then
-        warn("[Mugiwara HUB] Gagal load " .. path .. ": " .. tostring(result))
+        warn("[Mugiwara HUB] Failed to load " .. path .. ": " .. tostring(result))
         return nil
     end
     return result
 end
 
+-- Queue the hub for the next teleport once per server. Keying the flag on JobId means a
+-- re-execute in the same server does not queue a duplicate, while every new server can
+-- queue again (a plain boolean flag would block all teleports after the first).
 local queue_on_tp = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
--- Cuma di-queue sekali per sesi, kalau nggak hub jalan dobel setelah teleport
--- (tiap reload premium bakal nambah antrean baru).
-if queue_on_tp and not getgenv().HonamiHub_TeleportQueued then
-    getgenv().HonamiHub_TeleportQueued = true
-    queue_on_tp('loadstring(game:HttpGet("' .. BASE_URL .. 'Main.lua"))()')
+if queue_on_tp and env.MugiwaraTeleportQueuedFor ~= game.JobId then
+    env.MugiwaraTeleportQueuedFor = game.JobId
+    local branchPrefix = (BRANCH ~= "main") and ('getgenv().MugiwaraBranch = "' .. BRANCH .. '"; ') or ""
+    queue_on_tp(branchPrefix .. 'loadstring(game:HttpGet("' .. BASE_URL .. 'Main.lua"))()')
 end
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- PANDA AUTH PUSL-V4 SYSTEM
-local savedKeyPath = "HonamiHub/PremiumKey.txt"
-local isPremiumUser = false
+-- LOCAL DATA FOLDER (executor workspace)
+-- Renamed from "HonamiHub" to "MugiwaraHub". Existing users keep their saved premium
+-- key, presets and copied skybox: the old folder is copied over once.
+local FOLDER = "MugiwaraHub"
+local LEGACY_FOLDER = "HonamiHub"
+env.MugiwaraFolder = FOLDER
 
-if makefolder and isfolder and not isfolder("HonamiHub") then makefolder("HonamiHub") end
+local function MigrateLegacyData()
+    if not (isfolder and isfile and makefolder and readfile and writefile and listfiles) then return end
+    if not isfolder(LEGACY_FOLDER) or isfolder(FOLDER) then return end
+
+    makefolder(FOLDER)
+    local function copyFile(relativePath)
+        local from, to = LEGACY_FOLDER .. "/" .. relativePath, FOLDER .. "/" .. relativePath
+        if isfile(from) then pcall(function() writefile(to, readfile(from)) end) end
+    end
+
+    copyFile("PremiumKey.txt")
+    copyFile("CopiedSky.json")
+    if isfolder(LEGACY_FOLDER .. "/Presets") then
+        makefolder(FOLDER .. "/Presets")
+        for _, file in ipairs(listfiles(LEGACY_FOLDER .. "/Presets")) do
+            local name = file:match("([^/\\]+)$")
+            if name then copyFile("Presets/" .. name) end
+        end
+    end
+end
+pcall(MigrateLegacyData)
+
+if makefolder and isfolder and not isfolder(FOLDER) then makefolder(FOLDER) end
+
+-- PANDA AUTH PUSL-V4 SYSTEM
+local savedKeyPath = FOLDER .. "/PremiumKey.txt"
+local isPremiumUser = false
 
 local libOk, PUSL = pcall(function() return loadstring(game:HttpGet("https://secure.pandauth.com/pv4/lib"))() end)
 if not libOk or type(PUSL) ~= "table" or type(PUSL.configure) ~= "function" then
@@ -50,9 +108,8 @@ end
 
 PUSL.configure({ serviceId = "honami" })
 
--- Premium HANYA ditentukan oleh flag isPremium dari server Panda Auth.
--- Sebelumnya: key yang tidak diawali "PANDA" otomatis dianggap premium,
--- jadi status premium bergantung pada format teks key, bukan jawaban server.
+-- Premium status comes ONLY from the isPremium flag returned by the Panda Auth server,
+-- never from the shape of the key string.
 local function ValidateKey(inputKey)
     inputKey = tostring(inputKey or ""):match("^%s*(.-)%s*$")
     if inputKey == "" or #inputKey > MAX_KEY_LENGTH then
@@ -73,8 +130,8 @@ if readfile and isfile and isfile(savedKeyPath) then
         if isValid and isPrem then
             isPremiumUser = true
         elseif delfile and not (result and result.offline) then
-            -- Hapus key tersimpan hanya kalau server benar-benar menolaknya,
-            -- bukan karena internet user lagi putus.
+            -- Delete the saved key only when the server actually rejects it,
+            -- not when the user is simply offline.
             pcall(delfile, savedKeyPath)
         end
     end
@@ -126,7 +183,7 @@ ThemesList["Luffy"].DialogIcon = Color3.fromHex("#FF8C00")
 local UnlockPremiumFeatures
 
 local windowConfig = {
-    Title = "Mugiwara HUB", Icon = "lucide:sparkles", Author = "by Honami", Folder = "HonamiHubConfig",
+    Title = "Mugiwara HUB", Icon = "lucide:sparkles", Author = "by Honami", Folder = "MugiwaraHubConfig",
     Size = UDim2.fromOffset(580, 390), Transparent = true, Theme = "Luffy",
 }
 
@@ -137,8 +194,8 @@ if not isPremiumUser then
             local isValid, isPrem, result = ValidateKey(inputKey)
             if isValid then
                 if isPrem then
-                    -- Window baru dibuat setelah key valid, jadi tab-tab di bawah
-                    -- otomatis ke-load dalam mode premium (nggak perlu reload).
+                    -- The window is only created after the key is accepted, so the tabs
+                    -- below load in premium mode without needing a reload.
                     isPremiumUser = true
                     if writefile then pcall(writefile, savedKeyPath, (tostring(inputKey):match("^%s*(.-)%s*$"))) end
                     WindUI:Notify({ Title = "Premium Access!", Content = "Premium Key Valid!", Duration = 3 })
@@ -154,9 +211,9 @@ if not isPremiumUser then
     }
 end
 
--- Tombol "Get key" bawaan WindUI cuma nyalin link tanpa notifikasi. Selama jendela
--- key terbuka, setclipboard dibungkus supaya muncul notify saat link key disalin,
--- lalu dikembalikan ke aslinya begitu jendela dibuat.
+-- WindUI's built-in "Get key" button copies the link silently. While the key window is
+-- open, setclipboard is wrapped so a notification appears when the key link is copied,
+-- then the original function is restored once the window has been created.
 local originalSetClipboard = setclipboard
 if not isPremiumUser and originalSetClipboard and windowConfig.KeySystem then
     local keyUrl = windowConfig.KeySystem.URL
@@ -174,16 +231,17 @@ end
 local Window = WindUI:CreateWindow(windowConfig)
 
 if originalSetClipboard then getgenv().setclipboard = originalSetClipboard end
-Window:Tag({ Title = "v1.0.0", Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
+Window:Tag({ Title = "v" .. VERSION, Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
+env.MugiwaraRegisterCleanup(function() Window:Destroy() end)
 
--- Lock/unlock fitur dihitung saat tab dibuat, jadi setelah aktivasi lewat tombol
--- "Verify & Activate" hub di-reload supaya semua fitur premium kebuka.
+-- Locked state is decided when each element is created, so after activating through the
+-- "Verify & Activate" button the hub reloads to unlock every premium feature.
 UnlockPremiumFeatures = function()
     WindUI:Notify({ Title = "Premium Unlocked", Content = "Reloading hub to unlock premium features...", Duration = 3 })
     task.delay(1.5, function()
         pcall(function() Window:Destroy() end)
         local ok, err = pcall(function() loadstring(game:HttpGet(BASE_URL .. "Main.lua"))() end)
-        if not ok then warn("[Mugiwara HUB] Reload gagal: " .. tostring(err)) end
+        if not ok then warn("[Mugiwara HUB] Reload failed: " .. tostring(err)) end
     end)
 end
 
@@ -260,7 +318,7 @@ local currentPlaceId = game.PlaceId
 local UniversalModulePath = "Universal.lua"
 local TargetModulePath = nil
 
--- Tambah game baru di sini. (Violence District belum ada isinya, jadi belum didaftarin.)
+-- Register new games here (PlaceIds + path to the game's Init.lua).
 local SupportedGames = {
     Evade = { PlaceIds = { 9872472334, 99214917572799, 10668472534 }, Path = "Games/Evade/Init.lua" },
 }

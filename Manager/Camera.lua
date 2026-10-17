@@ -285,4 +285,27 @@ RunService:BindToRenderStep("MugiwaraCameraMaster", Enum.RenderPriority.Last.Val
 
 end)
 
+-- Full teardown on re-execute: undo freecam/spectate, release the character, drop all hooks.
+getgenv().MugiwaraRegisterCleanup(function()
+    pcall(function() RunService:UnbindFromRenderStep("MugiwaraCameraMaster") end)
+    if fovConnection then fovConnection:Disconnect() fovConnection = nil end
+    if subjectConnection then subjectConnection:Disconnect() subjectConnection = nil end
+    if cameraChangeConnection then cameraChangeConnection:Disconnect() cameraChangeConnection = nil end
+
+    if CameraModule.FreecamEnabled then pcall(CameraModule.ToggleFreecam, false) end
+    CameraModule.FOVLocked = false
+    CameraModule.ZoomLocked = false
+    CameraModule.PositionStabilizer, CameraModule.RotationStabilizer = 0, 0
+    CameraModule.OnFOVChanged = nil
+    pcall(CameraModule.SetSpectate, nil)
+    pcall(function()
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        LocalPlayer.CameraMinZoomDistance = 0.5
+        LocalPlayer.CameraMaxZoomDistance = 400
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then root.Anchored = false end
+    end)
+    CameraModule.RestoreFOV()
+end)
+
 return CameraModule

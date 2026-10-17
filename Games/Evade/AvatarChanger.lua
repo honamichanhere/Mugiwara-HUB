@@ -199,7 +199,7 @@ local function ApplyR15(char, hum, desc)
     local ok, skin = pcall(function()
         return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
     end)
-    if not ok or not skin then return false, "Gagal membuat model avatar target!" end
+    if not ok or not skin then return false, "Failed to build the target avatar model!" end
 
     -- Tunggu mesh/tekstur target ke-load (ada batas waktu biar nggak nyangkut).
     local loaded = false
@@ -213,7 +213,7 @@ local function ApplyR15(char, hum, desc)
     -- Karakter bisa ganti selama nunggu di atas.
     if not char.Parent then
         skin:Destroy()
-        return false, "Karakter berubah saat memproses, coba lagi."
+        return false, "Your character changed while processing, please try again."
     end
 
     local skinHum = skin:FindFirstChildOfClass("Humanoid")
@@ -221,7 +221,7 @@ local function ApplyR15(char, hum, desc)
     local realRoot = char:FindFirstChild("HumanoidRootPart") or hum.RootPart
     if not (skinHum and skinRoot and realRoot) then
         skin:Destroy()
-        return false, "Struktur rig tidak lengkap!"
+        return false, "The target rig is incomplete!"
     end
 
     -- Pasangan sendi: sendi asli -> sendi skin, dicocokin lewat nama Part1.
@@ -240,7 +240,7 @@ local function ApplyR15(char, hum, desc)
     end
     if #links == 0 then
         skin:Destroy()
-        return false, "Sendi rig asli tidak cocok dengan skin."
+        return false, "Your rig joints do not match the target skin."
     end
 
     local skinDrop = ComputeSkinDrop(skin, skinRoot, skinHum)
@@ -309,7 +309,7 @@ local function ApplyR6(char, hum, desc)
     local ok, dummy = pcall(function()
         return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R6)
     end)
-    if not ok or not dummy then return false, "Gagal membuat model avatar target!" end
+    if not ok or not dummy then return false, "Failed to build the target avatar model!" end
 
     local data = AvatarChanger.OriginalData
     local noPhys = PhysicalProperties.new(0.01, 0, 0, 0, 0)
@@ -433,7 +433,7 @@ function AvatarChanger.Clear(showNotif, WindUI)
     State.Char = nil
 
     if showNotif then
-        Notify(WindUI, "Dibersihkan", "Wujud dikembalikan ke aslinya.", 3)
+        Notify(WindUI, "Reverted", "Your original avatar has been restored.", 3)
     end
 end
 
@@ -443,21 +443,21 @@ local function DoApply(username, WindUI)
 
     local char, hum = GetCharacter()
     if not char or not hum then
-        Notify(WindUI, "Error", "Karakter lu belum ketemu, coba lagi sebentar.", 3)
+        Notify(WindUI, "Error", "Your character was not found, please try again in a moment.", 3)
         return
     end
 
-    Notify(WindUI, "Memproses", "Mengambil data avatar " .. username .. "...", 2)
+    Notify(WindUI, "Processing", "Fetching avatar data for " .. username .. "...", 2)
 
     local okId, userId = pcall(function() return Players:GetUserIdFromNameAsync(username) end)
     if not okId or not userId then
-        Notify(WindUI, "Error", "Username tidak valid atau tidak ditemukan!", 3)
+        Notify(WindUI, "Error", "Invalid or unknown username!", 3)
         return
     end
 
     local okDesc, desc = pcall(function() return Players:GetHumanoidDescriptionFromUserId(userId) end)
     if not okDesc or not desc then
-        Notify(WindUI, "Error", "Gagal mengambil rincian avatar target!", 3)
+        Notify(WindUI, "Error", "Failed to fetch the target avatar details!", 3)
         return
     end
 
@@ -480,16 +480,16 @@ local function DoApply(username, WindUI)
 
     if not ok then
         AvatarChanger.Clear(false)
-        Notify(WindUI, "Error", err or "Gagal morph avatar.", 4)
+        Notify(WindUI, "Error", err or "Avatar morph failed.", 4)
         return
     end
 
-    Notify(WindUI, "Berhasil", "Wujud diubah 100% menjadi " .. username .. " (" .. rig .. ")", 3)
+    Notify(WindUI, "Success", "Your avatar is now a 1:1 copy of " .. username .. " (" .. rig .. ")", 3)
 end
 
 function AvatarChanger.Apply(username, WindUI)
     if State.Busy then
-        Notify(WindUI, "Sabar", "Morph sebelumnya masih diproses.", 2)
+        Notify(WindUI, "Please wait", "The previous morph is still processing.", 2)
         return
     end
     State.Busy = true
@@ -499,18 +499,13 @@ function AvatarChanger.Apply(username, WindUI)
     if not ok then
         warn("[Mugiwara] AvatarChanger error: " .. tostring(err))
         pcall(AvatarChanger.Clear, false)
-        Notify(WindUI, "Error", "Morph gagal, perubahan dibatalkan.", 3)
+        Notify(WindUI, "Error", "Morph failed, changes were rolled back.", 3)
     end
 end
 
--- Kalau hub dieksekusi ulang, bersihin morph + koneksi dari instance lama.
-local env = getgenv and getgenv() or nil
-if env then
-    local prev = env.MugiwaraAvatarChanger
-    if prev and prev ~= AvatarChanger and type(prev.Clear) == "function" then
-        pcall(prev.Clear, false)
-    end
-    env.MugiwaraAvatarChanger = AvatarChanger
-end
+-- Full teardown on re-execute: remove the morph and its Heartbeat connection.
+getgenv().MugiwaraRegisterCleanup(function()
+    pcall(AvatarChanger.Clear, false)
+end)
 
 return AvatarChanger

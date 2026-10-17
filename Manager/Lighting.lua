@@ -4,9 +4,12 @@ local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
+local ROOT = getgenv().MugiwaraFolder or "MugiwaraHub"
+local PREFIX = "Mugiwara_" -- semua instance yang dibuat modul ini memakai prefix ini
+
 if makefolder and isfolder then
-    if not isfolder("HonamiHub") then makefolder("HonamiHub") end
-    if not isfolder("HonamiHub/Presets") then makefolder("HonamiHub/Presets") end
+    if not isfolder(ROOT) then makefolder(ROOT) end
+    if not isfolder(ROOT .. "/Presets") then makefolder(ROOT .. "/Presets") end
 end
 
 LightingModule.BuiltInPresets = {
@@ -105,7 +108,7 @@ function LightingModule.Init()
         local effect = Lighting:FindFirstChildOfClass(className)
         if not effect then
             effect = Instance.new(className)
-            effect.Name = "Honami_" .. className
+            effect.Name = PREFIX .. className
             if effect:IsA("PostEffect") then 
                 effect.Enabled = false 
             end
@@ -172,7 +175,7 @@ function LightingModule.LoadSkybox(id)
             local currentSky = Lighting:FindFirstChildOfClass("Sky")
             if not currentSky then
                 currentSky = Instance.new("Sky")
-                currentSky.Name = "Honami_Sky"
+                currentSky.Name = PREFIX .. "Sky"
                 currentSky.Parent = Lighting
             end
             
@@ -187,13 +190,13 @@ end
 
 function LightingModule.GetPresetsList()
     local list = {}
-    table.insert(list, { Title = "Default", Desc = "Kembali ke cuaca map asli", Icon = "lucide:sun" })
+    table.insert(list, { Title = "Default", Desc = "Restore the map's original lighting.", Icon = "lucide:sun" })
     table.insert(list, { Type = "Divider" })
     for name, data in pairs(LightingModule.BuiltInPresets) do
         table.insert(list, { Title = name, Desc = data.Desc, Icon = "lucide:cloudy" })
     end
     if listfiles then
-        local files = listfiles("HonamiHub/Presets")
+        local files = listfiles(ROOT .. "/Presets")
         if #files > 0 then
             table.insert(list, { Type = "Divider" })
             for _, file in pairs(files) do
@@ -206,7 +209,7 @@ function LightingModule.GetPresetsList()
 end
 
 -- Nama preset dipakai sebagai nama file. Buang karakter path ("../", "\", dll) supaya
--- user nggak bisa nulis/baca file di luar folder HonamiHub/Presets.
+-- user nggak bisa nulis/baca file di luar folder MugiwaraHub/Presets.
 local function SanitizePresetName(name)
     name = tostring(name or ""):gsub("[^%w _%-%.]", ""):gsub("%.%.+", "."):match("^%s*(.-)%s*$")
     return string.sub(name, 1, 40)
@@ -214,8 +217,8 @@ end
 
 function LightingModule.SavePreset(presetName)
     presetName = SanitizePresetName(presetName)
-    if presetName == "" then return false, "Nama preset tidak valid" end
-    local path = "HonamiHub/Presets/" .. presetName .. ".json"
+    if presetName == "" then return false, "Invalid preset name." end
+    local path = ROOT .. "/Presets/" .. presetName .. ".json"
     local isOverwrite = (isfile and isfile(path))
     
     local dataToSave = {}
@@ -244,7 +247,7 @@ function LightingModule.SavePreset(presetName)
         writefile(path, data) 
         return true, isOverwrite and "Overwrite" or "New"
     end
-    return false, "Executor tidak support writefile"
+    return false, "Your executor does not support writefile."
 end
 
 function LightingModule.LoadPreset(presetName)
@@ -254,7 +257,7 @@ function LightingModule.LoadPreset(presetName)
             LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
             if not currentSky then
                 currentSky = Instance.new("Sky", Lighting)
-                currentSky.Name = "Honami_Sky"
+                currentSky.Name = PREFIX .. "Sky"
             end
             for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
         else
@@ -285,7 +288,7 @@ function LightingModule.LoadPreset(presetName)
                 LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
                 if not currentSky then
                     currentSky = Instance.new("Sky", Lighting)
-                    currentSky.Name = "Honami_Sky"
+                    currentSky.Name = PREFIX .. "Sky"
                 end
                 for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
             else
@@ -309,7 +312,7 @@ function LightingModule.LoadPreset(presetName)
 
     presetName = SanitizePresetName(presetName)
     if presetName == "" then return end
-    local path = "HonamiHub/Presets/" .. presetName .. ".json"
+    local path = ROOT .. "/Presets/" .. presetName .. ".json"
     if readfile and isfile and isfile(path) then
         local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
         if success and decoded then
@@ -319,7 +322,7 @@ function LightingModule.LoadPreset(presetName)
                 local sky = Lighting:FindFirstChildOfClass("Sky")
                 if not sky then
                     sky = Instance.new("Sky", Lighting)
-                    sky.Name = "Honami_Sky"
+                    sky.Name = PREFIX .. "Sky"
                 end
                 for key, value in pairs(decoded.CustomSkybox) do pcall(function() sky[key] = value end) end
                 decoded.CustomSkybox = nil 
@@ -329,7 +332,7 @@ function LightingModule.LoadPreset(presetName)
                     LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
                     if not currentSky then
                         currentSky = Instance.new("Sky", Lighting)
-                        currentSky.Name = "Honami_Sky"
+                        currentSky.Name = PREFIX .. "Sky"
                     end
                     for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
                 else
@@ -359,40 +362,48 @@ end
 
 function LightingModule.CopySkybox()
     local sky = Lighting:FindFirstChildOfClass("Sky")
-    if not sky then return false, "Tidak ada Skybox bawaan di map ini!" end
+    if not sky then return false, "This map has no built-in skybox!" end
     local skyData = { SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt, SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp, SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount }
     if writefile then
-        writefile("HonamiHub/CopiedSky.json", HttpService:JSONEncode(skyData))
-        return true, "Skybox berhasil dicopy!"
+        writefile(ROOT .. "/CopiedSky.json", HttpService:JSONEncode(skyData))
+        return true, "Skybox copied!"
     end
-    return false, "Executor tidak support writefile!"
+    return false, "Your executor does not support writefile!"
 end
 
 function LightingModule.PasteSkybox()
-    local path = "HonamiHub/CopiedSky.json"
-    if not (readfile and isfile and isfile(path)) then return false, "Belum ada Skybox yang disalin!" end
+    local path = ROOT .. "/CopiedSky.json"
+    if not (readfile and isfile and isfile(path)) then return false, "No skybox has been copied yet!" end
     local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if success and decoded then
         LightingModule.ActiveSkybox = decoded
         local sky = Lighting:FindFirstChildOfClass("Sky")
         if not sky then
             sky = Instance.new("Sky", Lighting)
-            sky.Name = "Honami_Sky"
+            sky.Name = PREFIX .. "Sky"
         end
         for key, value in pairs(decoded) do pcall(function() sky[key] = value end) end
-        return true, "Skybox berhasil dipaste!"
+        return true, "Skybox pasted!"
     end
-    return false, "Data CopiedSky rusak!"
+    return false, "The copied skybox data is corrupted!"
 end
 
-RunService.RenderStepped:Connect(function(deltaTime)
+local renderConnection
+renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
     local counts = {}
     for _, child in ipairs(Lighting:GetChildren()) do
         local cls = child.ClassName
         if cls == "Sky" or cls == "Atmosphere" or cls == "BloomEffect" or cls == "BlurEffect" or cls == "ColorCorrectionEffect" or cls == "DepthOfFieldEffect" or cls == "SunRaysEffect" then
-            if counts[cls] then
-                child:Destroy() 
-            else
+            -- Hanya objek buatan hub (prefix Mugiwara_) yang boleh dihapus saat duplikat.
+            -- Efek milik game dibiarkan; kalau ada dua, versi game yang dipakai.
+            local isOurs = string.sub(child.Name, 1, #PREFIX) == PREFIX
+            local current = counts[cls]
+            if not current then
+                counts[cls] = child
+            elseif isOurs then
+                child:Destroy()
+            elseif string.sub(current.Name, 1, #PREFIX) == PREFIX then
+                current:Destroy()
                 counts[cls] = child
             end
         end
@@ -405,7 +416,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
         else
             if LightingModule.LockEnabled then
                 local newObj = Instance.new(clsName)
-                newObj.Name = "Honami_" .. clsName
+                newObj.Name = PREFIX .. clsName
                 newObj.Parent = Lighting
                 if newObj:IsA("PostEffect") then newObj.Enabled = false end
                 LightingModule.Objects[cat] = newObj
@@ -470,6 +481,22 @@ RunService.RenderStepped:Connect(function(deltaTime)
     if LightingModule.SkyAnimEnabled and currentSky then
         local currentRot = currentSky.SkyboxOrientation
         currentSky.SkyboxOrientation = currentRot + Vector3.new(0, LightingModule.SkyAnimSpeed * deltaTime, 0)
+    end
+end)
+
+-- Full teardown on re-execute: stop the loop, then put the map's original lighting back.
+-- Restoring matters because the next session snapshots the current lighting as its default.
+getgenv().MugiwaraRegisterCleanup(function()
+    if renderConnection then renderConnection:Disconnect() renderConnection = nil end
+    LightingModule.LockEnabled = false
+    LightingModule.SkyAnimEnabled = false
+    LightingModule.OnPresetLoaded = nil
+    LightingModule.OnPropertyChanged = nil
+    pcall(LightingModule.LoadPreset, "Default")
+
+    -- Hapus objek yang dibuat hub sendiri (prefix Mugiwara_); milik game tidak disentuh.
+    for _, child in ipairs(Lighting:GetChildren()) do
+        if string.sub(child.Name, 1, #PREFIX) == PREFIX then child:Destroy() end
     end
 end)
 

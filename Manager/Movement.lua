@@ -29,14 +29,7 @@ local lastJumpTime = 0
 local flyBodyVelocity = nil
 local flyBodyGyro = nil
 
--- Kalau hub dieksekusi ulang, putuskan semua koneksi dari instance lama.
--- Sebelumnya tiap reload nambah Heartbeat/Stepped baru, jadi speed/noclip/fly numpuk.
-local env = getgenv()
-if env.MugiwaraMovementConns then
-    for _, conn in ipairs(env.MugiwaraMovementConns) do pcall(function() conn:Disconnect() end) end
-end
 local connections = {}
-env.MugiwaraMovementConns = connections
 
 local function UpdateOriginalStats(character)
     local humanoid = character:WaitForChild("Humanoid", 5)
@@ -69,7 +62,7 @@ end
 
 function Movement.ToggleFly(state)
     Movement.FlyEnabled = state
-    -- Selalu bersihin objek lama dulu supaya toggle ON berkali-kali nggak numpuk BodyVelocity.
+    -- Always remove old objects first so toggling ON repeatedly never stacks BodyVelocity.
     DestroyFlyObjects()
     if not state then return end
 
@@ -92,7 +85,7 @@ function Movement.ToggleFly(state)
     end
 end
 
--- Respawn: objek fly ikut hancur bersama karakter lama, pasang ulang kalau Fly masih ON.
+-- Respawn: fly objects die with the old character; recreate them if Fly is still ON.
 table.insert(connections, LocalPlayer.CharacterAdded:Connect(function(character)
     UpdateOriginalStats(character)
     flyBodyVelocity, flyBodyGyro = nil, nil
@@ -138,7 +131,7 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
         local cam = workspace.CurrentCamera
         local moveDir = Vector3.zero
 
-        -- Jangan baca tombol saat user lagi ngetik di chat / textbox.
+        -- Ignore key input while the user is typing in chat or a textbox.
         if not UserInputService:GetFocusedTextBox() then
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
@@ -191,6 +184,18 @@ table.insert(connections, UserInputService.JumpRequest:Connect(function()
         end
     end
 end))
+
+-- Full teardown on re-execute: stop every loop, release fly, restore speed/jump.
+getgenv().MugiwaraRegisterCleanup(function()
+    for _, conn in ipairs(connections) do pcall(function() conn:Disconnect() end) end
+    table.clear(connections)
+    Movement.FlyEnabled = false
+    DestroyFlyObjects()
+    if Movement.SpeedEnabled then Movement.RestoreSpeed() end
+    if Movement.JumpEnabled then Movement.RestoreJump() end
+    Movement.SpeedEnabled, Movement.TweenSpeedEnabled = false, false
+    Movement.JumpEnabled, Movement.InfJumpEnabled, Movement.NoclipEnabled = false, false, false
+end)
 
 function Movement.SetAnimSpeed(value)
     pcall(function()
