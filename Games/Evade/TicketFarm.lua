@@ -21,36 +21,24 @@ local lastTeleport = 0
 local ignored = setmetatable({}, { __mode = "k" }) -- ticket yang dilewati (timeout)
 local warnedError = false
 
--- Evade bisa punya dua rig bernama sama di workspace.Rigs (inventory + in-game); modul Rigs
--- yang memilih rig aktif, supaya farm tidak memindahkan rig preview inventory.
-local RigsModule = getgenv().MugiwaraImport("Games/Evade/Rigs.lua")
-
 -- ==========================================
 -- HELPERS
 -- ==========================================
 
--- "Badan" pemain = karakter asli (LocalPlayer.Character, punya HumanoidRootPart) dan/atau
--- rig aktif di workspace.Rigs. Rig Evade tidak punya HumanoidRootPart dan bukan
--- LocalPlayer.Character, jadi belum pasti mana yang benar-benar dikendalikan pemain.
--- Karena itu keduanya digerakkan bersamaan.
+-- Yang dikendalikan pemain adalah LocalPlayer.Character (Workspace.Players.<nama>, punya
+-- HumanoidRootPart; kamera juga mengikuti Humanoid-nya). Model di Workspace.Rigs hanya
+-- salinan visual, jadi TIDAK digerakkan: memindahkannya bikin tampilan loncat keluar map.
 local function GetBody()
     local character = LocalPlayer.Character
-    local charHumanoid = character and character:FindFirstChildOfClass("Humanoid")
-    local charRoot = character and (character:FindFirstChild("HumanoidRootPart") or (charHumanoid and charHumanoid.RootPart))
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local root = character and (character:FindFirstChild("HumanoidRootPart") or (humanoid and humanoid.RootPart))
+    if not humanoid or not root then return nil end
 
-    local rig, rigHumanoid
-    if RigsModule then rig, rigHumanoid = RigsModule.GetActive() end
-
-    local humanoid = rigHumanoid or charHumanoid
-    if not humanoid or (not charRoot and not rig) then return nil end
-
-    return { CharRoot = charRoot, Rig = rig, Humanoid = humanoid }
+    return { CharRoot = root, Humanoid = humanoid }
 end
 
--- Posisi acuan pemain: karakter asli kalau ada, kalau tidak pivot rig aktif.
 local function GetOrigin(body)
-    if body.CharRoot then return body.CharRoot.Position end
-    return RigsModule and body.Rig and RigsModule.GetPosition(body.Rig) or nil
+    return body.CharRoot.Position
 end
 
 local function GetPosition(obj)
@@ -63,23 +51,10 @@ local function GetPosition(obj)
 end
 
 local function MoveTo(body, position)
-    if body.CharRoot then
-        local root = body.CharRoot
-        root.CFrame = CFrame.new(position) * (root.CFrame - root.CFrame.Position) -- rotasi dipertahankan
-        root.AssemblyLinearVelocity = Vector3.zero
-        root.AssemblyAngularVelocity = Vector3.zero
-    end
-
-    -- Rig digerakkan juga kalau bukan bagian dari karakter asli (tanpa ini, kalau yang
-    -- dikendalikan adalah rig, pemain tidak berpindah sama sekali).
-    local rig = body.Rig
-    if rig and not (body.CharRoot and body.CharRoot:IsDescendantOf(rig)) then
-        pcall(function()
-            local pivot = rig:GetPivot()
-            rig:PivotTo(CFrame.new(position) * (pivot - pivot.Position))
-        end)
-    end
-
+    local root = body.CharRoot
+    root.CFrame = CFrame.new(position) * (root.CFrame - root.CFrame.Position) -- rotasi dipertahankan
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
     lastTeleport = os.clock()
 end
 

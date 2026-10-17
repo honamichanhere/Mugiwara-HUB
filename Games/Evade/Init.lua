@@ -15,46 +15,6 @@ return function(Window, isPremiumUser, WindUI)
         ImageSize = 75
     })
 
-    -- ==========================================
-    -- HALLOWEEN TICKET FARM (free)
-    -- ==========================================
-    TabMain:Divider({ Title = "Halloween Event" })
-
-    if TicketFarmModule then
-        local FarmSection = TabMain:Section({
-            Title = "Halloween Ticket Farm",
-            Icon = "lucide:ticket",
-            Opened = true,
-            Box = true
-        })
-
-        FarmSection:Toggle({
-            Title = "Auto Farm Tickets",
-            Desc = "Teleports to each Halloween ticket and waits until it is collected. When no tickets are left you stay put and can move freely.",
-            Callback = function(Value)
-                TicketFarmModule.SetFarm(Value)
-            end
-        })
-
-        FarmSection:Toggle({
-            Title = "Avoid NextBots",
-            Desc = "Teleports you to a safe item spawn whenever a NextBot gets too close. Also skips tickets that are next to a NextBot.",
-            Callback = function(Value)
-                TicketFarmModule.SetAvoid(Value)
-            end
-        })
-
-        FarmSection:Slider({
-            Title = "NextBot Safe Distance",
-            Desc = "How close a NextBot can get before you are teleported away.",
-            Step = 1,
-            Value = { Min = 10, Max = 100, Default = TicketFarmModule.SafeDistance },
-            Callback = function(Value)
-                TicketFarmModule.SetSafeDistance(Value)
-            end
-        })
-    end
-
     TabMain:Divider({ Title = "Evade Premium Features" })
     
     local AccSection = TabMain:Section({ 
@@ -189,6 +149,46 @@ return function(Window, isPremiumUser, WindUI)
             if AvatarChangerModule then AvatarChangerModule.Clear(true, WindUI) end
         end
     })
+
+    -- ==========================================
+    -- HALLOWEEN TICKET FARM (free)
+    -- ==========================================
+    TabMain:Divider({ Title = "Halloween Event" })
+
+    if TicketFarmModule then
+        local FarmSection = TabMain:Section({
+            Title = "Halloween Ticket Farm",
+            Icon = "lucide:ticket",
+            Opened = true,
+            Box = true
+        })
+
+        FarmSection:Toggle({
+            Title = "Auto Farm Tickets",
+            Desc = "Teleports to each Halloween ticket and waits until it is collected. When no tickets are left you stay put and can move freely.",
+            Callback = function(Value)
+                TicketFarmModule.SetFarm(Value)
+            end
+        })
+
+        FarmSection:Toggle({
+            Title = "Avoid NextBots",
+            Desc = "Teleports you to a safe item spawn whenever a NextBot gets too close. Also skips tickets that are next to a NextBot.",
+            Callback = function(Value)
+                TicketFarmModule.SetAvoid(Value)
+            end
+        })
+
+        FarmSection:Slider({
+            Title = "NextBot Safe Distance",
+            Desc = "How close a NextBot can get before you are teleported away.",
+            Step = 1,
+            Value = { Min = 10, Max = 100, Default = TicketFarmModule.SafeDistance },
+            Callback = function(Value)
+                TicketFarmModule.SetSafeDistance(Value)
+            end
+        })
+    end
 
     TabMain:Divider({ Title = "Universal Modules" })
     

@@ -13,6 +13,9 @@ local LocalPlayer = Players.LocalPlayer
 --   rig in-game   : attribute "Tag" (angka), 15 child
 --   keduanya      : tidak punya HumanoidRootPart, kamera tidak mengikuti rig, dan
 --                   bukan LocalPlayer.Character -> petunjuk itu tidak bisa dipakai.
+-- Karakter yang benar-benar dikendalikan pemain adalah LocalPlayer.Character
+-- (Workspace.Players.<nama>, punya HumanoidRootPart). Rig di sini hanya salinan VISUAL:
+-- cocok untuk accessories/avatar, tapi jangan digerakkan untuk fitur gameplay.
 local IN_GAME_ATTRIBUTE = "Tag"
 
 local function RootOf(rig, humanoid)
