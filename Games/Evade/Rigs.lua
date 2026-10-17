@@ -7,9 +7,16 @@ local LocalPlayer = Players.LocalPlayer
 -- Evade bisa punya DUA rig dengan nama pemain yang sama di Workspace.Rigs: satu dari
 -- inventory/menu, satu dari dalam game. Modul ini jadi satu-satunya tempat yang menentukan
 -- rig mana yang dipakai, supaya fitur lain tidak asal mengambil FindFirstChild(nama).
+--
+-- Hasil pengamatan langsung (Halloween update):
+--   rig inventory : tanpa attribute, 14 child
+--   rig in-game   : attribute "Tag" (angka), 15 child
+--   keduanya      : tidak punya HumanoidRootPart, kamera tidak mengikuti rig, dan
+--                   bukan LocalPlayer.Character -> petunjuk itu tidak bisa dipakai.
+local IN_GAME_ATTRIBUTE = "Tag"
 
 local function RootOf(rig, humanoid)
-    return rig:FindFirstChild("HumanoidRootPart") or humanoid.RootPart
+    return rig:FindFirstChild("HumanoidRootPart") or humanoid.RootPart or rig.PrimaryPart
 end
 
 -- Semua rig milik pemain lokal. Urutan = urutan di Workspace.Rigs.
@@ -36,28 +43,29 @@ function Rigs.GetAll()
     return list
 end
 
--- Skor tiap rig dari beberapa petunjuk; rig dengan skor tertinggi dianggap rig yang
--- sedang dipakai main. Seri -> rig yang lebih dulu ada di Workspace.Rigs.
+-- true kalau rig ini rig in-game (punya attribute penanda).
+function Rigs.IsInGame(rig)
+    return rig:GetAttribute(IN_GAME_ATTRIBUTE) ~= nil
+end
+
+-- Skor tiap rig; skor tertinggi = rig yang dipakai main. Seri -> yang lebih dulu di Workspace.Rigs.
 local function Score(entry)
     local score = 0
     local camera = workspace.CurrentCamera
 
-    if camera and camera.CameraSubject == entry.Humanoid then score = score + 4 end -- kamera mengikuti rig ini
+    if Rigs.IsInGame(entry.Rig) then score = score + 10 end -- penanda yang terbukti membedakan
+    if camera and camera.CameraSubject == entry.Humanoid then score = score + 4 end
     if entry.Rig == LocalPlayer.Character then score = score + 2 end
     if entry.Humanoid.Health > 0 then score = score + 1 end
-
-    local root = RootOf(entry.Rig, entry.Humanoid)
-    if root and not root.Anchored then score = score + 1 end -- rig preview biasanya di-anchor
 
     return score
 end
 
 -- Rig yang sedang aktif. Mengembalikan rig, humanoid (atau nil, nil).
 function Rigs.GetActive()
-    local all = Rigs.GetAll()
     local best, bestScore = nil, -1
 
-    for _, entry in ipairs(all) do
+    for _, entry in ipairs(Rigs.GetAll()) do
         local score = Score(entry)
         if score > bestScore then best, bestScore = entry, score end
     end
@@ -66,10 +74,14 @@ function Rigs.GetActive()
     return best.Rig, best.Humanoid
 end
 
-function Rigs.GetActiveRoot()
-    local rig, humanoid = Rigs.GetActive()
-    if not rig then return nil, nil end
-    return RootOf(rig, humanoid), humanoid
+-- Posisi sebuah rig lewat pivot model (rig ini tidak punya HumanoidRootPart).
+function Rigs.GetPosition(rig)
+    local ok, pivot = pcall(function() return rig:GetPivot() end)
+    return ok and pivot.Position or nil
+end
+
+function Rigs.GetRoot(rig, humanoid)
+    return RootOf(rig, humanoid)
 end
 
 return Rigs

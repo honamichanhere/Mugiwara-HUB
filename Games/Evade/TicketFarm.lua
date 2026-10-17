@@ -21,18 +21,36 @@ local lastTeleport = 0
 local ignored = setmetatable({}, { __mode = "k" }) -- ticket yang dilewati (timeout)
 local warnedError = false
 
+-- Evade bisa punya dua rig bernama sama di workspace.Rigs (inventory + in-game); modul Rigs
+-- yang memilih rig aktif, supaya farm tidak memindahkan rig preview inventory.
+local RigsModule = getgenv().MugiwaraImport("Games/Evade/Rigs.lua")
+
 -- ==========================================
 -- HELPERS
 -- ==========================================
 
--- Rig yang sedang dipakai main. Evade bisa punya dua rig bernama sama di workspace.Rigs
--- (inventory + in-game); modul Rigs yang memilih mana yang aktif, supaya farm tidak
--- memindahkan rig preview inventory.
-local RigsModule = getgenv().MugiwaraImport("Games/Evade/Rigs.lua")
+-- "Badan" pemain = karakter asli (LocalPlayer.Character, punya HumanoidRootPart) dan/atau
+-- rig aktif di workspace.Rigs. Rig Evade tidak punya HumanoidRootPart dan bukan
+-- LocalPlayer.Character, jadi belum pasti mana yang benar-benar dikendalikan pemain.
+-- Karena itu keduanya digerakkan bersamaan.
+local function GetBody()
+    local character = LocalPlayer.Character
+    local charHumanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local charRoot = character and (character:FindFirstChild("HumanoidRootPart") or (charHumanoid and charHumanoid.RootPart))
 
-local function GetRoot()
-    if RigsModule then return RigsModule.GetActiveRoot() end
-    return nil, nil
+    local rig, rigHumanoid
+    if RigsModule then rig, rigHumanoid = RigsModule.GetActive() end
+
+    local humanoid = rigHumanoid or charHumanoid
+    if not humanoid or (not charRoot and not rig) then return nil end
+
+    return { CharRoot = charRoot, Rig = rig, Humanoid = humanoid }
+end
+
+-- Posisi acuan pemain: karakter asli kalau ada, kalau tidak pivot rig aktif.
+local function GetOrigin(body)
+    if body.CharRoot then return body.CharRoot.Position end
+    return RigsModule and body.Rig and RigsModule.GetPosition(body.Rig) or nil
 end
 
 local function GetPosition(obj)
@@ -44,10 +62,24 @@ local function GetPosition(obj)
     return nil
 end
 
-local function TeleportTo(root, position)
-    root.CFrame = CFrame.new(position) * (root.CFrame - root.CFrame.Position) -- rotasi dipertahankan
-    root.AssemblyLinearVelocity = Vector3.zero
-    root.AssemblyAngularVelocity = Vector3.zero
+local function MoveTo(body, position)
+    if body.CharRoot then
+        local root = body.CharRoot
+        root.CFrame = CFrame.new(position) * (root.CFrame - root.CFrame.Position) -- rotasi dipertahankan
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end
+
+    -- Rig digerakkan juga kalau bukan bagian dari karakter asli (tanpa ini, kalau yang
+    -- dikendalikan adalah rig, pemain tidak berpindah sama sekali).
+    local rig = body.Rig
+    if rig and not (body.CharRoot and body.CharRoot:IsDescendantOf(rig)) then
+        pcall(function()
+            local pivot = rig:GetPivot()
+            rig:PivotTo(CFrame.new(position) * (pivot - pivot.Position))
+        end)
+    end
+
     lastTeleport = os.clock()
 end
 
@@ -108,8 +140,9 @@ end
 -- MAIN STEP
 -- ==========================================
 local function Step()
-    local root, humanoid = GetRoot()
-    if not root or not humanoid or humanoid.Health <= 0 then
+    local body = GetBody()
+    local origin = body and GetOrigin(body)
+    if not body or not origin or body.Humanoid.Health <= 0 then
         currentTarget = nil
         return
     end
@@ -118,10 +151,10 @@ local function Step()
 
     -- 1. Kabur dari NextBot (prioritas tertinggi)
     if TicketFarm.AvoidEnabled and #botPositions > 0
-        and NearestDistance(root.Position, botPositions) < TicketFarm.SafeDistance then
+        and NearestDistance(origin, botPositions) < TicketFarm.SafeDistance then
         local spot = PickSafeSpawn(botPositions)
         if spot then
-            TeleportTo(root, spot.Position + Vector3.new(0, STAND_HEIGHT, 0))
+            MoveTo(body, spot.Position + Vector3.new(0, STAND_HEIGHT, 0))
             currentTarget = nil
         end
         return
@@ -161,7 +194,7 @@ local function Step()
                 if position then
                     local safe = not TicketFarm.AvoidEnabled
                         or NearestDistance(position, botPositions) >= TicketFarm.SafeDistance
-                    local distance = (root.Position - position).Magnitude
+                    local distance = (origin - position).Magnitude
                     if safe and distance < bestDistance then best, bestDistance = ticket, distance end
                 end
             end
@@ -169,7 +202,7 @@ local function Step()
 
         if best then
             currentTarget, targetSince = best, os.clock()
-            TeleportTo(root, GetPosition(best))
+            MoveTo(body, GetPosition(best))
         end
         -- Tidak ada ticket: diam di posisi terakhir, pemain bebas bergerak.
         return
@@ -177,9 +210,9 @@ local function Step()
 
     -- Target masih ada: teleport ulang hanya kalau pemain terdorong jauh dari ticket.
     local position = GetPosition(currentTarget)
-    if position and (root.Position - position).Magnitude > REAPPLY_DISTANCE
+    if position and (origin - position).Magnitude > REAPPLY_DISTANCE
         and os.clock() - lastTeleport > REAPPLY_COOLDOWN then
-        TeleportTo(root, position)
+        MoveTo(body, position)
     end
 end
 
