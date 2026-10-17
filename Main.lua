@@ -11,7 +11,7 @@ getgenv().HonamiHub_Executed = true
 -- Semua file hub di-load lewat satu base URL ini. Untuk rilis stabil, ganti
 -- "refs/heads/main" jadi commit hash (refs/heads/main -> <hash>) supaya push
 -- yang tidak sengaja ke main tidak langsung kejalan di semua user.
-local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/fix/security-bugs-cleanup/"
+local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/refs/heads/main/"
 local MAX_KEY_LENGTH = 128
 
 getgenv().MugiwaraImport = function(path)
