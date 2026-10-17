@@ -6,7 +6,7 @@ local defaultWalkSpeed = LocalPlayer.Character and LocalPlayer.Character:FindFir
 local defaultJumpPower = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.JumpPower or 50
 
 return function(TargetTab, isPremiumUser, WindUI)
-    local MovementSection = TargetTab:Section({ Title = "Character Movements", Icon = "lucide:footprints", Opened = false, Box = true })
+    local MovementSection = TargetTab:Section({ Title = "Character Movement", Icon = "lucide:footprints", Opened = false, Box = true })
     
     local ToggleTweenSpeed
     local ToggleSpeed = MovementSection:Toggle({ Title = "Enable Speed Hack", Callback = function(Value) MovementModule.SpeedEnabled = Value; if not Value then MovementModule.RestoreSpeed() end; if Value and ToggleTweenSpeed then ToggleTweenSpeed:Set(false) end end })

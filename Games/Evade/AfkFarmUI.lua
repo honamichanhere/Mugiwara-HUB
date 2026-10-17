@@ -1,6 +1,9 @@
 local AfkFarm = getgenv().MugiwaraImport("Games/Evade/AfkFarm.lua")
 local VIPCommands = getgenv().MugiwaraImport("Games/Evade/VIPCommands.lua")
 
+-- Membuat dua section di tab Main (berurutan):
+--   1. "AFK Farm"      (premium): tahan posisi AFK memakai Fly
+--   2. "Auto Commands" (gratis) : event Command > Trigger > Delay lewat VIP command
 return function(TabMain, isPremiumUser, WindUI)
     if not AfkFarm or not VIPCommands then return end
 
@@ -8,19 +11,17 @@ return function(TabMain, isPremiumUser, WindUI)
         WindUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
     end
 
-    local Section = TabMain:Section({
+    -- ==========================================
+    -- AFK FARM (premium)
+    -- ==========================================
+    local FarmSection = TabMain:Section({
         Title = '<font color="#ffff82">AFK Farm</font>',
         Icon = "rbxassetid://74594159374416",
         Opened = false,
         Box = true
     })
 
-    -- ==========================================
-    -- AUTO FARM
-    -- ==========================================
-    Section:Divider({ Title = "Auto Farm" })
-
-    Section:Toggle({
+    FarmSection:Toggle({
         Title = "Auto Farm",
         Desc = "Hold the AFK spot, floating with Fly.",
         Locked = not isPremiumUser,
@@ -34,7 +35,7 @@ return function(TabMain, isPremiumUser, WindUI)
     local CoordinateInput
     local updatingInput = false
 
-    CoordinateInput = Section:Input({
+    CoordinateInput = FarmSection:Input({
         Title = "AFK Coordinates",
         Desc = "Format: x, y, z. Empty = your current spot.",
         Placeholder = "x, y, z",
@@ -52,7 +53,7 @@ return function(TabMain, isPremiumUser, WindUI)
         end
     })
 
-    Section:Button({
+    FarmSection:Button({
         Title = "Use Current Position",
         Desc = "Save where you stand as the AFK spot.",
         Icon = "lucide:map-pin",
@@ -73,15 +74,18 @@ return function(TabMain, isPremiumUser, WindUI)
     })
 
     -- ==========================================
-    -- AUTO EXECUTE EVENTS
+    -- AUTO COMMANDS (gratis)
     -- ==========================================
-    Section:Divider({ Title = "Auto Execute" })
+    local Section = TabMain:Section({
+        Title = "Auto Commands",
+        Icon = "lucide:terminal",
+        Opened = false,
+        Box = true
+    })
 
     Section:Toggle({
         Title = "Auto Execute",
         Desc = "Send each event's command when its trigger happens.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
         Value = false,
         Callback = function(Value)
             AfkFarm.SetAutoExec(Value)
@@ -140,8 +144,6 @@ return function(TabMain, isPremiumUser, WindUI)
             Desc = "For example !timer 1",
             Placeholder = "!timer 1",
             Value = rule.Command,
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
             Callback = function(Text)
                 AfkFarm.UpdateRule(rule, "Command", tostring(Text or ""))
             end
@@ -151,8 +153,6 @@ return function(TabMain, isPremiumUser, WindUI)
             Title = "Send Command",
             Desc = "Send the command above now.",
             Icon = "lucide:send",
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
             Callback = function()
                 local ok, result = VIPCommands.RunText(rule.Command)
                 Notify(ok and "Command Sent" or "Command Not Sent", tostring(result), ok and 2 or 4)
@@ -164,8 +164,6 @@ return function(TabMain, isPremiumUser, WindUI)
             Desc = "The event that starts the command.",
             Values = AfkFarm.Triggers,
             Value = rule.Trigger,
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
             Callback = function(Option)
                 if type(Option) == "string" then AfkFarm.UpdateRule(rule, "Trigger", Option) end
             end
@@ -176,8 +174,6 @@ return function(TabMain, isPremiumUser, WindUI)
             Desc = "Wait this long after the trigger.",
             Step = 0.5,
             Value = { Min = 0, Max = AfkFarm.MaxDelay, Default = rule.Delay },
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
             Callback = function(Value)
                 AfkFarm.UpdateRule(rule, "Delay", Value)
             end
@@ -187,8 +183,6 @@ return function(TabMain, isPremiumUser, WindUI)
             Title = "Delete " .. label,
             Desc = "Remove this event.",
             Icon = "lucide:trash-2",
-            Locked = not isPremiumUser,
-            LockedTitle = "Premium Only",
             Callback = function()
                 AfkFarm.RemoveRule(rule)
 
@@ -214,8 +208,6 @@ return function(TabMain, isPremiumUser, WindUI)
         Title = "Create New Event",
         Desc = "Add another Command, Trigger and Delay. Up to " .. AfkFarm.MaxRules .. ".",
         Icon = "lucide:plus",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
         Callback = function()
             local rule, reason = AfkFarm.AddRule()
             if not rule then

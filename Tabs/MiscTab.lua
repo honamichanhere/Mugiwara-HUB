@@ -27,7 +27,7 @@ return function(Window, isPremiumUser, WindUI)
     -- ==========================================
     -- PROTECTION
     -- ==========================================
-    local ProtectionSection = TabMisc:Section({ Title = "Protection", Icon = "lucide:shield-check", Opened = true, Box = true })
+    local ProtectionSection = TabMisc:Section({ Title = "Protection", Icon = "lucide:shield-check", Opened = false, Box = true })
 
     ProtectionSection:Toggle({
         Title = "Anti-AFK",
@@ -50,7 +50,7 @@ return function(Window, isPremiumUser, WindUI)
     -- ==========================================
     -- SERVER
     -- ==========================================
-    local ServerSection = TabMisc:Section({ Title = "Server", Icon = "lucide:server", Opened = true, Box = true })
+    local ServerSection = TabMisc:Section({ Title = "Server", Icon = "lucide:server", Opened = false, Box = true })
 
     ServerSection:Button({
         Title = "Rejoin",
@@ -134,7 +134,7 @@ return function(Window, isPremiumUser, WindUI)
     -- KEYBOARD SHORTCUTS
     -- ==========================================
     if KeybindsModule then
-        local ShortcutSection = TabMisc:Section({ Title = "Keyboard Shortcuts", Icon = "lucide:keyboard", Opened = true, Box = true })
+        local ShortcutSection = TabMisc:Section({ Title = "Keyboard Shortcuts", Icon = "lucide:keyboard", Opened = false, Box = true })
 
         ShortcutSection:Paragraph({
             Title = "How shortcuts work",
@@ -317,7 +317,7 @@ return function(Window, isPremiumUser, WindUI)
     -- ==========================================
     -- HUB
     -- ==========================================
-    local HubSection = TabMisc:Section({ Title = "Hub", Icon = "lucide:power", Opened = true, Box = true })
+    local HubSection = TabMisc:Section({ Title = "Hub", Icon = "lucide:power", Opened = false, Box = true })
 
     local CursorModule = getgenv().MugiwaraImport("Manager/Cursor.lua")
     if CursorModule then
