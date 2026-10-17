@@ -1,4 +1,7 @@
 local ServerModule = getgenv().MugiwaraImport("Manager/Server.lua")
+local KeybindsModule = getgenv().MugiwaraImport("Manager/Keybinds.lua")
+local MovementModule = getgenv().MugiwaraImport("Manager/Movement.lua")
+local CameraModule = getgenv().MugiwaraImport("Manager/Camera.lua")
 
 return function(Window, isPremiumUser, WindUI)
 
@@ -126,6 +129,168 @@ return function(Window, isPremiumUser, WindUI)
             end
         end
     })
+
+    -- ==========================================
+    -- KEYBOARD SHORTCUTS
+    -- ==========================================
+    if KeybindsModule then
+        local ShortcutSection = TabMisc:Section({ Title = "Keyboard Shortcuts", Icon = "lucide:keyboard", Opened = true, Box = true })
+
+        ShortcutSection:Paragraph({
+            Title = "How to change a shortcut",
+            Desc = "Click a key box, then press the new key. Shortcuts do nothing while you type in chat, and mouse buttons are not supported. Keyboard only (PC)."
+        })
+
+        -- Membalik toggle lewat elemen UI-nya (kalau sudah dibuat) supaya tombol di UI ikut
+        -- bergerak; kalau elemennya belum ada, langsung ubah state modulnya.
+        local function Flip(ui, label, fallback)
+            local state
+            if ui and ui.Set then
+                ui:Set(not ui.Value)
+                state = ui.Value
+            else
+                state = fallback()
+            end
+            Notify(label, state and "Turned ON" or "Turned OFF", 1.5)
+        end
+
+        local Shortcuts = {
+            { Id = "ToggleUI", Title = "Show / Hide Hub", Desc = "Open or close this window.", Default = "RightShift" },
+            {
+                Id = "Fly", Title = "Fly", Desc = "Turn Fly on or off.", Default = "G",
+                Run = function()
+                    if not MovementModule then return end
+                    Flip(MovementModule.UI and MovementModule.UI.Fly, "Fly", function()
+                        local state = not MovementModule.FlyEnabled
+                        MovementModule.ToggleFly(state)
+                        return state
+                    end)
+                end
+            },
+            {
+                Id = "Noclip", Title = "Noclip", Desc = "Walk through walls on or off.", Default = "N",
+                Run = function()
+                    if not MovementModule then return end
+                    Flip(MovementModule.UI and MovementModule.UI.Noclip, "Noclip", function()
+                        MovementModule.NoclipEnabled = not MovementModule.NoclipEnabled
+                        return MovementModule.NoclipEnabled
+                    end)
+                end
+            },
+            {
+                Id = "Speed", Title = "Speed Hack", Desc = "Turn Speed Hack on or off. Uses the speed you set in the Main tab.", Default = "Z",
+                Run = function()
+                    if not MovementModule then return end
+                    Flip(MovementModule.UI and MovementModule.UI.Speed, "Speed Hack", function()
+                        MovementModule.SpeedEnabled = not MovementModule.SpeedEnabled
+                        if not MovementModule.SpeedEnabled then MovementModule.RestoreSpeed() end
+                        return MovementModule.SpeedEnabled
+                    end)
+                end
+            },
+            {
+                Id = "InfJump", Title = "Infinite Jump", Desc = "Turn Infinite Jump on or off.", Default = "J",
+                Run = function()
+                    if not MovementModule then return end
+                    Flip(MovementModule.UI and MovementModule.UI.InfJump, "Infinite Jump", function()
+                        MovementModule.InfJumpEnabled = not MovementModule.InfJumpEnabled
+                        return MovementModule.InfJumpEnabled
+                    end)
+                end
+            },
+            {
+                Id = "Freecam", Title = "Free Camera", Desc = "Turn Free Camera on or off.", Default = "P", Premium = true,
+                Run = function()
+                    if not CameraModule then return end
+                    if not isPremiumUser then
+                        Notify("Premium Only", "Free Camera is a premium feature.", 2)
+                        return
+                    end
+                    Flip(CameraModule.UI and CameraModule.UI.Freecam, "Free Camera", function()
+                        local state = not CameraModule.FreecamEnabled
+                        CameraModule.ToggleFreecam(state)
+                        return state
+                    end)
+                end
+            },
+            {
+                Id = "Panic", Title = "Panic: Unload Hub", Desc = "Instantly remove the hub and undo everything. No confirmation.", Default = "End",
+                Run = function()
+                    if getgenv().MugiwaraUnload then getgenv().MugiwaraUnload() end
+                end
+            },
+        }
+
+        local function ApplyUIKey(keyName)
+            local keyCode = KeybindsModule.GetKeyCode(keyName)
+            if keyCode and Window.SetToggleKey then pcall(Window.SetToggleKey, Window, keyCode) end
+        end
+
+        local entries = {}
+        for _, def in ipairs(Shortcuts) do
+            local initial = KeybindsModule.Get(def.Id, def.Default)
+            local element = ShortcutSection:Keybind({
+                Title = def.Title,
+                Desc = def.Desc,
+                Value = initial,
+                Locked = def.Premium and not isPremiumUser or false,
+                LockedTitle = "Premium Only",
+                Callback = function()
+                    if def.Run then def.Run() end
+                end
+            })
+            table.insert(entries, { Def = def, Element = element, Last = initial })
+            if def.Id == "ToggleUI" then ApplyUIKey(initial) end
+        end
+
+        ShortcutSection:Button({
+            Title = "Reset Shortcuts",
+            Desc = "Put every shortcut back to its default key.",
+            Icon = "lucide:rotate-ccw",
+            Callback = function()
+                for _, entry in ipairs(entries) do
+                    if entry.Element and entry.Element.Set then entry.Element:Set(entry.Def.Default) end
+                end
+                Notify("Shortcuts Reset", "All shortcuts are back to their default keys.")
+            end
+        })
+
+        -- WindUI tidak punya event "key berubah", jadi nilai tiap Keybind dicek berkala.
+        -- Di sini perubahan divalidasi, dicek bentrok, disimpan, dan diterapkan.
+        local watching = true
+        getgenv().MugiwaraRegisterCleanup(function() watching = false end)
+
+        task.spawn(function()
+            while watching do
+                task.wait(0.5)
+                for _, entry in ipairs(entries) do
+                    local value = entry.Element and entry.Element.Value
+                    if value ~= entry.Last then
+                        if not KeybindsModule.IsValidKey(value) then
+                            -- Tombol mouse tidak dipicu oleh Keybind WindUI, jadi dikembalikan.
+                            entry.Element:Set(entry.Last)
+                            Notify("Unsupported Key", "Only keyboard keys can be used as shortcuts.", 3)
+                        else
+                            local conflict
+                            for _, other in ipairs(entries) do
+                                if other ~= entry and other.Last == value then conflict = other.Def.Title end
+                            end
+
+                            entry.Last = value
+                            KeybindsModule.Set(entry.Def.Id, value)
+                            if entry.Def.Id == "ToggleUI" then ApplyUIKey(value) end
+
+                            if conflict then
+                                Notify("Shortcut Saved", entry.Def.Title .. " = " .. value .. ". Note: " .. conflict .. " uses the same key.", 4)
+                            else
+                                Notify("Shortcut Saved", entry.Def.Title .. " = " .. value, 2)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
 
     -- ==========================================
     -- HUB

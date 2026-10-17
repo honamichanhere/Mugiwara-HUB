@@ -11,7 +11,7 @@ Roblox script hub by Honami, built on [WindUI](https://github.com/Footagesus/Win
 | Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, reflection effect |
 | Camera | Free camera, spectate, FOV and zoom lock, stabilizers |
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
-| Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, Unload Hub |
+| Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, rebindable keyboard shortcuts, Unload Hub |
 
 Supported games: **Evade** (accessories, avatar morph). Every other game gets the **Universal** movement module.
 
@@ -21,7 +21,7 @@ Supported games: **Evade** (accessories, avatar morph). Every other game gets th
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
 Tabs/                    UI tabs (Home, Lighting, Camera, Misc, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection, Server)
+Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection, Server, Keybinds)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 
@@ -74,3 +74,21 @@ Saved premium key, lighting presets and the copied skybox live in the executor w
 - All UI text, notifications and identifiers are in English.
 - Code comments may be in Indonesian.
 - The version number lives in one place: `VERSION` at the top of `Main.lua`.
+
+## Keyboard shortcuts
+
+Defaults (all rebindable in Misc > Keyboard Shortcuts, saved in `MugiwaraHub/Keybinds.json`):
+
+| Action | Key |
+| --- | --- |
+| Show / Hide Hub | `RightShift` |
+| Fly | `G` |
+| Noclip | `N` |
+| Speed Hack | `Z` |
+| Infinite Jump | `J` |
+| Free Camera (premium) | `P` |
+| Panic: Unload Hub | `End` |
+
+`getgenv().MugiwaraImport` caches modules per session, so a module imported by several tabs is
+always the same instance. Toggle shortcuts flip the real UI toggle (through `Module.UI`) so the
+on-screen switch stays in sync.

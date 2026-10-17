@@ -12,6 +12,7 @@ local env = getgenv()
 local function RunCleanups()
     local cleanups = env.MugiwaraCleanup
     env.MugiwaraCleanup = {}
+    env.MugiwaraModules = {} -- module cache dikosongkan supaya sesi berikutnya mulai dari bersih
     if not cleanups then return end
     for i = #cleanups, 1, -1 do
         local ok, err = pcall(cleanups[i])
@@ -49,7 +50,15 @@ local BRANCH = env.MugiwaraBranch or "main"
 local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/" .. BRANCH .. "/"
 local MAX_KEY_LENGTH = 128
 
+-- Results are cached per session: importing the same path twice returns the SAME module
+-- instance. Without this, a module imported by two tabs (e.g. Movement by the Main tab
+-- and by the Misc shortcuts) would run twice and register duplicate connections.
+env.MugiwaraModules = env.MugiwaraModules or {}
+
 env.MugiwaraImport = function(path)
+    local cached = env.MugiwaraModules[path]
+    if cached ~= nil then return cached end
+
     local ok, result = pcall(function()
         return loadstring(game:HttpGet(BASE_URL .. path))()
     end)
@@ -57,6 +66,8 @@ env.MugiwaraImport = function(path)
         warn("[Mugiwara HUB] Failed to load " .. path .. ": " .. tostring(result))
         return nil
     end
+
+    env.MugiwaraModules[path] = result
     return result
 end
 

@@ -6,7 +6,7 @@ return function(Window, isPremiumUser, WindUI)
 
     local PremiumSection = TabCamera:Section({ Title = '<font color="#ffff82">Premium Features</font>', Icon = "rbxassetid://74594159374416", Opened = false, Box = true })
     
-    PremiumSection:Toggle({
+    local ToggleFreecam = PremiumSection:Toggle({
         Title = "Enable Free Camera",
         Desc = "Detach camera. Move with WASD/QE. Rotate by holding Right-Click or using Arrow Keys.",
         Locked = not isPremiumUser,
@@ -15,6 +15,9 @@ return function(Window, isPremiumUser, WindUI)
             CameraModule.ToggleFreecam(Value)
         end
     })
+
+    -- Referensi toggle dipakai shortcut keyboard (tab Misc) supaya tombol UI ikut berubah.
+    CameraModule.UI = { Freecam = ToggleFreecam }
 
     PremiumSection:Slider({
         Title = "Free Camera Speed",
