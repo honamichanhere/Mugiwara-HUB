@@ -25,20 +25,14 @@ local warnedError = false
 -- HELPERS
 -- ==========================================
 
--- Di Evade, karakter yang dipakai saat main ada di workspace.Rigs, bukan Player.Character.
+-- Rig yang sedang dipakai main. Evade bisa punya dua rig bernama sama di workspace.Rigs
+-- (inventory + in-game); modul Rigs yang memilih mana yang aktif, supaya farm tidak
+-- memindahkan rig preview inventory.
+local RigsModule = getgenv().MugiwaraImport("Games/Evade/Rigs.lua")
+
 local function GetRoot()
-    local rigs = workspace:FindFirstChild("Rigs")
-    local rig = rigs and rigs:FindFirstChild(LocalPlayer.Name)
-    local humanoid = rig and rig:FindFirstChildOfClass("Humanoid")
-
-    if not humanoid then
-        rig = LocalPlayer.Character
-        humanoid = rig and rig:FindFirstChildOfClass("Humanoid")
-    end
-    if not rig or not humanoid then return nil, nil end
-
-    local root = rig:FindFirstChild("HumanoidRootPart") or humanoid.RootPart
-    return root, humanoid
+    if RigsModule then return RigsModule.GetActiveRoot() end
+    return nil, nil
 end
 
 local function GetPosition(obj)
@@ -59,7 +53,7 @@ end
 
 local function GetTicketFolder()
     local effects = workspace:FindFirstChild("Effects")
-    return effects and effects:FindFirstChild("Ticket")
+    return effects and effects:FindFirstChild("Tickets")
 end
 
 -- NextBot = model di Workspace.Rigs yang punya "Hitbox" dan bukan rig pemain.

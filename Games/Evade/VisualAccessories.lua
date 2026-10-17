@@ -79,23 +79,12 @@ task.spawn(pcall, function()
     if Cache.KorbloxR6:FindFirstChild("HumanoidRootPart") then Cache.KorbloxR6.HumanoidRootPart.Anchored = true end
 end)
 
-local function GetCharacter()
-    local player = Players.LocalPlayer
-    local rigs = workspace:FindFirstChild("Rigs")
-    if rigs then
-        local rig = rigs:FindFirstChild(player.Name)
-        if rig then
-            local humanoid = rig:FindFirstChildOfClass("Humanoid")
-            if humanoid then return rig, humanoid end
-        end
-    end
+local RigsModule = getgenv().MugiwaraImport("Games/Evade/Rigs.lua")
 
-    local character = player.Character
-    if character then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then return character, humanoid end
-    end
-    return nil, nil
+-- Semua rig pemain lokal (bisa dua: inventory + in-game). Setiap perubahan visual dipasang
+-- ke SEMUA rig supaya tampilan konsisten di mana pun rig itu terlihat.
+local function GetAllRigs()
+    return RigsModule and RigsModule.GetAll() or {}
 end
 
 local function FindBodyAttachment(character, attachmentName)
@@ -298,36 +287,83 @@ end
 
 local alive = true -- diset false oleh cleanup supaya loop di bawah berhenti
 
+-- Rig yang sudah diproses. Setiap rig BARU (respawn, atau rig inventory yang dibuat ulang
+-- saat inventory dibuka) otomatis dapat semua visual aktif. Weak table: rig yang dihapus
+-- game ikut hilang dari sini.
+local handledRigs = setmetatable({}, { __mode = "k" })
+
 task.spawn(function()
-    local lastChar = nil
     while task.wait(1) and alive do
-        local char, _ = GetCharacter()
-        if char and char ~= lastChar then
-            lastChar = char
-            task.wait(0.5) 
-            ApplyActiveStates(char)
+        for _, entry in ipairs(GetAllRigs()) do
+            if not handledRigs[entry.Rig] then
+                handledRigs[entry.Rig] = true
+                task.wait(0.5)
+                if entry.Rig.Parent then ApplyActiveStates(entry.Rig) end
+            end
         end
     end
 end)
 
 function VisualAccessories.ToggleHeadless(state)
     VisualAccessories.State.Headless = state
-    local character, _ = GetCharacter()
-    SetHeadHidden(character, state)
+    for _, entry in ipairs(GetAllRigs()) do
+        SetHeadHidden(entry.Rig, state)
+    end
 end
 
 function VisualAccessories.ToggleKorblox(state, side)
     VisualAccessories.State[side .. "Korblox"] = state
-    local character, humanoid = GetCharacter()
-    ReplaceLegs(side, state, character, humanoid)
+    for _, entry in ipairs(GetAllRigs()) do
+        ReplaceLegs(side, state, entry.Rig, entry.Humanoid)
+    end
+end
+
+-- Pasang satu accessory ke satu rig. Mengembalikan true kalau benar-benar dipasang.
+local function EquipOnRig(character, humanoid, cachedAcc, assetId)
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("Accessory") and child:GetAttribute("AssetId") == assetId then
+            return false
+        end
+    end
+
+    local newAcc = cachedAcc:Clone()
+    local handle = newAcc:FindFirstChild("Handle")
+    local itemAtt = handle:FindFirstChildWhichIsA("Attachment")
+
+    if itemAtt then
+        local bodyAtt = FindBodyAttachment(character, itemAtt.Name)
+        if bodyAtt then
+            local bodyPart = bodyAtt.Parent
+            newAcc.Parent = character
+
+            local oldWeld = handle:FindFirstChild("AccessoryWeld")
+            if oldWeld then oldWeld:Destroy() end
+
+            local weld = Instance.new("Weld")
+            weld.Name = "AccessoryWeld"
+            weld.Part0 = bodyPart
+            weld.Part1 = handle
+            weld.C0 = bodyAtt.CFrame
+            weld.C1 = itemAtt.CFrame
+            weld.Parent = handle
+        else
+            pcall(function() humanoid:AddAccessory(newAcc) end)
+            pcall(function() humanoid:BuildRigFromAttachments() end)
+        end
+    else
+        pcall(function() humanoid:AddAccessory(newAcc) end)
+        pcall(function() humanoid:BuildRigFromAttachments() end)
+    end
+
+    return true
 end
 
 function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
-    local character, humanoid = GetCharacter()
-    if not character or not humanoid then return end
+    local rigs = GetAllRigs()
+    if #rigs == 0 then return end
 
     local cachedAcc = Cache.LoadedAccessories[assetId]
-    
+
     if not cachedAcc then
         if WindUI and not isAutoApply then WindUI:Notify({ Title = "Loading", Content = "Fetching asset from Marketplace...", Duration = 2 }) end
         local success, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(assetId)) end)
@@ -358,58 +394,27 @@ function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
         return
     end
 
-    for _, child in ipairs(character:GetChildren()) do
-        if child:IsA("Accessory") and child:GetAttribute("AssetId") == assetId then
-            return 
-        end
-    end
-
-    local newAcc = cachedAcc:Clone()
-    local handle = newAcc:FindFirstChild("Handle")
-    local itemAtt = handle:FindFirstChildWhichIsA("Attachment")
-
-    if itemAtt then
-        local bodyAtt = FindBodyAttachment(character, itemAtt.Name)
-        if bodyAtt then
-            local bodyPart = bodyAtt.Parent
-            newAcc.Parent = character
-            
-            local oldWeld = handle:FindFirstChild("AccessoryWeld")
-            if oldWeld then oldWeld:Destroy() end
-
-            local weld = Instance.new("Weld")
-            weld.Name = "AccessoryWeld"
-            weld.Part0 = bodyPart
-            weld.Part1 = handle
-            weld.C0 = bodyAtt.CFrame
-            weld.C1 = itemAtt.CFrame
-            weld.Parent = handle
-        else
-            pcall(function() humanoid:AddAccessory(newAcc) end)
-            pcall(function() humanoid:BuildRigFromAttachments() end)
-        end
-    else
-        pcall(function() humanoid:AddAccessory(newAcc) end)
-        pcall(function() humanoid:BuildRigFromAttachments() end)
+    local equipped = false
+    for _, entry in ipairs(rigs) do
+        if EquipOnRig(entry.Rig, entry.Humanoid, cachedAcc, assetId) then equipped = true end
     end
 
     VisualAccessories.State.Accessories[assetId] = true
-    if WindUI and not isAutoApply then WindUI:Notify({ Title = "Success", Content = "Accessory equipped!", Duration = 3 }) end
+    if equipped and WindUI and not isAutoApply then WindUI:Notify({ Title = "Success", Content = "Accessory equipped!", Duration = 3 }) end
 end
 
 function VisualAccessories.Clear(WindUI)
     VisualAccessories.State.Accessories = {}
-    local character, _ = GetCharacter()
-    if character then
-        local count = 0
-        for _, child in ipairs(character:GetChildren()) do
+    local count = 0
+    for _, entry in ipairs(GetAllRigs()) do
+        for _, child in ipairs(entry.Rig:GetChildren()) do
             if child:IsA("Accessory") and child:GetAttribute("IsCustomAccessory") then
                 child:Destroy()
                 count = count + 1
             end
         end
-        if WindUI then WindUI:Notify({ Title = "Cleaned", Content = "Removed " .. count .. " custom accessories.", Duration = 3 }) end
     end
+    if WindUI then WindUI:Notify({ Title = "Cleaned", Content = "Removed " .. count .. " custom accessories.", Duration = 3 }) end
 end
 
 -- Full teardown on re-execute: stop the watcher loop, undo visual changes, drop the cache.

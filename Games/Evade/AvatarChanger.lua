@@ -50,22 +50,15 @@ local function Notify(WindUI, title, content, duration)
     end)
 end
 
-local function GetCharacter()
-    local player = Players.LocalPlayer
-    local rigs = workspace:FindFirstChild("Rigs")
-    if rigs then
-        local rig = rigs:FindFirstChild(player.Name)
-        if rig then
-            local humanoid = rig:FindFirstChildOfClass("Humanoid")
-            if humanoid then return rig, humanoid end
-        end
-    end
+-- Rig yang sedang dipakai main. Evade bisa punya dua rig bernama sama (inventory + in-game),
+-- jadi pemilihannya diserahkan ke modul Rigs, bukan FindFirstChild(nama).
+local RigsModule = getgenv().MugiwaraImport("Games/Evade/Rigs.lua")
 
-    local character = player.Character
-    if character then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then return character, humanoid end
-    end
+local function GetCharacter()
+    if RigsModule then return RigsModule.GetActive() end
+    local character = Players.LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then return character, humanoid end
     return nil, nil
 end
 
