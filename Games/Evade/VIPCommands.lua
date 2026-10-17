@@ -14,37 +14,50 @@ local LocalPlayer = Players.LocalPlayer
 VIPCommands.MinInterval = 0.5               -- detik minimal antar command (anti-spam)
 VIPCommands.AllowRewardDisabling = false    -- command yang mematikan reward diblokir secara default
 
--- Dipakai kalau data command game tidak bisa dibaca; hanya command ini yang diizinkan.
+-- Dipakai hanya kalau daftar command tidak bisa dimuat sama sekali (game maupun salinan lokal).
 local FALLBACK_ALLOWED = { timer = true }
 
 local lastSent = 0
-local commandList = nil -- cache daftar command bawaan game
+local liveList = nil   -- daftar command asli dari game (false kalau executor tidak bisa require)
+local staticList = nil -- salinan lokal (Games/Evade/VIPCommandData.lua)
 
 -- ==========================================
 -- GAME DATA
 -- ==========================================
-local function LoadCommandList()
-    if commandList ~= nil then return commandList end
+-- Banyak executor tidak bisa me-require modul game, jadi daftar asli hanya dipakai kalau
+-- berhasil dibaca; kalau tidak, dipakai salinan lokal.
+local function LoadLiveList()
+    if liveList ~= nil then return liveList end
 
     local ok, result = pcall(function()
         return require(ReplicatedStorage.Shared.Admin.Commands.Commands)
     end)
-    commandList = (ok and type(result) == "table") and result or false
-    return commandList
+    liveList = (ok and type(result) == "table") and result or false
+    return liveList
 end
 
--- Cari definisi command dari nama atau alias-nya. nil kalau tidak ketemu / data tidak terbaca.
-local function FindCommand(name)
-    local list = LoadCommandList()
-    if not list then return nil end
+local function LoadStaticList()
+    if staticList ~= nil then return staticList end
 
-    local lowered = string.lower(name)
+    local data = getgenv().MugiwaraImport("Games/Evade/VIPCommandData.lua")
+    staticList = type(data) == "table" and data or false
+    return staticList
+end
+
+local function Search(list, lowered)
+    if not list then return nil end
     for _, entry in ipairs(list) do
         for _, alias in ipairs(entry.CommandNames or {}) do
             if string.lower(alias) == lowered then return entry end
         end
     end
     return nil
+end
+
+-- Cari definisi command dari nama atau alias-nya. nil kalau tidak ketemu di mana pun.
+local function FindCommand(name)
+    local lowered = string.lower(name)
+    return Search(LoadLiveList(), lowered) or Search(LoadStaticList(), lowered)
 end
 
 -- ==========================================
@@ -228,7 +241,7 @@ function VIPCommands.Run(name, ...)
         end
         canonical = (entry.CommandNames and entry.CommandNames[1]) or name
     elseif not FALLBACK_ALLOWED[string.lower(name)] then
-        return false, "Could not verify '" .. name .. "' against the game's command list."
+        return false, "Unknown command '" .. name .. "'."
     end
 
     local args = {}

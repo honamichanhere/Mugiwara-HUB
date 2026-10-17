@@ -88,29 +88,54 @@ return function(TabMain, isPremiumUser, WindUI)
         end
     })
 
+    -- Event diberi nomor menurut urutannya sekarang (1, 2, 3...). Saat ada yang dihapus,
+    -- judul sisanya diberi nomor ulang, jadi event baru setelah semuanya dihapus mulai dari #1.
+    local events = {} -- { Rule = rule, Elements = {...}, Titled = { Command, Trigger, Delay, Delete } }
+
+    local function PositionOf(rule)
+        for index, event in ipairs(events) do
+            if event.Rule == rule then return index end
+        end
+        return nil
+    end
+
+    local function SetTitle(element, title)
+        if element and element.SetTitle then pcall(function() element:SetTitle(title) end) end
+    end
+
+    local function RefreshLabels()
+        for index, event in ipairs(events) do
+            local label = "Event #" .. index
+            SetTitle(event.Titled.Command, label .. ": Command")
+            SetTitle(event.Titled.Trigger, label .. ": Trigger")
+            SetTitle(event.Titled.Delay, label .. ": Delay (seconds)")
+            SetTitle(event.Titled.Delete, "Delete " .. label)
+        end
+    end
+
     AfkFarm.OnResult = function(rule, ok, message)
+        local position = PositionOf(rule)
         Notify(
-            "Event #" .. rule.Id .. (ok and ": Sent" or ": Not Sent"),
+            "Event #" .. tostring(position or "?") .. (ok and ": Sent" or ": Not Sent"),
             tostring(message),
             ok and 2 or 4
         )
     end
 
-    -- Tiap event punya UI sendiri. Elemen yang dibuat ditampung supaya bisa dihapus bersamaan.
-    local eventCount = 0
-
     local function BuildEvent(rule)
-        local elements = {}
-        local label = "Event #" .. rule.Id
+        local event = { Rule = rule, Elements = {}, Titled = {} }
+        table.insert(events, event)
+
+        local label = "Event #" .. #events
 
         local function Track(element)
-            table.insert(elements, element)
+            table.insert(event.Elements, element)
             return element
         end
 
         Track(Section:Divider({ Title = label }))
 
-        Track(Section:Input({
+        event.Titled.Command = Track(Section:Input({
             Title = label .. ": Command",
             Desc = "For example !timer 1",
             Placeholder = "!timer 1",
@@ -134,7 +159,7 @@ return function(TabMain, isPremiumUser, WindUI)
             end
         }))
 
-        Track(Section:Dropdown({
+        event.Titled.Trigger = Track(Section:Dropdown({
             Title = label .. ": Trigger",
             Desc = "The event that starts the command.",
             Values = AfkFarm.Triggers,
@@ -146,7 +171,7 @@ return function(TabMain, isPremiumUser, WindUI)
             end
         }))
 
-        Track(Section:Slider({
+        event.Titled.Delay = Track(Section:Slider({
             Title = label .. ": Delay (seconds)",
             Desc = "Wait this long after the trigger.",
             Step = 0.5,
@@ -158,7 +183,7 @@ return function(TabMain, isPremiumUser, WindUI)
             end
         }))
 
-        Track(Section:Button({
+        event.Titled.Delete = Track(Section:Button({
             Title = "Delete " .. label,
             Desc = "Remove this event.",
             Icon = "lucide:trash-2",
@@ -166,17 +191,23 @@ return function(TabMain, isPremiumUser, WindUI)
             LockedTitle = "Premium Only",
             Callback = function()
                 AfkFarm.RemoveRule(rule)
-                eventCount = eventCount - 1
+
+                local position = PositionOf(rule)
+                if position then table.remove(events, position) end
 
                 -- Dihapus dari yang terakhir ke yang pertama supaya urutan internal WindUI tetap benar.
-                for index = #elements, 1, -1 do
-                    local element = elements[index]
+                for index = #event.Elements, 1, -1 do
+                    local element = event.Elements[index]
                     local ok = element.Destroy and pcall(function() element:Destroy() end)
                     if not ok and element.ElementFrame then pcall(function() element.ElementFrame:Destroy() end) end
                 end
-                table.clear(elements)
+                table.clear(event.Elements)
+
+                RefreshLabels()
             end
         }))
+
+        return label
     end
 
     Section:Button({
@@ -192,14 +223,12 @@ return function(TabMain, isPremiumUser, WindUI)
                 return
             end
 
-            eventCount = eventCount + 1
-            BuildEvent(rule)
-            Notify("Event Created", "Event #" .. rule.Id .. " was added at the bottom of this section.", 3)
+            local label = BuildEvent(rule)
+            Notify("Event Created", label .. " was added at the bottom of this section.", 3)
         end
     })
 
     for _, rule in ipairs(AfkFarm.GetRules()) do
-        eventCount = eventCount + 1
         BuildEvent(rule)
     end
 end
