@@ -86,6 +86,89 @@ local function SetupGlobalModel()
     ReflectionManager.GlobalModel.Parent = workspace
 end
 
+local Layers = setmetatable({}, { __mode = "k" }) -- part asli -> clone reflection-nya
+local layoutApplying = false
+local LAYOUT_BATCH_SIZE = 500
+
+-- Ukuran + posisi clone dari part asli dan ReflectionManager.Offset (stud). Dipakai saat clone dibuat
+-- dan saat slider Offset digeser.
+local function LayoutClone(part, clone)
+    local offset = ReflectionManager.Offset
+    local totalOffset = offset * 2
+
+    if clone:IsA("WedgePart") then
+        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
+        clone.CFrame = part.CFrame * CFrame.new(0, offset * 0.4, -offset * 0.4)
+
+    elseif clone:IsA("CornerWedgePart") then
+        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
+        clone.CFrame = part.CFrame * CFrame.new(offset * 0.4, offset * 0.4, -offset * 0.4)
+
+    elseif clone:IsA("MeshPart") or clone:IsA("UnionOperation") then
+        local maxAxis = math.max(part.Size.X, part.Size.Y, part.Size.Z)
+        local scale = (maxAxis + totalOffset) / maxAxis
+        clone.Size = part.Size * scale
+        clone.CFrame = part.CFrame * CFrame.new(0.01, 0.01, 0.01)
+
+    else
+        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
+        if clone:IsA("Part") and clone.Shape ~= Enum.PartType.Block then
+            clone.CFrame = part.CFrame * CFrame.new(0.01, 0.01, 0.01)
+        else
+            clone.CFrame = part.CFrame
+        end
+    end
+end
+
+-- Part yang tidak anchored di-weld ke clone-nya; yang anchored cukup clone-nya ikut anchored.
+local function AttachClone(part, clone)
+    if not part.Anchored then
+        clone.Anchored = false
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = part
+        weld.Part1 = clone
+        weld.Parent = clone
+    else
+        clone.Anchored = true
+    end
+end
+
+-- Menata ulang clone yang sudah ada. Weld lama dibuang dulu: memindahkan clone selagi ter-weld akan
+-- ikut menggeser part aslinya (satu assembly), jadi weld dibuat lagi setelah posisinya baru.
+local function RelayoutClone(part, clone)
+    local weld = clone:FindFirstChildOfClass("WeldConstraint")
+    if weld then weld:Destroy() end
+    LayoutClone(part, clone)
+    AttachClone(part, clone)
+end
+
+-- Slider offset (stud). Diterapkan bertahap ke semua layer; kalau nilainya berubah lagi di tengah
+-- jalan, penerapan diulang dengan nilai terbaru.
+function ReflectionManager.SetOffset(value)
+    ReflectionManager.Offset = math.clamp(tonumber(value) or 0, 0, 2)
+    if layoutApplying or not ReflectionManager.GlobalModel then return end
+
+    layoutApplying = true
+    task.spawn(function()
+        local target
+        repeat
+            target = ReflectionManager.Offset
+            local parts = {}
+            for part in pairs(Layers) do parts[#parts + 1] = part end
+
+            for index, part in ipairs(parts) do
+                if ReflectionManager.Offset ~= target then break end
+                local clone = Layers[part]
+                if clone and clone.Parent and part.Parent then
+                    pcall(RelayoutClone, part, clone)
+                end
+                if index % LAYOUT_BATCH_SIZE == 0 then task.wait() end
+            end
+        until target == ReflectionManager.Offset or not ReflectionManager.GlobalModel
+        layoutApplying = false
+    end)
+end
+
 function ReflectionManager.ApplyReflection(part)
     if part:GetAttribute("IsReflectionLayer") then return end
     if not ReflectionManager.GlobalModel then return end
@@ -118,49 +201,22 @@ function ReflectionManager.ApplyReflection(part)
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
     
-    local totalOffset = ReflectionManager.Offset * 2
-    
-    if clone:IsA("WedgePart") then
-        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
-        clone.CFrame = part.CFrame * CFrame.new(0, ReflectionManager.Offset * 0.4, -ReflectionManager.Offset * 0.4)
-        
-    elseif clone:IsA("CornerWedgePart") then
-        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
-        clone.CFrame = part.CFrame * CFrame.new(ReflectionManager.Offset * 0.4, ReflectionManager.Offset * 0.4, -ReflectionManager.Offset * 0.4)
-        
-    elseif clone:IsA("MeshPart") or clone:IsA("UnionOperation") then
-        pcall(function() 
-            if clone:IsA("UnionOperation") then clone.UsePartColor = true 
-            else clone.TextureID = "" end 
+    -- Pengaturan sekali-pakai untuk mesh/union (ukuran & posisi diatur LayoutClone).
+    if clone:IsA("MeshPart") or clone:IsA("UnionOperation") then
+        pcall(function()
+            if clone:IsA("UnionOperation") then clone.UsePartColor = true
+            else clone.TextureID = "" end
         end)
-        local maxAxis = math.max(part.Size.X, part.Size.Y, part.Size.Z)
-        local scale = (maxAxis + totalOffset) / maxAxis
-        clone.Size = part.Size * scale
-        clone.CFrame = part.CFrame * CFrame.new(0.01, 0.01, 0.01)
-        
-    else
-        clone.Size = part.Size + Vector3.new(totalOffset, totalOffset, totalOffset)
-        if clone:IsA("Part") and clone.Shape ~= Enum.PartType.Block then
-            clone.CFrame = part.CFrame * CFrame.new(0.01, 0.01, 0.01)
-        else
-            clone.CFrame = part.CFrame
-        end
     end
-    
+
+    LayoutClone(part, clone)
     clone.Parent = ReflectionManager.GlobalModel
+    Layers[part] = clone
 
     if ReflectionManager.Intensity > 0 then ApplyIntensity(part) end
 
-    if not part.Anchored then
-        clone.Anchored = false
-        local weld = Instance.new("WeldConstraint")
-        weld.Part0 = part
-        weld.Part1 = clone
-        weld.Parent = clone
-    else
-        clone.Anchored = true
-    end
-    
+    AttachClone(part, clone)
+
     local cleanConn
     cleanConn = part.AncestryChanged:Connect(function(_, newParent)
         if not newParent then
@@ -250,6 +306,7 @@ function ReflectionManager.Toggle(state)
         for _, part in ipairs(SnapshotParts()) do RestorePart(part) end
         Defaults = setmetatable({}, { __mode = "k" })
         Applied = setmetatable({}, { __mode = "k" })
+        Layers = setmetatable({}, { __mode = "k" })
 
         if ReflectionManager.GlobalModel then
             ReflectionManager.GlobalModel:Destroy()

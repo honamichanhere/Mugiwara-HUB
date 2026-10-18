@@ -155,6 +155,16 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function(Value) ReflectionModule.SetIntensity(Value / 100) end
     })
 
+    PremiumSection:Slider({
+        Title = "Reflection Offset",
+        Desc = "Reflection layer size offset.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Step = 1,
+        Value = { Min = 0, Max = 100, Default = 5 }, -- 0-100 = 0-2 stud; 5 = 0.1 stud (bawaan lama)
+        Callback = function(Value) ReflectionModule.SetOffset(Value / 100 * 2) end
+    })
+
     TabLighting:Divider({ Title = "System Control" })
     TabLighting:Toggle({ Title = "Lock Lighting", Desc = "Force Override! Lock all values in this script; prevent the game from altering the lighting.", Locked = false, Callback = function(Value) LightingModule.LockEnabled = Value end })
 
