@@ -5,12 +5,26 @@ return function(Window, isPremiumUser, WindUI)
     
     local TabLighting = Window:Tab({ Title = "Lighting", Icon = "lucide:sun" })
 
-    local VipLoadPreset = TabLighting:Dropdown({
+    -- Semua data dihitung SEBELUM section dibuat. Section WindUI baru "final" lewat task.defer; kalau
+    -- belum ada elemen saat itu (ada yield / download di antara membuat section dan elemen pertama)
+    -- section-nya tetap kosong. Jadi elemen pertama harus langsung menyusul tanpa yield.
+    local presetsList = LightingModule.GetPresetsList and LightingModule.GetPresetsList() or {}
+    local skyboxNames2 = {}
+    for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames2, name) end
+
+    local PremiumSection = TabLighting:Section({
+        Title = '<font color="#ffff82">Premium Features</font>',
+        Icon = "rbxassetid://74594159374416",
+        Opened = false,
+        Box = true
+    })
+
+    local VipLoadPreset = PremiumSection:Dropdown({
         Title = "Load Presets",
         Desc = "Select presets.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
-        Values = LightingModule.GetPresetsList and LightingModule.GetPresetsList() or {},
+        Values = presetsList,
         Value = "Default",
         Callback = function(Option)
             if Option and Option.Title then
@@ -20,7 +34,7 @@ return function(Window, isPremiumUser, WindUI)
     })
 
     local VipSavePreset
-    VipSavePreset = TabLighting:Input({
+    VipSavePreset = PremiumSection:Input({
         Title = "Save Preset",
         Desc = "Save Lighting to a preset.",
         Placeholder = "Preset Name",
@@ -45,10 +59,7 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    local skyboxNames2 = {}
-    for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames2, name) end
-
-    local VipSkyBox = TabLighting:Dropdown({
+    local VipSkyBox = PremiumSection:Dropdown({
         Title = "Sky Box",
         Desc = "Change Sky Box.",
         Icon = "lucide:cloudy",
@@ -63,7 +74,7 @@ return function(Window, isPremiumUser, WindUI)
     })
 
     local VipLoadSkyBox
-    VipLoadSkyBox = TabLighting:Input({
+    VipLoadSkyBox = PremiumSection:Input({
         Title = "Load Sky Box",
         Desc = "Load Sky Box via Asset ID.",
         Locked = not isPremiumUser,
@@ -76,7 +87,7 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    local VipSkyAnim = TabLighting:Toggle({
+    local VipSkyAnim = PremiumSection:Toggle({
         Title = "Sky Box Animation",
         Desc = "Animate the skybox by rotating it.",
         Locked = not isPremiumUser,
@@ -84,7 +95,7 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function(Value) LightingModule.SkyAnimEnabled = Value end
     })
 
-    local VipSkyRot = TabLighting:Slider({
+    local VipSkyRot = PremiumSection:Slider({
         Title = "Rotation Speed",
         Desc = "Set the rotation speed of the skybox.",
         Locked = not isPremiumUser,
@@ -94,7 +105,7 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function(Value) LightingModule.SkyAnimSpeed = Value end
     })
 
-    local VipCopySky = TabLighting:Button({
+    local VipCopySky = PremiumSection:Button({
         Title = "Copy Sky Box",
         Desc = "Copy current Sky Box to Database.",
         Locked = not isPremiumUser,
@@ -105,7 +116,7 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    local VipPasteSky = TabLighting:Button({
+    local VipPasteSky = PremiumSection:Button({
         Title = "Paste Sky Box",
         Desc = "Paste Sky Box from Database.",
         Locked = not isPremiumUser,
@@ -116,9 +127,8 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
-    TabLighting:Divider({ Title = "Graphic Hacks" })
 
-    TabLighting:Toggle({
+    PremiumSection:Toggle({
         Title = "Reflection Effect",
         Desc = "Create deep reflections on objects.",
         Locked = not isPremiumUser,
