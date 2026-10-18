@@ -199,7 +199,7 @@ return function(Window, isPremiumUser, WindUI)
     UIElements.Lighting.ClockTime = Lighting:Slider({ Title = "Clock Time", Step = 0.1, Value = { Min = LightingModule.Limits.Lighting.ClockTime.Min, Max = LightingModule.Limits.Lighting.ClockTime.Max, Default = objL.ClockTime }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ClockTime", Value) end })
     UIElements.Lighting.GeographicLatitude = Lighting:Slider({ Title = "Geographic Latitude", Step = 1, Value = { Min = LightingModule.Limits.Lighting.GeographicLatitude.Min, Max = LightingModule.Limits.Lighting.GeographicLatitude.Max, Default = objL.GeographicLatitude }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "GeographicLatitude", Value) end })
     UIElements.Lighting.ExposureCompensation = Lighting:Slider({ Title = "Exposure Compensation", Step = 0.1, Value = { Min = LightingModule.Limits.Lighting.ExposureCompensation.Min, Max = LightingModule.Limits.Lighting.ExposureCompensation.Max, Default = objL.ExposureCompensation }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ExposureCompensation", Value) end })
-    Lighting:Toggle({ Title = "Hide Sun", Desc = "Hide the sun disc in the sky. Sun Rays is a separate effect.", Value = LightingModule.SunHidden, Callback = function(Value) LightingModule.SetSunHidden(Value) end })
+    Lighting:Toggle({ Title = "Hide Sun", Desc = "Hide the sun (and moon) in the sky. Sun Rays is a separate effect.", Value = LightingModule.SunHidden, Callback = function(Value) LightingModule.SetSunHidden(Value) end })
 
     local objAtm = LightingModule.Objects["Atmosphere"]
     local Atmosphere = TabLighting:Section({ Title = "Atmosphere", Icon = "lucide:sun-dim", Opened = false, Box = true })

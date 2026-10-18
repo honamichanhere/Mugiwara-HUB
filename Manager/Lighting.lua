@@ -236,9 +236,10 @@ function LightingModule.ToggleEffect(category, isEnabled)
     LightingModule.UpdateValue(category, "Enabled", isEnabled)
 end
 
--- Hide Sun: piringan matahari disembunyikan lewat Sky.SunAngularSize = 0 dan SunTextureId kosong.
--- Nilainya dijaga tiap frame di loop render (skybox lain, preset, Lock Lighting, atau game bisa
--- menimpanya). Sun Rays adalah efek terpisah dan tidak ikut disembunyikan.
+-- Hide Sun: Sky.CelestialBodiesShown = false (matahari dan bulan tidak digambar) ditambah
+-- SunAngularSize = 0 dan SunTextureId kosong. Nilainya dijaga tiap frame di loop render (skybox
+-- lain, preset, Lock Lighting, atau game bisa menimpanya). Sun Rays adalah efek terpisah dan tidak
+-- ikut disembunyikan.
 local DEFAULT_SUN_SIZE = 21
 local DEFAULT_SUN_TEXTURE = "rbxasset://sky/sun.jpg"
 
@@ -252,10 +253,13 @@ local function GetOrCreateSky()
     return sky
 end
 
--- Ukuran/tekstur matahari yang SEHARUSNYA (tanpa efek Hide Sun): dari skybox aktif, atau default Roblox.
+-- Nilai matahari yang SEHARUSNYA (tanpa efek Hide Sun): dari skybox aktif, atau default Roblox.
+-- Mengembalikan: ukuran, tekstur, CelestialBodiesShown.
 local function UnhiddenSunValues()
     local source = LightingModule.ActiveSkybox or LightingModule.DefaultSkybox
-    return (source and source.SunAngularSize) or DEFAULT_SUN_SIZE, (source and source.SunTextureId) or DEFAULT_SUN_TEXTURE
+    local bodies = true
+    if source and source.CelestialBodiesShown ~= nil then bodies = source.CelestialBodiesShown end
+    return (source and source.SunAngularSize) or DEFAULT_SUN_SIZE, (source and source.SunTextureId) or DEFAULT_SUN_TEXTURE, bodies
 end
 
 function LightingModule.SetSunHidden(state)
@@ -267,10 +271,12 @@ function LightingModule.SetSunHidden(state)
 
     pcall(function()
         if state then
+            sky.CelestialBodiesShown = false
             sky.SunAngularSize = 0
             sky.SunTextureId = ""
         else
-            local size, texture = UnhiddenSunValues()
+            local size, texture, bodies = UnhiddenSunValues()
+            sky.CelestialBodiesShown = bodies
             sky.SunAngularSize = size
             sky.SunTextureId = texture
         end
@@ -366,7 +372,7 @@ function LightingModule.SavePreset(presetName)
 
     -- Preset tidak boleh menyimpan matahari yang sedang disembunyikan (Hide Sun adalah toggle sendiri).
     if LightingModule.SunHidden and dataToSave.CustomSkybox then
-        dataToSave.CustomSkybox.SunAngularSize, dataToSave.CustomSkybox.SunTextureId = UnhiddenSunValues()
+        dataToSave.CustomSkybox.SunAngularSize, dataToSave.CustomSkybox.SunTextureId, dataToSave.CustomSkybox.CelestialBodiesShown = UnhiddenSunValues()
     end
 
     local data = HttpService:JSONEncode(dataToSave)
@@ -492,7 +498,7 @@ function LightingModule.CopySkybox()
     if not sky then return false, "This map has no built-in skybox!" end
     local skyData = { SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt, SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp, SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount, CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize }
     if LightingModule.SunHidden then
-        skyData.SunAngularSize, skyData.SunTextureId = UnhiddenSunValues()
+        skyData.SunAngularSize, skyData.SunTextureId, skyData.CelestialBodiesShown = UnhiddenSunValues()
     end
     if writefile then
         writefile(ROOT .. "/CopiedSky.json", HttpService:JSONEncode(skyData))
@@ -639,6 +645,7 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
     if LightingModule.SunHidden then
         currentSky = currentSky or GetOrCreateSky()
         pcall(function()
+            if currentSky.CelestialBodiesShown ~= false then currentSky.CelestialBodiesShown = false end
             if currentSky.SunAngularSize ~= 0 then currentSky.SunAngularSize = 0 end
             if currentSky.SunTextureId ~= "" then currentSky.SunTextureId = "" end
         end)
