@@ -1,6 +1,7 @@
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
 ReflectionManager.Transparency = 10 -- sengaja >1: bug engine Roblox yang membuat kaca punya reflection "deep"
+ReflectionManager.Reflectance = 1 -- Reflectance layer reflection
 ReflectionManager.Offset = 0 -- stud; slider Reflection Offset mulai dari 0
 ReflectionManager.Connections = {}
 ReflectionManager.GlobalModel = nil
@@ -207,6 +208,7 @@ function ReflectionManager.ApplyReflection(part)
     clone.Massless = true
     clone.Material = Enum.Material.Glass
     clone.Transparency = ReflectionManager.Transparency
+    clone.Reflectance = ReflectionManager.Reflectance
     
     -- Pengaturan sekali-pakai untuk mesh/union (ukuran & posisi diatur LayoutClone).
     if clone:IsA("MeshPart") or clone:IsA("UnionOperation") then
