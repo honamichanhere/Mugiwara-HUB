@@ -20,7 +20,6 @@ local windowOpen = false
 local suspended = false -- true setelah Cursor.Lock(): kursor bebas ditahan sampai hub dibuka lagi
 local active = false
 local saved = nil -- { Behavior, Icon, MouseIcon } sebelum kursor dibebaskan
-local openChecker = nil -- fungsi yang membaca status jendela sebenarnya (jaga-jaga event OnClose tidak sampai)
 
 local Apply
 
@@ -39,13 +38,6 @@ local function Release()
 end
 
 local function Step()
-    -- Event OnClose bisa terlewat (jendela ditutup lewat jalur lain): cek status sebenarnya.
-    if openChecker and not openChecker() then
-        windowOpen = false
-        Apply()
-        return
-    end
-
     -- Nilai non-default di sini berarti game baru saja menulisnya (kita sendiri selalu menulis
     -- Default/true), jadi itu kondisi yang harus dikembalikan saat hub ditutup.
     if saved then
@@ -93,11 +85,6 @@ function Cursor.SetEnabled(state)
     Apply()
 end
 
--- Main.lua memberi fungsi yang mengembalikan true selama jendela hub benar-benar terbuka.
-function Cursor.SetOpenChecker(fn)
-    openChecker = type(fn) == "function" and fn or nil
-end
-
 -- Tombol "Lock Cursor": lepas mode kursor bebas lalu langsung kunci kursor ke tengah layar.
 -- Kursor bebas lagi saat hub ditutup lalu dibuka kembali.
 function Cursor.Lock()
@@ -110,7 +97,6 @@ end
 getgenv().MugiwaraRegisterCleanup(function()
     windowOpen = false
     suspended = false
-    openChecker = nil
     Apply()
     Release()
 end)

@@ -132,8 +132,8 @@ own, like Evade's) locks the mouse to the screen centre through `UserInputServic
 which makes the UI unclickable. On open the previous `MouseBehavior`/`MouseIconEnabled`/`MouseIcon`
 are recorded and overridden every frame (render priority after the game's camera scripts). If the
 game writes a new value while the hub is open (for example shift lock toggled), the record is
-updated, so on close the game's latest state is restored. `Main.lua` also passes a checker that
-reads `Window.Closed`, so the cursor is released even if `Window:OnClose` never fires. Hooked with
+updated, so on close the game's latest state is restored.
+Hooked in `Main.lua` with
 `Window:OnOpen` and `Window:OnClose`; can be turned off with Misc > Hub > Free Cursor When Open.
 Misc > Hub > Lock Cursor releases the free-cursor override and locks the mouse to the centre
 immediately; it is free again the next time the window is opened.

@@ -260,7 +260,6 @@ local Cursor = env.MugiwaraImport("Manager/Cursor.lua")
 if Cursor then
     Window:OnOpen(function() Cursor.SetWindowOpen(true) end)
     Window:OnClose(function() Cursor.SetWindowOpen(false) end)
-    Cursor.SetOpenChecker(function() return not Window.Closed end)
     Cursor.SetWindowOpen(not Window.Closed)
 end
 
