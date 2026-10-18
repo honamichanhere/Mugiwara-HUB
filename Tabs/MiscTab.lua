@@ -2,6 +2,7 @@ local ServerModule = getgenv().MugiwaraImport("Manager/Server.lua")
 local KeybindsModule = getgenv().MugiwaraImport("Manager/Keybinds.lua")
 local MovementModule = getgenv().MugiwaraImport("Manager/Movement.lua")
 local CameraModule = getgenv().MugiwaraImport("Manager/Camera.lua")
+local CursorModule = getgenv().MugiwaraImport("Manager/Cursor.lua")
 
 return function(Window, isPremiumUser, WindUI)
 
@@ -319,7 +320,6 @@ return function(Window, isPremiumUser, WindUI)
     -- ==========================================
     local HubSection = TabMisc:Section({ Title = "Hub", Icon = "lucide:power", Opened = false, Box = true })
 
-    local CursorModule = getgenv().MugiwaraImport("Manager/Cursor.lua")
     if CursorModule then
         HubSection:Toggle({
             Title = "Free Cursor When Open",
