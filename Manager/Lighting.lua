@@ -61,7 +61,7 @@ LightingModule.BuiltInPresets = {
             }
         }
     },
-    ["Realistic Sunset"] = {
+    ["Golden Sunset"] = {
         Desc = "Golden hour hangat, fog tipis dari warna skybox.",
         Skybox = "2573514779",
         Values = {
@@ -192,7 +192,8 @@ function LightingModule.Init()
         LightingModule.DefaultSkybox = {
             SkyboxBk = originalSky.SkyboxBk, SkyboxDn = originalSky.SkyboxDn, SkyboxFt = originalSky.SkyboxFt,
             SkyboxLf = originalSky.SkyboxLf, SkyboxRt = originalSky.SkyboxRt, SkyboxUp = originalSky.SkyboxUp,
-            SunTextureId = originalSky.SunTextureId, MoonTextureId = originalSky.MoonTextureId, StarCount = originalSky.StarCount
+            SunTextureId = originalSky.SunTextureId, MoonTextureId = originalSky.MoonTextureId, StarCount = originalSky.StarCount,
+            CelestialBodiesShown = originalSky.CelestialBodiesShown, SunAngularSize = originalSky.SunAngularSize, MoonAngularSize = originalSky.MoonAngularSize
         }
         LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
     end
@@ -226,7 +227,8 @@ function LightingModule.LoadSkybox(id)
             LightingModule.ActiveSkybox = {
                 SkyboxBk = skyObject.SkyboxBk, SkyboxDn = skyObject.SkyboxDn, SkyboxFt = skyObject.SkyboxFt,
                 SkyboxLf = skyObject.SkyboxLf, SkyboxRt = skyObject.SkyboxRt, SkyboxUp = skyObject.SkyboxUp,
-                SunTextureId = skyObject.SunTextureId, MoonTextureId = skyObject.MoonTextureId, StarCount = skyObject.StarCount
+                SunTextureId = skyObject.SunTextureId, MoonTextureId = skyObject.MoonTextureId, StarCount = skyObject.StarCount,
+                CelestialBodiesShown = skyObject.CelestialBodiesShown, SunAngularSize = skyObject.SunAngularSize, MoonAngularSize = skyObject.MoonAngularSize
             }
             
             local currentSky = Lighting:FindFirstChildOfClass("Sky")
@@ -295,7 +297,8 @@ function LightingModule.SavePreset(presetName)
         dataToSave.CustomSkybox = {
             SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt,
             SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp,
-            SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount
+            SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount,
+            CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize
         }
     end
 
@@ -420,7 +423,7 @@ end
 function LightingModule.CopySkybox()
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if not sky then return false, "This map has no built-in skybox!" end
-    local skyData = { SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt, SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp, SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount }
+    local skyData = { SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt, SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp, SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount, CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize }
     if writefile then
         writefile(ROOT .. "/CopiedSky.json", HttpService:JSONEncode(skyData))
         return true, "Skybox copied!"
