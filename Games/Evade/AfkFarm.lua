@@ -12,11 +12,14 @@ local ROOT = getgenv().MugiwaraFolder or "MugiwaraHub"
 local PATH = ROOT .. "/AfkFarm.json"
 
 -- Pemicu yang bisa dipilih untuk tiap event.
--- Pemicu fase ronde (intermission/ronde mulai) belum ada karena sumber eventnya belum diketahui.
+-- Pemicu fase ronde berasal dari event RoundStatus milik game (lihat EVENT SOURCES).
 AfkFarm.Triggers = {
     "None",
     "Character Died",
     "Character Spawned",
+    "Intermission",
+    "Round Start",
+    "Round End",
 }
 AfkFarm.MaxRules = 10  -- batas jumlah event supaya UI tidak membengkak
 AfkFarm.MaxDelay = 120 -- detik
@@ -203,6 +206,39 @@ table.insert(connections, LocalPlayer.CharacterAdded:Connect(function(character)
     task.spawn(WatchCharacter, character)
 end))
 if LocalPlayer.Character then task.spawn(WatchCharacter, LocalPlayer.Character) end
+
+-- Fase ronde Evade: ReplicatedStorage.Events.UpdateServerStateRegistry mengirim ("RoundStatus", n)
+--   0 = tidak ada ronde (menunggu pemain / ronde selesai), 1 = intermission, 2 = ronde berjalan.
+-- Pemicu hanya jalan saat status BERUBAH. Nilai pertama yang diterima cuma jadi acuan (mis.
+-- sinkronisasi saat baru join), supaya masuk server di tengah fase tidak langsung memicu event.
+local ROUND_TRIGGERS = { [1] = "Intermission", [2] = "Round Start" }
+local lastRoundStatus = nil
+
+local function OnRoundStatus(status)
+    if type(status) ~= "number" then return end
+
+    local previous = lastRoundStatus
+    lastRoundStatus = status
+    if previous == nil or previous == status then return end
+
+    if status == 0 then
+        Fire("Round End")
+    elseif ROUND_TRIGGERS[status] then
+        Fire(ROUND_TRIGGERS[status])
+    end
+end
+
+task.spawn(function()
+    local ok, remote = pcall(function()
+        local events = game:GetService("ReplicatedStorage"):WaitForChild("Events", 10)
+        return events:WaitForChild("UpdateServerStateRegistry", 10)
+    end)
+    if not ok or not remote or not alive then return end
+
+    table.insert(connections, remote.OnClientEvent:Connect(function(key, value)
+        if key == "RoundStatus" then OnRoundStatus(value) end
+    end))
+end)
 
 -- ==========================================
 -- AFK FARM (tahan di koordinat AFK memakai Fly)

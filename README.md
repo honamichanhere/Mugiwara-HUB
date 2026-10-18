@@ -110,9 +110,12 @@ Farm, Auto Commands, Character Movement. All sections start collapsed, except Pr
 - **AFK Farm** (premium, inside Premium Features): parks the character at saved coordinates (`x, y, z`)
   and keeps Fly on so it hovers there. With no coordinates saved it holds the spot where it was turned on.
 - **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
-  `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned. After the trigger fires the
-  hub waits the delay, then sends the command through `VIPCommands`. Round-phase triggers (intermission,
-  round start) are not offered because the game event they would come from is still unknown.
+  `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned, Intermission, Round Start,
+  Round End. The round triggers come from `ReplicatedStorage.Events.UpdateServerStateRegistry`, which
+  sends `("RoundStatus", n)`: 0 = no round (waiting / round over), 1 = intermission, 2 = round running.
+  They fire only when the status changes (the first value seen after joining is just the baseline), and
+  Round End fires on any change to 0. After the trigger fires the hub waits the delay, then sends the
+  command through `VIPCommands`.
 - Events and coordinates are saved in `MugiwaraHub/AfkFarm.json`; the toggles always start OFF.
 
 `VIPCommands` matches asset arguments (special rounds, maps, tools, NPCs...) against the same folder
