@@ -159,12 +159,18 @@ local ScreenGui = create("ScreenGui", {
     Parent = guiParent,
 })
 
+-- backdrop hampir opak supaya window hub di belakangnya (yang dibangun tab demi tab) tidak kelihatan.
+-- INSTANT_COVER: dipasang Main.lua kalau loading screen dibuat belakangan (perangkat baru, setelah
+-- key valid), jadi layar langsung tertutup tanpa fade.
+local COVER_TRANSPARENCY = 0.04
+local INSTANT_COVER = (getgenv and getgenv().MugiwaraLoaderInstantCover) == true
+
 -- background gelap full layar
 local Backdrop = create("Frame", {
     Name = "Backdrop",
     Size = UDim2.fromScale(1, 1),
     BackgroundColor3 = Color3.fromRGB(10, 5, 2),
-    BackgroundTransparency = 1,
+    BackgroundTransparency = INSTANT_COVER and COVER_TRANSPARENCY or 1,
     BorderSizePixel = 0,
     Parent = ScreenGui,
 })
@@ -783,7 +789,7 @@ pcall(function()
 end)
 
 -- ================= ANIMASI MASUK =================
-tween(Backdrop, 0.5, { BackgroundTransparency = 0.35 })
+tween(Backdrop, 0.5, { BackgroundTransparency = COVER_TRANSPARENCY })
 tween(Card, 0.5, { BackgroundTransparency = 0.05 })
 tween(CardStroke, 0.5, { Transparency = 0 })
 tween(animScale, 0.7, { Value = 1 }, Enum.EasingStyle.Back)

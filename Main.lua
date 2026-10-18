@@ -314,9 +314,23 @@ end
 local Window = WindUI:CreateWindow(windowConfig)
 
 if keyScreenConnection then keyScreenConnection:Disconnect() end
+-- Layar WindUI hanya dimatikan sebentar (celah saat loading screen dibuat, dan saat loading screen
+-- keluar). Selama tab dibangun layar WindUI harus tetap menyala: layout elemen tidak dihitung
+-- pada ScreenGui yang dimatikan, dan itu bisa membuat isi section (mis. Misc > Hub) kosong.
+local function SetHubVisible(visible)
+    pcall(function() WindUI.ScreenGui.Enabled = visible end)
+end
+
 -- Key valid (atau lolos tanpa layar key): kalau loading screen belum dibuat, mulai sekarang
--- sehingga animasi masuknya terlihat.
-if not Loader then StartLoader() end
+-- sehingga animasi masuknya terlihat. Window disembunyikan selama loading screen dibuat, dan
+-- loading screen langsung menutup layar (tanpa fade) supaya tab yang dibangun tidak kelihatan.
+if not Loader then
+    SetHubVisible(false)
+    env.MugiwaraLoaderInstantCover = true
+    StartLoader()
+    env.MugiwaraLoaderInstantCover = nil
+    SetHubVisible(true)
+end
 if Loader then
     pcall(function() Loader.Gui.Enabled = true end)
     LoaderProgress(52, 52 + math.floor(18 / 3) - 1)
@@ -326,16 +340,6 @@ end
 if originalSetClipboard then getgenv().setclipboard = originalSetClipboard end
 Window:Tag({ Title = "v" .. VERSION, Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
 env.MugiwaraRegisterCleanup(function() Window:Destroy() end)
-
--- Window dibuka otomatis oleh WindUI begitu dibuat, sementara tab-tab baru dibangun satu per
--- satu sesudahnya. Layar WindUI disembunyikan dulu dan baru ditampilkan setelah semua tab siap.
--- (Layar notifikasi terpisah, jadi notifikasi tetap muncul.) Timer cadangan menampilkannya
--- walau ada tab yang macet, supaya hub tidak pernah tersembunyi terus.
-local function SetHubVisible(visible)
-    pcall(function() WindUI.ScreenGui.Enabled = visible end)
-end
-SetHubVisible(false)
-task.delay(30, function() SetHubVisible(true) end)
 
 -- Locked state is decided when each element is created, so after activating through the
 -- "Verify & Activate" button the hub reloads to unlock every premium feature.
@@ -487,27 +491,42 @@ local revealDeadline = os.clock() + 15
 while pendingBuilds > 0 and os.clock() < revealDeadline do task.wait(0.1) end
 LoaderProgress(96, 98)
 
--- Loading screen diselesaikan dulu (animasi keluar), baru window ditampilkan.
+-- Window sudah "terbuka" selagi tertutup loading screen, jadi animasi munculnya diputar ulang.
+-- Keadaan awal animasi itu (tinggi kecil, background transparan) dipasang dulu sebelum layar
+-- ditampilkan, supaya tidak ada kilatan window penuh sebelum animasinya mulai.
+local function ShowWindowWithPopup()
+    pcall(function()
+        local main = Window.UIElements.Main
+        main.Size = UDim2.new(Window.Size.X.Scale, Window.Size.X.Offset, 0, 100)
+        main.Background.ImageTransparency = 1
+    end)
+    SetHubVisible(true)
+    pcall(function() Window:Open() end)
+end
+
+-- Loading screen diselesaikan dulu (animasi keluar). Semua tab sudah dibangun dan layout-nya sudah
+-- dihitung, jadi window baru boleh disembunyikan selama loading screen memudar, lalu muncul
+-- dengan animasi pop-up begitu loading screen selesai.
 if Loader then
+    SetHubVisible(false)
+
     local loaderDone = false
-    local doneConnection = Loader.Finished:Connect(function() loaderDone = true end)
+    local doneConnection = Loader.Finished:Connect(function()
+        if loaderDone then return end
+        loaderDone = true
+        ShowWindowWithPopup()
+    end)
     pcall(function() Loader:Finish() end)
+
     local finishDeadline = os.clock() + 6
     while not loaderDone and os.clock() < finishDeadline do task.wait(0.05) end
     doneConnection:Disconnect()
+    if not loaderDone then
+        loaderDone = true
+        ShowWindowWithPopup() -- loading screen macet: tampilkan paksa
+    end
     LoaderDestroy()
 end
-
--- Window sudah "terbuka" selagi tersembunyi, jadi animasi munculnya diputar ulang. Keadaan awal
--- animasi itu (tinggi kecil, background transparan) dipasang dulu sebelum layar ditampilkan,
--- supaya tidak ada kilatan window penuh sebelum animasinya mulai.
-pcall(function()
-    local main = Window.UIElements.Main
-    main.Size = UDim2.new(Window.Size.X.Scale, Window.Size.X.Offset, 0, 100)
-    main.Background.ImageTransparency = 1
-end)
-SetHubVisible(true)
-pcall(function() Window:Open() end)
 
 -- Selama jendela hub terbuka kursor dibebaskan (shift lock mengunci mouse di tengah layar);
 -- saat ditutup, kondisi aslinya dikembalikan. Window:Open() sudah jalan sebelum callback
