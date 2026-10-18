@@ -71,6 +71,30 @@ env.MugiwaraImport = function(path)
     return result
 end
 
+-- Loading screen dibuat paling awal supaya menutupi seluruh proses (auth, WindUI, tab).
+-- Kalau gagal dimuat, hub tetap jalan tanpa loading screen.
+env.MugiwaraVersion = VERSION
+local Loader = nil
+do
+    local ok, result = pcall(function()
+        return loadstring(game:HttpGet(BASE_URL .. "Manager/LoadingScreen.lua"))()
+    end)
+    if ok and type(result) == "table" then
+        Loader = result
+        env.MugiwaraRegisterCleanup(function() pcall(function() result:Destroy() end) end)
+    elseif not ok then
+        warn("[Mugiwara HUB] Loading screen failed: " .. tostring(result))
+    end
+end
+
+local function LoaderStatus(text)
+    if Loader then pcall(function() Loader:SetStatus(text) Loader:Log(text, "info") end) end
+end
+
+local function LoaderDestroy()
+    if Loader then pcall(function() Loader:Destroy() end) Loader = nil end
+end
+
 -- Queue the hub for the next teleport once per server. Keying the flag on JobId means a
 -- re-execute in the same server does not queue a duplicate, while every new server can
 -- queue again (a plain boolean flag would block all teleports after the first).
@@ -119,8 +143,10 @@ if makefolder and isfolder and not isfolder(FOLDER) then makefolder(FOLDER) end
 local savedKeyPath = FOLDER .. "/PremiumKey.txt"
 local isPremiumUser = false
 
+LoaderStatus("Loading Panda Auth")
 local libOk, PUSL = pcall(function() return loadstring(game:HttpGet("https://secure.pandauth.com/pv4/lib"))() end)
 if not libOk or type(PUSL) ~= "table" or type(PUSL.configure) ~= "function" then
+    LoaderDestroy()
     LocalPlayer:Kick("[Panda Auth] Library failed to initialize.")
     return
 end
@@ -143,6 +169,7 @@ local function ValidateKey(inputKey)
 end
 
 if readfile and isfile and isfile(savedKeyPath) then
+    LoaderStatus("Checking saved key")
     local okRead, savedKey = pcall(readfile, savedKeyPath)
     if okRead then
         local isValid, isPrem, result = ValidateKey(savedKey)
@@ -157,8 +184,10 @@ if readfile and isfile and isfile(savedKeyPath) then
 end
 
 -- SETUP WIND UI & THEME
+LoaderStatus("Loading WindUI")
 local uiOk, WindUI = pcall(function() return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))() end)
 if not uiOk or type(WindUI) ~= "table" then
+    LoaderDestroy()
     LocalPlayer:Kick("[Mugiwara HUB] UI library failed to load. Please try again.")
     return
 end
@@ -247,7 +276,28 @@ if not isPremiumUser and originalSetClipboard and windowConfig.KeySystem then
     end
 end
 
+-- Layar key (kalau muncul) berada di bawah loading screen, jadi loading screen disembunyikan
+-- selama layar key tampil dan ditampilkan lagi begitu window dibuat (key sudah valid).
+-- Key yang tersimpan langsung lolos tanpa layar key, jadi loading screen tidak terputus.
+local keyScreenConnection = nil
+if Loader and windowConfig.KeySystem then
+    pcall(function()
+        local keyFolder = WindUI.ScreenGui:FindFirstChild("KeySystem")
+        if keyFolder then
+            keyScreenConnection = keyFolder.ChildAdded:Connect(function()
+                pcall(function() Loader.Gui.Enabled = false end)
+            end)
+        end
+    end)
+end
+
 local Window = WindUI:CreateWindow(windowConfig)
+
+if keyScreenConnection then keyScreenConnection:Disconnect() end
+if Loader then
+    pcall(function() Loader.Gui.Enabled = true end)
+    LoaderStatus("Building tabs")
+end
 
 if originalSetClipboard then getgenv().setclipboard = originalSetClipboard end
 Window:Tag({ Title = "v" .. VERSION, Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
@@ -375,6 +425,8 @@ local function BuildAsync(func)
     end)
 end
 
+LoaderStatus("Loading game modules")
+
 if TargetModulePath then
     local func = getgenv().MugiwaraImport(TargetModulePath)
     if type(func) == "function" then
@@ -402,7 +454,21 @@ Window:EditOpenButton({ Title = "Open Mugiwara HUB", CornerRadius = UDim.new(1, 
 -- Tunggu modul game yang masih membangun tab (maksimal 15 detik), lalu tampilkan window.
 local revealDeadline = os.clock() + 15
 while pendingBuilds > 0 and os.clock() < revealDeadline do task.wait(0.1) end
+
+-- Loading screen diselesaikan dulu (animasi keluar), baru window ditampilkan.
+if Loader then
+    local loaderDone = false
+    local doneConnection = Loader.Finished:Connect(function() loaderDone = true end)
+    pcall(function() Loader:Finish() end)
+    local finishDeadline = os.clock() + 6
+    while not loaderDone and os.clock() < finishDeadline do task.wait(0.05) end
+    doneConnection:Disconnect()
+    LoaderDestroy()
+end
+
 SetHubVisible(true)
+-- Window sudah "terbuka" selagi tersembunyi, jadi animasi munculnya diputar ulang di sini.
+pcall(function() Window:Open() end)
 
 -- Selama jendela hub terbuka kursor dibebaskan (shift lock mengunci mouse di tengah layar);
 -- saat ditutup, kondisi aslinya dikembalikan. Window:Open() sudah jalan sebelum callback
