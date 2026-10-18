@@ -4,6 +4,55 @@ ReflectionManager.Transparency = 1
 ReflectionManager.Offset = 0.1 
 ReflectionManager.Connections = {}
 ReflectionManager.GlobalModel = nil
+ReflectionManager.Intensity = 0 -- 0..1; 0 = objek asli tidak diubah
+
+-- Intensity bekerja lewat transparency OBJEK ASLI, dihitung relatif terhadap nilai default tiap
+-- objek (bukan nilai mutlak): transparency = default + (1 - default) * intensity. Objek yang
+-- aslinya 0.5 (kaca, dsb) jadi 0.5 saat intensity 0 dan 1 saat intensity penuh, tidak pernah
+-- lebih rendah dari default-nya. Default dicatat sebelum objek pertama kali diubah dan dipulihkan
+-- saat reflection dimatikan.
+local Defaults = setmetatable({}, { __mode = "k" }) -- part -> transparency asli
+local Applied = setmetatable({}, { __mode = "k" })  -- part -> nilai yang terakhir kita tulis
+local TOLERANCE = 0.002
+local BATCH_SIZE = 1500
+local applying = false
+
+local function Calculate(default)
+    return math.clamp(default + (1 - default) * ReflectionManager.Intensity, 0, 1)
+end
+
+local function ApplyIntensity(part)
+    local default = Defaults[part]
+    if default == nil or not part.Parent then return end
+
+    local current = part.Transparency
+    local applied = Applied[part]
+    -- Game mengubah transparency-nya sendiri sejak tulisan terakhir kita: nilai barunya dianggap
+    -- default yang baru, jadi tidak ditimpa nilai basi.
+    if applied ~= nil and math.abs(current - applied) > TOLERANCE then
+        default = current
+        Defaults[part] = default
+    end
+
+    local target = Calculate(default)
+    if math.abs(current - target) > 0.0005 then part.Transparency = target end
+    Applied[part] = (math.abs(target - default) > 0.0005) and target or nil
+end
+
+local function RestorePart(part)
+    local default = Defaults[part]
+    local applied = Applied[part]
+    Applied[part] = nil
+    if default == nil or applied == nil or not part.Parent then return end
+    -- Hanya dipulihkan kalau nilainya masih yang kita tulis; kalau game sudah mengubahnya, dibiarkan.
+    if math.abs(part.Transparency - applied) <= TOLERANCE then part.Transparency = default end
+end
+
+local function SnapshotParts()
+    local list = {}
+    for part in pairs(Defaults) do list[#list + 1] = part end
+    return list
+end
 
 local CharacterPartsFilter = {
     ["Head"] = true, ["Torso"] = true, ["HumanoidRootPart"] = true,
@@ -42,7 +91,10 @@ function ReflectionManager.ApplyReflection(part)
     if not ReflectionManager.GlobalModel then return end
     if part:IsDescendantOf(ReflectionManager.GlobalModel) then return end
     if CharacterPartsFilter[part.Name] then return end
-    
+
+    -- Catat transparency asli SEBELUM apa pun diubah (clone di bawah ditimpa nilainya sendiri).
+    if Defaults[part] == nil then Defaults[part] = part.Transparency end
+
     local originalArchivable = part.Archivable
     part.Archivable = true
     local clone = part:Clone()
@@ -96,7 +148,9 @@ function ReflectionManager.ApplyReflection(part)
     end
     
     clone.Parent = ReflectionManager.GlobalModel
-    
+
+    if ReflectionManager.Intensity > 0 then ApplyIntensity(part) end
+
     if not part.Anchored then
         clone.Anchored = false
         local weld = Instance.new("WeldConstraint")
@@ -117,6 +171,27 @@ function ReflectionManager.ApplyReflection(part)
         end
     end)
     table.insert(ReflectionManager.Connections, cleanConn)
+end
+
+-- Slider intensity (0..1). Diterapkan bertahap supaya menggeser slider di map besar tidak membuat
+-- game freeze; kalau nilainya berubah lagi di tengah jalan, penerapan diulang dengan nilai terbaru.
+function ReflectionManager.SetIntensity(value)
+    ReflectionManager.Intensity = math.clamp(tonumber(value) or 0, 0, 1)
+    if applying or not ReflectionManager.GlobalModel then return end
+
+    applying = true
+    task.spawn(function()
+        local target
+        repeat
+            target = ReflectionManager.Intensity
+            for index, part in ipairs(SnapshotParts()) do
+                if ReflectionManager.Intensity ~= target then break end
+                ApplyIntensity(part)
+                if index % BATCH_SIZE == 0 then task.wait() end
+            end
+        until target == ReflectionManager.Intensity or not ReflectionManager.GlobalModel
+        applying = false
+    end)
 end
 
 function ReflectionManager.Toggle(state)
@@ -170,12 +245,17 @@ function ReflectionManager.Toggle(state)
             if conn then conn:Disconnect() end
         end
         table.clear(ReflectionManager.Connections)
-        
+
+        -- Kembalikan transparency objek asli (tanpa yield: cleanup re-execute berjalan sinkron).
+        for _, part in ipairs(SnapshotParts()) do RestorePart(part) end
+        Defaults = setmetatable({}, { __mode = "k" })
+        Applied = setmetatable({}, { __mode = "k" })
+
         if ReflectionManager.GlobalModel then
             ReflectionManager.GlobalModel:Destroy()
             ReflectionManager.GlobalModel = nil
         end
-        
+
         print("[Mugiwara HUB] Reflection layers completely removed.")
     end
 end

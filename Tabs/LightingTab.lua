@@ -145,6 +145,16 @@ return function(Window, isPremiumUser, WindUI)
         end
     })
 
+    PremiumSection:Slider({
+        Title = "Reflection Intensity",
+        Desc = "How strong the reflection is. Changes the transparency of the real objects relative to each object's own default, and restores it when Reflection Effect is turned off.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Step = 1,
+        Value = { Min = 0, Max = 100, Default = 0 },
+        Callback = function(Value) ReflectionModule.SetIntensity(Value / 100) end
+    })
+
     TabLighting:Divider({ Title = "System Control" })
     TabLighting:Toggle({ Title = "Lock Lighting", Desc = "Force Override! Lock all values in this script; prevent the game from altering the lighting.", Locked = false, Callback = function(Value) LightingModule.LockEnabled = Value end })
 
