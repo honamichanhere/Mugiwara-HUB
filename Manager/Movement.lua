@@ -208,12 +208,16 @@ local function ForEachAnimator(callback)
     end
 end
 
+-- Mengembalikan jumlah animasi yang sedang jalan di semua animator target.
 local function ApplyAnimSpeed(speed)
+    local count = 0
     ForEachAnimator(function(animator)
         for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            count = count + 1
             if track.Speed ~= speed then track:AdjustSpeed(speed) end
         end
     end)
+    return count
 end
 
 -- PreAnimation jalan tepat sebelum animasi dihitung tiap frame, jadi nilai kita yang dipakai.
@@ -232,8 +236,14 @@ function Movement.SetAnimSpeed(value)
     Movement.AnimSpeedValue = value
     Movement.AnimSpeedEnabled = value ~= 1
 
-    -- Nilai 1 = kembali normal: matikan loop dan kembalikan animasi yang sedang jalan.
-    if not Movement.AnimSpeedEnabled then pcall(ApplyAnimSpeed, 1) end
+    -- Langsung diterapkan sekali (loop di atas yang menjaganya sesudah itu). Nilai 1 = kembali
+    -- normal: loop berhenti dan animasi yang sedang jalan dikembalikan ke speed 1.
+    local ok, count = pcall(ApplyAnimSpeed, value)
+    if ok then
+        print("[Mugiwara] Animation speed " .. tostring(value) .. " (" .. tostring(count) .. " animations playing)")
+    else
+        warn("[Mugiwara] Animation speed failed: " .. tostring(count))
+    end
 end
 
 -- Full teardown on re-execute: stop every loop, release fly, restore speed/jump/animation.

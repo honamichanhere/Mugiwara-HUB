@@ -29,7 +29,7 @@ return function(TargetTab, isPremiumUser, WindUI)
     local ToggleNoclip = MovementSection:Toggle({ Title = "Enable Noclip", Callback = function(Value) MovementModule.NoclipEnabled = Value end })
 
     MovementSection:Divider({ Title = "Animation Controls" })
-    MovementSection:Input({ Title = "Animation Speed", Desc = "Speed multiplier for all your playing animations, kept on every frame. Enter 1 to reset.", Placeholder = "Number (e.g. 1.5)", Callback = function(Text) local num = tonumber(Text) if num then MovementModule.SetAnimSpeed(num) end end })
+    MovementSection:Input({ Title = "Animation Speed", Desc = "Speed multiplier for all your playing animations, kept on every frame. Enter 1 to reset.", Placeholder = "Number", Callback = function(Text) local num = tonumber(Text) if num then MovementModule.SetAnimSpeed(num) end end })
 
     -- Referensi toggle dipakai shortcut keyboard (tab Misc) supaya tombol UI ikut berubah.
     MovementModule.UI = { Speed = ToggleSpeed, InfJump = ToggleInfJump, Fly = ToggleFly, Noclip = ToggleNoclip }
