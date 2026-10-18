@@ -329,6 +329,15 @@ return function(Window, isPremiumUser, WindUI)
                 CursorModule.SetEnabled(Value)
             end
         })
+
+        HubSection:Button({
+            Title = "Lock Cursor",
+            Desc = "Lock the mouse to the screen centre right now. Close and reopen the window to free it again.",
+            Icon = "lucide:lock",
+            Callback = function()
+                CursorModule.Lock()
+            end
+        })
     end
 
     HubSection:Button({
