@@ -253,15 +253,15 @@ if originalSetClipboard then getgenv().setclipboard = originalSetClipboard end
 Window:Tag({ Title = "v" .. VERSION, Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
 env.MugiwaraRegisterCleanup(function() Window:Destroy() end)
 
--- Selama jendela hub terbuka kursor dibebaskan (shift lock mengunci mouse di tengah layar);
--- saat ditutup, kondisi aslinya dikembalikan. Window:Open() sudah jalan sebelum callback
--- dipasang, jadi keadaan awal dibaca dari Window.Closed.
-local Cursor = env.MugiwaraImport("Manager/Cursor.lua")
-if Cursor then
-    Window:OnOpen(function() Cursor.SetWindowOpen(true) end)
-    Window:OnClose(function() Cursor.SetWindowOpen(false) end)
-    Cursor.SetWindowOpen(not Window.Closed)
+-- Window dibuka otomatis oleh WindUI begitu dibuat, sementara tab-tab baru dibangun satu per
+-- satu sesudahnya. Layar WindUI disembunyikan dulu dan baru ditampilkan setelah semua tab siap.
+-- (Layar notifikasi terpisah, jadi notifikasi tetap muncul.) Timer cadangan menampilkannya
+-- walau ada tab yang macet, supaya hub tidak pernah tersembunyi terus.
+local function SetHubVisible(visible)
+    pcall(function() WindUI.ScreenGui.Enabled = visible end)
 end
+SetHubVisible(false)
+task.delay(30, function() SetHubVisible(true) end)
 
 -- Locked state is decided when each element is created, so after activating through the
 -- "Verify & Activate" button the hub reloads to unlock every premium feature.
@@ -363,10 +363,22 @@ end
 
 local moduleLoaded = false
 
+-- Modul game dibangun di thread sendiri (bisa menunggu jaringan); jumlah yang masih berjalan
+-- dicatat supaya window baru ditampilkan setelah semuanya selesai.
+local pendingBuilds = 0
+local function BuildAsync(func)
+    pendingBuilds = pendingBuilds + 1
+    task.spawn(function()
+        local ok, err = pcall(func, Window, isPremiumUser, WindUI)
+        if not ok then warn("[Mugiwara HUB] Game module error: " .. tostring(err)) end
+        pendingBuilds = pendingBuilds - 1
+    end)
+end
+
 if TargetModulePath then
     local func = getgenv().MugiwaraImport(TargetModulePath)
     if type(func) == "function" then
-        task.spawn(func, Window, isPremiumUser, WindUI)
+        BuildAsync(func)
         moduleLoaded = true
     end
 end
@@ -374,7 +386,7 @@ end
 if not moduleLoaded then
     local func = getgenv().MugiwaraImport(UniversalModulePath)
     if type(func) == "function" then
-        task.spawn(func, Window, isPremiumUser, WindUI)
+        BuildAsync(func)
     end
 end
 
@@ -386,3 +398,19 @@ if type(buildMisc) == "function" then
 end
 
 Window:EditOpenButton({ Title = "Open Mugiwara HUB", CornerRadius = UDim.new(1, 0), OnlyMobile = false, Enabled = true, Draggable = true })
+
+-- Tunggu modul game yang masih membangun tab (maksimal 15 detik), lalu tampilkan window.
+local revealDeadline = os.clock() + 15
+while pendingBuilds > 0 and os.clock() < revealDeadline do task.wait(0.1) end
+SetHubVisible(true)
+
+-- Selama jendela hub terbuka kursor dibebaskan (shift lock mengunci mouse di tengah layar);
+-- saat ditutup, kondisi aslinya dikembalikan. Window:Open() sudah jalan sebelum callback
+-- dipasang, jadi keadaan awal dibaca dari Window.Closed. Dipasang setelah window ditampilkan,
+-- supaya kursor tidak dibebaskan selagi window masih tersembunyi.
+local Cursor = env.MugiwaraImport("Manager/Cursor.lua")
+if Cursor then
+    Window:OnOpen(function() Cursor.SetWindowOpen(true) end)
+    Window:OnClose(function() Cursor.SetWindowOpen(false) end)
+    Cursor.SetWindowOpen(not Window.Closed)
+end

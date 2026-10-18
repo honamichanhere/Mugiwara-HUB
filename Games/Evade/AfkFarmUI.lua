@@ -42,6 +42,9 @@ function UI.BuildFarm(Section, isPremiumUser, WindUI)
         LockedTitle = "Premium Only",
         Callback = function(Text)
             if updatingInput then return end
+            -- WindUI memanggil callback saat elemen dibuat dengan nilai awalnya; tanpa
+            -- perubahan nilai tidak ada yang perlu disimpan atau diberi notifikasi.
+            if Text == AfkFarm.FormatPosition() then return end
             local ok, result = AfkFarm.SetPositionFromText(Text)
             if ok then
                 Notify("AFK Coordinates", result ~= "" and ("Saved: " .. result) or "Cleared. Your current spot will be used.", 2)
@@ -84,6 +87,12 @@ function UI.BuildCommands(TabMain, isPremiumUser, WindUI)
         Icon = "lucide:terminal",
         Opened = false,
         Box = true
+    })
+
+    Section:Paragraph({
+        Title = "Requires VIP access",
+        Desc = "This feature only works if you have access to VIP Commands, or if you own the Private Server / Community. Without that access the game rejects the commands and nothing happens.",
+        Icon = "lucide:shield-alert"
     })
 
     Section:Toggle({

@@ -20,6 +20,7 @@ AfkFarm.Triggers = {
     "Intermission",
     "Round Start",
     "Round End",
+    "Vote",
 }
 AfkFarm.MaxRules = 10  -- batas jumlah event supaya UI tidak membengkak
 AfkFarm.MaxDelay = 120 -- detik
@@ -228,6 +229,18 @@ local function OnRoundStatus(status)
     end
 end
 
+-- Voting: event yang sama mengirim ("Voting", true) saat voting dibuka. Pemicu "Vote" jalan hanya
+-- saat berubah menjadi true. Voting dianggap tertutup sebelum event pertama diterima.
+local lastVoting = false
+
+local function OnVoting(state)
+    if type(state) ~= "boolean" then return end
+
+    local previous = lastVoting
+    lastVoting = state
+    if state and not previous then Fire("Vote") end
+end
+
 task.spawn(function()
     local ok, remote = pcall(function()
         local events = game:GetService("ReplicatedStorage"):WaitForChild("Events", 10)
@@ -236,7 +249,11 @@ task.spawn(function()
     if not ok or not remote or not alive then return end
 
     table.insert(connections, remote.OnClientEvent:Connect(function(key, value)
-        if key == "RoundStatus" then OnRoundStatus(value) end
+        if key == "RoundStatus" then
+            OnRoundStatus(value)
+        elseif key == "Voting" then
+            OnVoting(value)
+        end
     end))
 end)
 
