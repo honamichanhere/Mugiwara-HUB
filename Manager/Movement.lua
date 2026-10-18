@@ -185,7 +185,58 @@ table.insert(connections, UserInputService.JumpRequest:Connect(function()
     end
 end))
 
--- Full teardown on re-execute: stop every loop, release fly, restore speed/jump.
+-- Animation speed: kecepatan dipasang ulang tiap frame ke SEMUA animasi yang sedang jalan,
+-- karena track baru (ganti state jalan/lompat) selalu mulai di speed 1 dan skrip animasi game
+-- bisa menimpa speed-nya. Targetnya karakter asli plus rig visual di Workspace.Rigs (Evade).
+Movement.AnimSpeedEnabled = false
+Movement.AnimSpeedValue = 1
+
+local function ForEachAnimator(callback)
+    local function visit(model)
+        if not model then return end
+        local animator = model:FindFirstChildWhichIsA("Animator", true)
+        if animator then callback(animator) end
+    end
+
+    visit(LocalPlayer.Character)
+
+    local rigs = workspace:FindFirstChild("Rigs")
+    if rigs then
+        for _, child in ipairs(rigs:GetChildren()) do
+            if child:IsA("Model") and child.Name == LocalPlayer.Name then visit(child) end
+        end
+    end
+end
+
+local function ApplyAnimSpeed(speed)
+    ForEachAnimator(function(animator)
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            if track.Speed ~= speed then track:AdjustSpeed(speed) end
+        end
+    end)
+end
+
+-- PreAnimation jalan tepat sebelum animasi dihitung tiap frame, jadi nilai kita yang dipakai.
+-- Kalau event itu tidak ada di executor/versi Roblox ini, pakai Heartbeat.
+local animationEvent = RunService.Heartbeat
+pcall(function() animationEvent = RunService.PreAnimation end)
+
+table.insert(connections, animationEvent:Connect(function()
+    if not Movement.AnimSpeedEnabled then return end
+    pcall(ApplyAnimSpeed, Movement.AnimSpeedValue)
+end))
+
+function Movement.SetAnimSpeed(value)
+    if type(value) ~= "number" or value <= 0 then return end
+
+    Movement.AnimSpeedValue = value
+    Movement.AnimSpeedEnabled = value ~= 1
+
+    -- Nilai 1 = kembali normal: matikan loop dan kembalikan animasi yang sedang jalan.
+    if not Movement.AnimSpeedEnabled then pcall(ApplyAnimSpeed, 1) end
+end
+
+-- Full teardown on re-execute: stop every loop, release fly, restore speed/jump/animation.
 getgenv().MugiwaraRegisterCleanup(function()
     for _, conn in ipairs(connections) do pcall(function() conn:Disconnect() end) end
     table.clear(connections)
@@ -193,22 +244,10 @@ getgenv().MugiwaraRegisterCleanup(function()
     DestroyFlyObjects()
     if Movement.SpeedEnabled then Movement.RestoreSpeed() end
     if Movement.JumpEnabled then Movement.RestoreJump() end
+    if Movement.AnimSpeedEnabled then pcall(ApplyAnimSpeed, 1) end
     Movement.SpeedEnabled, Movement.TweenSpeedEnabled = false, false
     Movement.JumpEnabled, Movement.InfJumpEnabled, Movement.NoclipEnabled = false, false, false
+    Movement.AnimSpeedEnabled = false
 end)
-
-function Movement.SetAnimSpeed(value)
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") then
-            local animator = char.Humanoid:FindFirstChild("Animator")
-            if animator then
-                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-                    track:AdjustSpeed(value)
-                end
-            end
-        end
-    end)
-end
 
 return Movement
