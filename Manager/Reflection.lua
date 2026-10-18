@@ -84,6 +84,7 @@ local function SetupGlobalModel()
     local globalHighlight = Instance.new("Highlight")
     globalHighlight.FillTransparency = 1
     globalHighlight.OutlineTransparency = 1
+    globalHighlight.DepthMode = Enum.HighlightDepthMode.Occluded
     globalHighlight.Parent = ReflectionManager.GlobalModel
     
     ReflectionManager.GlobalModel.Parent = workspace
