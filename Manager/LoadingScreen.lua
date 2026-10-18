@@ -22,13 +22,16 @@ local CONFIG = {
     Owner = "Honami",
     Version = "v" .. tostring((getgenv and getgenv().MugiwaraVersion) or "1.0.0"),
 
-    Accent = Color3.fromRGB(255, 70, 85),      -- merah topi jerami
-    Secondary = Color3.fromRGB(0, 255, 150),   -- hijau ala hacker
-    Warning = Color3.fromRGB(255, 200, 60),    -- kuning buat log info/warn
-    Background = Color3.fromRGB(12, 12, 16),   -- warna card
-    Terminal = Color3.fromRGB(6, 8, 10),       -- warna kotak terminal
-    TextMain = Color3.fromRGB(235, 235, 240),
-    TextDim = Color3.fromRGB(130, 135, 150),
+    -- Palet diambil dari tema "Luffy" milik hub (Main.lua): oranye #ff9132, krem #ffdcc8,
+    -- #ffbe6e (tag versi), dan cokelat gelap #1F1108 (background dialog).
+    Accent = Color3.fromRGB(255, 145, 50),     -- oranye outline tema Luffy
+    Secondary = Color3.fromRGB(255, 220, 200), -- krem (judul topbar tema Luffy)
+    Warning = Color3.fromRGB(255, 190, 110),   -- kuning-oranye buat log info/warn
+    Error = Color3.fromRGB(255, 95, 86),       -- merah buat log error
+    Background = Color3.fromRGB(31, 17, 8),    -- warna card
+    Terminal = Color3.fromRGB(17, 9, 4),       -- warna kotak terminal
+    TextMain = Color3.fromRGB(255, 240, 230),
+    TextDim = Color3.fromRGB(176, 138, 112),
 
     DesignSize = Vector2.new(460, 312), -- ukuran dasar card (nanti di-scale otomatis)
     MinScale = 0.55,                    -- batas paling kecil (HP kecil)
@@ -127,6 +130,13 @@ local state = {
     status = "Initializing",
     startTime = os.clock(),
     lastHex = 0,
+
+    -- Progress: kalau skrip pemanggil memakai Loader:SetProgress(target, cap), persen mengikuti
+    -- tahap asli (naik cepat ke `target`, lalu merayap pelan ke `cap` selama tahap berjalan).
+    -- Kalau SetProgress tidak pernah dipanggil, dipakai kurva waktu seperti semula.
+    manualProgress = false,
+    target = 0,
+    cap = 0,
 }
 local connections = {}
 local logOrder = 0
@@ -153,7 +163,7 @@ local ScreenGui = create("ScreenGui", {
 local Backdrop = create("Frame", {
     Name = "Backdrop",
     Size = UDim2.fromScale(1, 1),
-    BackgroundColor3 = Color3.new(0, 0, 0),
+    BackgroundColor3 = Color3.fromRGB(10, 5, 2),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     Parent = ScreenGui,
@@ -191,16 +201,33 @@ local StrokeGradient = create("UIGradient", {
     Parent = CardStroke,
 })
 
--- semua isi card ditaro di CanvasGroup biar gampang di-fade bareng
-local Content = create("CanvasGroup", {
+-- isi card dibagi jadi beberapa blok (CanvasGroup) supaya masuk/keluarnya bisa berentetan
+-- (stagger) per blok, bukan semuanya sekaligus. Posisi anak-anak tetap dalam koordinat card.
+local Content = create("Frame", {
     Name = "Content",
     Size = UDim2.fromScale(1, 1),
     BackgroundTransparency = 1,
-    GroupTransparency = 1,
     Parent = Card,
-}, {
-    create("UICorner", { CornerRadius = UDim.new(0, 14) }),
 })
+
+local function createBlock(name)
+    return create("CanvasGroup", {
+        Name = name,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        GroupTransparency = 1,
+        Position = UDim2.fromOffset(0, 14),
+        Parent = Content,
+    })
+end
+
+-- urutan = urutan masuk (dibalik saat keluar)
+local HeaderBlock = createBlock("HeaderBlock")
+local DividerBlock = createBlock("DividerBlock")
+local TerminalBlock = createBlock("TerminalBlock")
+local ProgressBlock = createBlock("ProgressBlock")
+local FooterBlock = createBlock("FooterBlock")
+local Blocks = { HeaderBlock, DividerBlock, TerminalBlock, ProgressBlock, FooterBlock }
 
 -- ---------- Header ----------
 local Title = create("TextLabel", {
@@ -213,7 +240,7 @@ local Title = create("TextLabel", {
     TextSize = 26,
     TextColor3 = Color3.new(1, 1, 1),
     TextXAlignment = Enum.TextXAlignment.Left,
-    Parent = Content,
+    Parent = HeaderBlock,
 }, {
     create("UIGradient", {
         Color = ColorSequence.new({
@@ -232,7 +259,7 @@ local PulseDot = create("Frame", {
     Size = UDim2.fromOffset(9, 9),
     BackgroundColor3 = CONFIG.Secondary,
     BorderSizePixel = 0,
-    Parent = Content,
+    Parent = HeaderBlock,
 }, {
     create("UICorner", { CornerRadius = UDim.new(1, 0) }),
 })
@@ -252,17 +279,19 @@ create("TextLabel", {
         hex(CONFIG.Accent), CONFIG.Owner,
         hex(CONFIG.Secondary), CONFIG.Version
     ),
-    Parent = Content,
+    Parent = HeaderBlock,
 })
 
 -- garis pemisah
-create("Frame", {
+local DIVIDER_SIZE = UDim2.new(1, -40, 0, 1)
+local DividerLine = create("Frame", {
     Name = "Divider",
-    Position = UDim2.fromOffset(20, 76),
-    Size = UDim2.new(1, -40, 0, 1),
+    AnchorPoint = Vector2.new(0.5, 0),
+    Position = UDim2.new(0.5, 0, 0, 76),
+    Size = UDim2.new(0, 0, 0, 1), -- tumbuh dari tengah saat blok masuk
     BackgroundColor3 = CONFIG.TextDim,
     BorderSizePixel = 0,
-    Parent = Content,
+    Parent = DividerBlock,
 }, {
     create("UIGradient", {
         Transparency = NumberSequence.new({
@@ -281,14 +310,14 @@ local TerminalBox = create("Frame", {
     BackgroundColor3 = CONFIG.Terminal,
     BorderSizePixel = 0,
     ClipsDescendants = true,
-    Parent = Content,
+    Parent = TerminalBlock,
 }, {
     create("UICorner", { CornerRadius = UDim.new(0, 8) }),
     create("UIStroke", { Color = CONFIG.TextDim, Transparency = 0.8, Thickness = 1 }),
 })
 
 -- 3 titik ala window terminal
-local dotColors = { CONFIG.Accent, CONFIG.Warning, CONFIG.Secondary }
+local dotColors = { CONFIG.Error, CONFIG.Warning, CONFIG.Secondary }
 for i, color in ipairs(dotColors) do
     create("Frame", {
         Position = UDim2.fromOffset(10 + (i - 1) * 14, 7),
@@ -387,7 +416,7 @@ local StatusLabel = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd,
     Text = "",
-    Parent = Content,
+    Parent = ProgressBlock,
 })
 
 local PercentLabel = create("TextLabel", {
@@ -401,17 +430,18 @@ local PercentLabel = create("TextLabel", {
     TextColor3 = CONFIG.Secondary,
     TextXAlignment = Enum.TextXAlignment.Right,
     Text = "0%",
-    Parent = Content,
+    Parent = ProgressBlock,
 })
 
+local BAR_SIZE = UDim2.new(1, -40, 0, 6)
 local BarTrack = create("Frame", {
     Name = "BarTrack",
     Position = UDim2.fromOffset(20, 268),
-    Size = UDim2.new(1, -40, 0, 6),
-    BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+    Size = UDim2.new(0, 0, 0, 6), -- tumbuh dari kiri saat blok masuk
+    BackgroundColor3 = Color3.fromRGB(52, 32, 18),
     BorderSizePixel = 0,
     ClipsDescendants = true,
-    Parent = Content,
+    Parent = ProgressBlock,
 }, {
     create("UICorner", { CornerRadius = UDim.new(1, 0) }),
 })
@@ -467,7 +497,7 @@ local HexFooter = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd,
     Text = "",
-    Parent = Content,
+    Parent = FooterBlock,
 })
 
 -- ================= ANIMASI TEKS =================
@@ -505,7 +535,7 @@ local LOG_TYPES = {
     info = { tag = "*", color = CONFIG.Warning },
     ok = { tag = "+", color = CONFIG.Secondary },
     warn = { tag = "!", color = CONFIG.Warning },
-    error = { tag = "x", color = CONFIG.Accent },
+    error = { tag = "x", color = CONFIG.Error },
 }
 
 local function addLog(message, kind)
@@ -586,7 +616,7 @@ animScale.Value = 0.85
 local percentValue = Instance.new("NumberValue")
 percentValue.Value = 0
 
-table.insert(connections, RunService.RenderStepped:Connect(function()
+table.insert(connections, RunService.RenderStepped:Connect(function(dt)
     local now = os.clock()
 
     -- responsive: scale card sesuai ukuran layar (PC / HP)
@@ -608,10 +638,20 @@ table.insert(connections, RunService.RenderStepped:Connect(function()
     -- cursor terminal kedip
     PromptLabel.Text = PROMPT_TEXT .. ((math.floor(now * 2.5) % 2 == 0) and "_" or "")
 
-    -- persen naik pelan-pelan, mentok di 99% sampe Finish dipanggil
+    -- persen: ikut tahap asli kalau ada SetProgress, kalau tidak pakai kurva waktu.
+    -- Tidak pernah turun dan mentok di 99% sampe Finish dipanggil.
     if not state.finishing then
-        local elapsed = now - state.startTime
-        percentValue.Value = 99 * (1 - math.exp(-elapsed / 12))
+        local current = percentValue.Value
+        if state.manualProgress then
+            if current < state.target then
+                current = current + (state.target - current) * (1 - math.exp(-dt * 7))
+            elseif current < state.cap then
+                current = current + (state.cap - current) * (1 - math.exp(-dt / 5))
+            end
+        else
+            current = math.max(current, 99 * (1 - math.exp(-(now - state.startTime) / 12)))
+        end
+        percentValue.Value = math.min(current, 99)
     end
     local percent = percentValue.Value
     PercentLabel.Text = string.format("%d%%", math.floor(percent))
@@ -650,6 +690,17 @@ function Loader:SetStatus(text)
         return
     end
     state.status = tostring(text)
+end
+
+-- persen mengikuti tahap asli: `target` = persen minimum sekarang (dikejar cepat),
+-- `cap` = batas rayapan pelan selama tahap itu masih berjalan (tidak pernah turun).
+function Loader:SetProgress(target, cap)
+    if state.finishing then
+        return
+    end
+    state.manualProgress = true
+    state.target = math.max(state.target, tonumber(target) or 0)
+    state.cap = math.max(state.target, tonumber(cap) or state.target)
 end
 
 -- nambah log manual. kind: "info" | "ok" | "warn" | "error"
@@ -693,13 +744,27 @@ function Loader:Finish(message)
         scrambleText(Title, CONFIG.Title, 0.35)
         task.wait(0.6)
 
-        -- animasi keluar
-        tween(animScale, 0.45, { Value = 0.85 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-        tween(Content, 0.4, { GroupTransparency = 1 })
-        tween(Card, 0.45, { BackgroundTransparency = 1 })
-        tween(CardStroke, 0.45, { Transparency = 1 })
-        tween(Backdrop, 0.5, { BackgroundTransparency = 1 })
-        task.wait(0.55)
+        -- animasi keluar: kebalikan masuk. Blok paling bawah keluar duluan, berentetan ke atas,
+        -- baru card dan backdrop menyusul.
+        local EXIT_STAGGER = 0.06
+        for index = #Blocks, 1, -1 do
+            local block = Blocks[index]
+            task.delay((#Blocks - index) * EXIT_STAGGER, function()
+                tween(block, 0.28, { GroupTransparency = 1, Position = UDim2.fromOffset(0, 12) }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+                if block == DividerBlock then
+                    tween(DividerLine, 0.28, { Size = UDim2.new(0, 0, 0, 1) }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+                elseif block == ProgressBlock then
+                    tween(BarTrack, 0.28, { Size = UDim2.new(0, 0, 0, 6) }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+                end
+            end)
+        end
+        task.wait(#Blocks * EXIT_STAGGER + 0.05)
+
+        tween(animScale, 0.35, { Value = 0.85 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        tween(Card, 0.35, { BackgroundTransparency = 1 })
+        tween(CardStroke, 0.35, { Transparency = 1 })
+        tween(Backdrop, 0.4, { BackgroundTransparency = 1 })
+        task.wait(0.45)
 
         Loader:Destroy()
         print("[Mugiwara Hub] Loading complete.")
@@ -721,9 +786,25 @@ end)
 tween(Backdrop, 0.5, { BackgroundTransparency = 0.35 })
 tween(Card, 0.5, { BackgroundTransparency = 0.05 })
 tween(CardStroke, 0.5, { Transparency = 0 })
-tween(Content, 0.6, { GroupTransparency = 0 })
 tween(animScale, 0.7, { Value = 1 }, Enum.EasingStyle.Back)
-task.spawn(scrambleText, Title, CONFIG.Title, 0.9)
+
+-- blok isi masuk berentetan (slide naik + fade), tiap blok menyusul 0.1 detik setelah sebelumnya;
+-- garis pemisah dan bar progress ikut "tumbuh" saat bloknya muncul.
+local ENTER_STAGGER = 0.1
+for index, block in ipairs(Blocks) do
+    task.delay(0.2 + (index - 1) * ENTER_STAGGER, function()
+        if not block.Parent then
+            return
+        end
+        tween(block, 0.5, { GroupTransparency = 0, Position = UDim2.fromOffset(0, 0) })
+        if block == DividerBlock then
+            tween(DividerLine, 0.6, { Size = DIVIDER_SIZE })
+        elseif block == ProgressBlock then
+            tween(BarTrack, 0.6, { Size = BAR_SIZE })
+        end
+    end)
+end
+task.delay(0.25, scrambleText, Title, CONFIG.Title, 0.9)
 
 -- log awal
 task.delay(0.3, function()

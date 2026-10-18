@@ -91,6 +91,14 @@ local function LoaderStatus(text)
     if Loader then pcall(function() Loader:SetStatus(text) Loader:Log(text, "info") end) end
 end
 
+-- Persen loading mengikuti tahap asli: `target` = persen setelah tahap ini selesai,
+-- `cap` = batas rayapan selama tahap berikutnya masih berjalan.
+local function LoaderProgress(target, cap)
+    if Loader then pcall(function() Loader:SetProgress(target, cap) end) end
+end
+
+LoaderProgress(4, 13)
+
 local function LoaderDestroy()
     if Loader then pcall(function() Loader:Destroy() end) Loader = nil end
 end
@@ -152,6 +160,7 @@ if not libOk or type(PUSL) ~= "table" or type(PUSL.configure) ~= "function" then
 end
 
 PUSL.configure({ serviceId = "honami" })
+LoaderProgress(14, 23)
 
 -- Premium status comes ONLY from the isPremium flag returned by the Panda Auth server,
 -- never from the shape of the key string.
@@ -184,6 +193,7 @@ if readfile and isfile and isfile(savedKeyPath) then
 end
 
 -- SETUP WIND UI & THEME
+LoaderProgress(24, 42)
 LoaderStatus("Loading WindUI")
 local uiOk, WindUI = pcall(function() return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))() end)
 if not uiOk or type(WindUI) ~= "table" then
@@ -191,6 +201,7 @@ if not uiOk or type(WindUI) ~= "table" then
     LocalPlayer:Kick("[Mugiwara HUB] UI library failed to load. Please try again.")
     return
 end
+LoaderProgress(44, 51)
 local ThemesList = WindUI:GetThemes()
 
 ThemesList["Luffy"] = {}
@@ -296,6 +307,7 @@ local Window = WindUI:CreateWindow(windowConfig)
 if keyScreenConnection then keyScreenConnection:Disconnect() end
 if Loader then
     pcall(function() Loader.Gui.Enabled = true end)
+    LoaderProgress(52, 52 + math.floor(18 / 3) - 1)
     LoaderStatus("Building tabs")
 end
 
@@ -382,12 +394,18 @@ end
 local GlobalTabs = { "Tabs/HomeTab.lua", "Tabs/LightingTab.lua", "Tabs/CameraTab.lua" }
 
 local function LoadGlobalTabs()
-    for _, path in ipairs(GlobalTabs) do
+    local total = #GlobalTabs
+    for index, path in ipairs(GlobalTabs) do
         local build = getgenv().MugiwaraImport(path)
         if type(build) == "function" then
             local ok, err = pcall(build, Window, isPremiumUser, WindUI)
             if not ok then warn("[Mugiwara HUB] Tab " .. path .. " error: " .. tostring(err)) end
         end
+
+        -- 52% -> 70% dibagi rata antar tab; setelah tab terakhir lanjut merayap ke tahap modul game.
+        local done = 52 + math.floor(18 * index / total)
+        local nextDone = index == total and 90 or (52 + math.floor(18 * (index + 1) / total) - 1)
+        LoaderProgress(done, nextDone)
     end
 end
 
@@ -448,12 +466,14 @@ if type(buildMisc) == "function" then
     local ok, err = pcall(buildMisc, Window, isPremiumUser, WindUI)
     if not ok then warn("[Mugiwara HUB] Misc tab error: " .. tostring(err)) end
 end
+LoaderProgress(80, 93)
 
 Window:EditOpenButton({ Title = "Open Mugiwara HUB", CornerRadius = UDim.new(1, 0), OnlyMobile = false, Enabled = true, Draggable = true })
 
 -- Tunggu modul game yang masih membangun tab (maksimal 15 detik), lalu tampilkan window.
 local revealDeadline = os.clock() + 15
 while pendingBuilds > 0 and os.clock() < revealDeadline do task.wait(0.1) end
+LoaderProgress(96, 98)
 
 -- Loading screen diselesaikan dulu (animasi keluar), baru window ditampilkan.
 if Loader then
@@ -466,8 +486,15 @@ if Loader then
     LoaderDestroy()
 end
 
+-- Window sudah "terbuka" selagi tersembunyi, jadi animasi munculnya diputar ulang. Keadaan awal
+-- animasi itu (tinggi kecil, background transparan) dipasang dulu sebelum layar ditampilkan,
+-- supaya tidak ada kilatan window penuh sebelum animasinya mulai.
+pcall(function()
+    local main = Window.UIElements.Main
+    main.Size = UDim2.new(Window.Size.X.Scale, Window.Size.X.Offset, 0, 100)
+    main.Background.ImageTransparency = 1
+end)
 SetHubVisible(true)
--- Window sudah "terbuka" selagi tersembunyi, jadi animasi munculnya diputar ulang di sini.
 pcall(function() Window:Open() end)
 
 -- Selama jendela hub terbuka kursor dibebaskan (shift lock mengunci mouse di tengah layar);
