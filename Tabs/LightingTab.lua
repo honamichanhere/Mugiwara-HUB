@@ -148,7 +148,7 @@ return function(Window, isPremiumUser, WindUI)
     TabLighting:Divider({ Title = "System Control" })
     TabLighting:Toggle({ Title = "Lock Lighting", Desc = "Force Override! Lock all values in this script; prevent the game from altering the lighting.", Locked = false, Callback = function(Value) LightingModule.LockEnabled = Value end })
 
-    local UIElements = { Lighting = {}, Atmosphere = {}, Bloom = {}, Blur = {}, ColorCorrection = {}, DepthOfField = {}, SunRays = {} }
+    local UIElements = { Lighting = {}, Atmosphere = {}, Bloom = {}, Blur = {}, ColorCorrection = {}, DepthOfField = {}, SunRays = {}, Clouds = {} }
 
     LightingModule.OnPresetLoaded = function()
         for cat, props in pairs(UIElements) do
@@ -199,6 +199,7 @@ return function(Window, isPremiumUser, WindUI)
     UIElements.Lighting.ClockTime = Lighting:Slider({ Title = "Clock Time", Step = 0.1, Value = { Min = LightingModule.Limits.Lighting.ClockTime.Min, Max = LightingModule.Limits.Lighting.ClockTime.Max, Default = objL.ClockTime }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ClockTime", Value) end })
     UIElements.Lighting.GeographicLatitude = Lighting:Slider({ Title = "Geographic Latitude", Step = 1, Value = { Min = LightingModule.Limits.Lighting.GeographicLatitude.Min, Max = LightingModule.Limits.Lighting.GeographicLatitude.Max, Default = objL.GeographicLatitude }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "GeographicLatitude", Value) end })
     UIElements.Lighting.ExposureCompensation = Lighting:Slider({ Title = "Exposure Compensation", Step = 0.1, Value = { Min = LightingModule.Limits.Lighting.ExposureCompensation.Min, Max = LightingModule.Limits.Lighting.ExposureCompensation.Max, Default = objL.ExposureCompensation }, Callback = function(Value) LightingModule.UpdateValue("Lighting", "ExposureCompensation", Value) end })
+    Lighting:Toggle({ Title = "Hide Sun", Desc = "Hide the sun disc in the sky. Sun Rays is a separate effect.", Value = LightingModule.SunHidden, Callback = function(Value) LightingModule.SetSunHidden(Value) end })
 
     local objAtm = LightingModule.Objects["Atmosphere"]
     local Atmosphere = TabLighting:Section({ Title = "Atmosphere", Icon = "lucide:sun-dim", Opened = false, Box = true })
@@ -242,5 +243,16 @@ return function(Window, isPremiumUser, WindUI)
     UIElements.SunRays.Enabled = SunRays:Toggle({ Title = "Enabled", Value = objSun.Enabled, Callback = function(Value) LightingModule.ToggleEffect("SunRays", Value) end })
     UIElements.SunRays.Intensity = SunRays:Slider({ Title = "Intensity", Step = 0.01, Value = { Min = LightingModule.Limits.SunRays.Intensity.Min, Max = LightingModule.Limits.SunRays.Intensity.Max, Default = objSun.Intensity }, Callback = function(Value) LightingModule.UpdateValue("SunRays", "Intensity", Value) end })
     UIElements.SunRays.Spread = SunRays:Slider({ Title = "Spread", Step = 0.01, Value = { Min = LightingModule.Limits.SunRays.Spread.Min, Max = LightingModule.Limits.SunRays.Spread.Max, Default = objSun.Spread }, Callback = function(Value) LightingModule.UpdateValue("SunRays", "Spread", Value) end })
+
+    -- Volumetric Clouds (objek Clouds di Terrain). Objek dicari SEBELUM section dibuat supaya elemen
+    -- pertama langsung menyusul tanpa jeda (lihat catatan di bagian Premium Features).
+    local objClouds = LightingModule.Objects["Clouds"]
+    if objClouds then
+        local Clouds = TabLighting:Section({ Title = "Volumetric Clouds", Icon = "lucide:cloud", Opened = false, Box = true })
+        UIElements.Clouds.Enabled = Clouds:Toggle({ Title = "Enabled", Value = objClouds.Enabled, Callback = function(Value) LightingModule.ToggleEffect("Clouds", Value) end })
+        UIElements.Clouds.Cover = Clouds:Slider({ Title = "Cover", Step = 0.01, Value = { Min = LightingModule.Limits.Clouds.Cover.Min, Max = LightingModule.Limits.Clouds.Cover.Max, Default = objClouds.Cover }, Callback = function(Value) LightingModule.UpdateValue("Clouds", "Cover", Value) end })
+        UIElements.Clouds.Density = Clouds:Slider({ Title = "Density", Step = 0.01, Value = { Min = LightingModule.Limits.Clouds.Density.Min, Max = LightingModule.Limits.Clouds.Density.Max, Default = objClouds.Density }, Callback = function(Value) LightingModule.UpdateValue("Clouds", "Density", Value) end })
+        UIElements.Clouds.Color = Clouds:Colorpicker({ Title = "Color", Default = objClouds.Color, Callback = function(Value) LightingModule.UpdateValue("Clouds", "Color", Value) end })
+    end
 
 end

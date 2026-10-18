@@ -8,7 +8,7 @@ Roblox script hub by Honami, built on [WindUI](https://github.com/Footagesus/Win
 | --- | --- |
 | Premium Access | Key activation and premium purchase info |
 | Home | Player and server info, links, credits |
-| Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, reflection effect |
+| Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, volumetric clouds, hide sun, reflection effect |
 | Camera | Free camera, spectate, FOV and zoom lock, stabilizers |
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
 | Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, rebindable keyboard shortcuts, Unload Hub |

@@ -138,7 +138,8 @@ LightingModule.Limits = {
     Blur = { Size = {Min = 0, Max = 56} },
     ColorCorrection = { Brightness = {Min = -1, Max = 1}, Contrast = {Min = -1, Max = 1}, Saturation = {Min = -1, Max = 1} },
     DepthOfField = { FarIntensity = {Min = 0, Max = 1}, FocusDistance = {Min = 0, Max = 500}, InFocusRadius = {Min = 0, Max = 50}, NearIntensity = {Min = 0, Max = 1} },
-    SunRays = { Intensity = {Min = 0, Max = 1}, Spread = {Min = 0, Max = 1} }
+    SunRays = { Intensity = {Min = 0, Max = 1}, Spread = {Min = 0, Max = 1} },
+    Clouds = { Cover = {Min = 0, Max = 1}, Density = {Min = 0, Max = 1} }
 }
 
 LightingModule.TrackedProperties = {
@@ -148,7 +149,8 @@ LightingModule.TrackedProperties = {
     Blur = {"Enabled", "Size"},
     ColorCorrection = {"Enabled", "Brightness", "Contrast", "Saturation", "TintColor"},
     DepthOfField = {"Enabled", "FarIntensity", "FocusDistance", "InFocusRadius", "NearIntensity"},
-    SunRays = {"Enabled", "Intensity", "Spread"}
+    SunRays = {"Enabled", "Intensity", "Spread"},
+    Clouds = {"Enabled", "Cover", "Density", "Color"}
 }
 
 LightingModule.SkyboxDatabase = {
@@ -157,6 +159,13 @@ LightingModule.SkyboxDatabase = {
 }
 LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
+LightingModule.SunHidden = false
+
+-- Volumetric clouds: objek Clouds hidup di Workspace.Terrain (bukan di Lighting). Ada paling banyak
+-- satu; kalau game punya sendiri, itu yang dipakai, kalau tidak hub membuat satu (prefix Mugiwara_).
+local function GetTerrain()
+    return workspace:FindFirstChildOfClass("Terrain")
+end
 
 function LightingModule.Init()
     local requiredEffects = { Atmosphere = "Atmosphere", Bloom = "BloomEffect", Blur = "BlurEffect", ColorCorrection = "ColorCorrectionEffect", DepthOfField = "DepthOfFieldEffect", SunRays = "SunRaysEffect" }
@@ -172,6 +181,18 @@ function LightingModule.Init()
             effect.Parent = Lighting
         end
         LightingModule.Objects[key] = effect
+    end
+
+    local terrain = GetTerrain()
+    if terrain then
+        local clouds = terrain:FindFirstChildOfClass("Clouds")
+        if not clouds then
+            clouds = Instance.new("Clouds")
+            clouds.Name = PREFIX .. "Clouds"
+            clouds.Enabled = false
+            clouds.Parent = terrain
+        end
+        LightingModule.Objects.Clouds = clouds
     end
 
     for category, properties in pairs(LightingModule.TrackedProperties) do
@@ -213,6 +234,47 @@ end
 
 function LightingModule.ToggleEffect(category, isEnabled)
     LightingModule.UpdateValue(category, "Enabled", isEnabled)
+end
+
+-- Hide Sun: piringan matahari disembunyikan lewat Sky.SunAngularSize = 0 dan SunTextureId kosong.
+-- Nilainya dijaga tiap frame di loop render (skybox lain, preset, Lock Lighting, atau game bisa
+-- menimpanya). Sun Rays adalah efek terpisah dan tidak ikut disembunyikan.
+local DEFAULT_SUN_SIZE = 21
+local DEFAULT_SUN_TEXTURE = "rbxasset://sky/sun.jpg"
+
+local function GetOrCreateSky()
+    local sky = Lighting:FindFirstChildOfClass("Sky")
+    if not sky then
+        sky = Instance.new("Sky")
+        sky.Name = PREFIX .. "Sky"
+        sky.Parent = Lighting
+    end
+    return sky
+end
+
+-- Ukuran/tekstur matahari yang SEHARUSNYA (tanpa efek Hide Sun): dari skybox aktif, atau default Roblox.
+local function UnhiddenSunValues()
+    local source = LightingModule.ActiveSkybox or LightingModule.DefaultSkybox
+    return (source and source.SunAngularSize) or DEFAULT_SUN_SIZE, (source and source.SunTextureId) or DEFAULT_SUN_TEXTURE
+end
+
+function LightingModule.SetSunHidden(state)
+    state = state == true
+    LightingModule.SunHidden = state
+
+    local sky = state and GetOrCreateSky() or Lighting:FindFirstChildOfClass("Sky")
+    if not sky then return end
+
+    pcall(function()
+        if state then
+            sky.SunAngularSize = 0
+            sky.SunTextureId = ""
+        else
+            local size, texture = UnhiddenSunValues()
+            sky.SunAngularSize = size
+            sky.SunTextureId = texture
+        end
+    end)
 end
 
 function LightingModule.LoadSkybox(id)
@@ -302,9 +364,14 @@ function LightingModule.SavePreset(presetName)
         }
     end
 
+    -- Preset tidak boleh menyimpan matahari yang sedang disembunyikan (Hide Sun adalah toggle sendiri).
+    if LightingModule.SunHidden and dataToSave.CustomSkybox then
+        dataToSave.CustomSkybox.SunAngularSize, dataToSave.CustomSkybox.SunTextureId = UnhiddenSunValues()
+    end
+
     local data = HttpService:JSONEncode(dataToSave)
-    if writefile then 
-        writefile(path, data) 
+    if writefile then
+        writefile(path, data)
         return true, isOverwrite and "Overwrite" or "New"
     end
     return false, "Your executor does not support writefile."
@@ -424,6 +491,9 @@ function LightingModule.CopySkybox()
     local sky = Lighting:FindFirstChildOfClass("Sky")
     if not sky then return false, "This map has no built-in skybox!" end
     local skyData = { SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt, SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp, SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount, CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize }
+    if LightingModule.SunHidden then
+        skyData.SunAngularSize, skyData.SunTextureId = UnhiddenSunValues()
+    end
     if writefile then
         writefile(ROOT .. "/CopiedSky.json", HttpService:JSONEncode(skyData))
         return true, "Skybox copied!"
@@ -485,6 +555,33 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
+    -- Clouds ada di Terrain: satu objek saja. Milik game didahulukan; duplikat buatan hub dihapus.
+    local terrain = GetTerrain()
+    if terrain then
+        local clouds = nil
+        for _, child in ipairs(terrain:GetChildren()) do
+            if child.ClassName == "Clouds" then
+                local isOurs = string.sub(child.Name, 1, #PREFIX) == PREFIX
+                if not clouds then
+                    clouds = child
+                elseif isOurs then
+                    child:Destroy()
+                elseif string.sub(clouds.Name, 1, #PREFIX) == PREFIX then
+                    clouds:Destroy()
+                    clouds = child
+                end
+            end
+        end
+
+        if not clouds and LightingModule.LockEnabled then
+            clouds = Instance.new("Clouds")
+            clouds.Name = PREFIX .. "Clouds"
+            clouds.Enabled = false
+            clouds.Parent = terrain
+        end
+        if clouds then LightingModule.Objects.Clouds = clouds end
+    end
+
     local currentSky = counts["Sky"]
 
     if LightingModule.LockEnabled then
@@ -538,6 +635,15 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
+    -- Hide Sun dijaga tiap frame, setelah Lock Lighting / skybox menimpa nilai matahari.
+    if LightingModule.SunHidden then
+        currentSky = currentSky or GetOrCreateSky()
+        pcall(function()
+            if currentSky.SunAngularSize ~= 0 then currentSky.SunAngularSize = 0 end
+            if currentSky.SunTextureId ~= "" then currentSky.SunTextureId = "" end
+        end)
+    end
+
     if LightingModule.SkyAnimEnabled and currentSky then
         local currentRot = currentSky.SkyboxOrientation
         currentSky.SkyboxOrientation = currentRot + Vector3.new(0, LightingModule.SkyAnimSpeed * deltaTime, 0)
@@ -550,6 +656,7 @@ getgenv().MugiwaraRegisterCleanup(function()
     if renderConnection then renderConnection:Disconnect() renderConnection = nil end
     LightingModule.LockEnabled = false
     LightingModule.SkyAnimEnabled = false
+    LightingModule.SunHidden = false
     LightingModule.OnPresetLoaded = nil
     LightingModule.OnPropertyChanged = nil
     pcall(LightingModule.LoadPreset, "Default")
@@ -557,6 +664,12 @@ getgenv().MugiwaraRegisterCleanup(function()
     -- Hapus objek yang dibuat hub sendiri (prefix Mugiwara_); milik game tidak disentuh.
     for _, child in ipairs(Lighting:GetChildren()) do
         if string.sub(child.Name, 1, #PREFIX) == PREFIX then child:Destroy() end
+    end
+    local terrain = GetTerrain()
+    if terrain then
+        for _, child in ipairs(terrain:GetChildren()) do
+            if child.ClassName == "Clouds" and string.sub(child.Name, 1, #PREFIX) == PREFIX then child:Destroy() end
+        end
     end
 end)
 
