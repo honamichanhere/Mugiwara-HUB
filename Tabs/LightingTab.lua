@@ -147,7 +147,7 @@ return function(Window, isPremiumUser, WindUI)
 
     PremiumSection:Slider({
         Title = "Reflection Intensity",
-        Desc = "How strong the reflection is. Changes the transparency of the real objects relative to each object's own default, and restores it when Reflection Effect is turned off.",
+        Desc = "Reflection strength.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Step = 1,

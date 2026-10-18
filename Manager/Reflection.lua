@@ -1,6 +1,6 @@
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
-ReflectionManager.Transparency = 1 
+ReflectionManager.Transparency = 10 -- sengaja >1: bug engine Roblox yang membuat kaca punya reflection "deep"
 ReflectionManager.Offset = 0.1 
 ReflectionManager.Connections = {}
 ReflectionManager.GlobalModel = nil
