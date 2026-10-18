@@ -11,8 +11,10 @@ ReflectionManager.Intensity = 0 -- 0..1; 0 = objek asli tidak diubah
 -- aslinya 0.5 (kaca, dsb) jadi 0.5 saat intensity 0 dan 1 saat intensity penuh, tidak pernah
 -- lebih rendah dari default-nya. Default dicatat sebelum objek pertama kali diubah dan dipulihkan
 -- saat reflection dimatikan.
-local Defaults = setmetatable({}, { __mode = "k" }) -- part -> transparency asli
-local Applied = setmetatable({}, { __mode = "k" })  -- part -> nilai yang terakhir kita tulis
+-- Tabel di bawah SENGAJA tidak weak: Roblox boleh membuang wrapper Instance yang hanya dipegang
+-- tabel weak, jadi entri bisa hilang diam-diam setelah beberapa saat dan slider berhenti bereaksi.
+local Defaults = {} -- part -> transparency asli
+local Applied = {}  -- part -> nilai yang terakhir kita tulis
 local TOLERANCE = 0.002
 local BATCH_SIZE = 1500
 local applying = false
@@ -86,7 +88,7 @@ local function SetupGlobalModel()
     ReflectionManager.GlobalModel.Parent = workspace
 end
 
-local Layers = setmetatable({}, { __mode = "k" }) -- part asli -> clone reflection-nya
+local Layers = {} -- part asli -> clone reflection-nya
 local layoutApplying = false
 local LAYOUT_BATCH_SIZE = 500
 
@@ -228,6 +230,11 @@ function ReflectionManager.ApplyReflection(part)
             if clone and clone.Parent then
                 clone:Destroy()
             end
+            -- Tabel dipegang kuat (bukan weak): objek yang dihapus dari workspace dibersihkan di sini.
+            pcall(RestorePart, part)
+            Defaults[part] = nil
+            Applied[part] = nil
+            if Layers[part] == clone then Layers[part] = nil end
             if cleanConn then cleanConn:Disconnect() end
         end
     end)
@@ -313,9 +320,9 @@ function ReflectionManager.Toggle(state)
 
         -- Kembalikan transparency objek asli (tanpa yield: cleanup re-execute berjalan sinkron).
         for _, part in ipairs(SnapshotParts()) do RestorePart(part) end
-        Defaults = setmetatable({}, { __mode = "k" })
-        Applied = setmetatable({}, { __mode = "k" })
-        Layers = setmetatable({}, { __mode = "k" })
+        Defaults = {}
+        Applied = {}
+        Layers = {}
 
         if ReflectionManager.GlobalModel then
             ReflectionManager.GlobalModel:Destroy()
