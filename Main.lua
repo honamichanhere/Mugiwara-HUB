@@ -71,21 +71,11 @@ env.MugiwaraImport = function(path)
     return result
 end
 
--- Loading screen dibuat paling awal supaya menutupi seluruh proses (auth, WindUI, tab).
--- Kalau gagal dimuat, hub tetap jalan tanpa loading screen.
+-- Loading screen menutupi proses load hub. Kapan dimulai tergantung ada tidaknya key tersimpan
+-- (lihat StartLoader di bawah). Kalau gagal dimuat, hub tetap jalan tanpa loading screen.
+-- Semua fungsi Loader* aman dipanggil sebelum loading screen dibuat (tidak melakukan apa-apa).
 env.MugiwaraVersion = VERSION
 local Loader = nil
-do
-    local ok, result = pcall(function()
-        return loadstring(game:HttpGet(BASE_URL .. "Manager/LoadingScreen.lua"))()
-    end)
-    if ok and type(result) == "table" then
-        Loader = result
-        env.MugiwaraRegisterCleanup(function() pcall(function() result:Destroy() end) end)
-    elseif not ok then
-        warn("[Mugiwara HUB] Loading screen failed: " .. tostring(result))
-    end
-end
 
 local function LoaderStatus(text)
     if Loader then pcall(function() Loader:SetStatus(text) Loader:Log(text, "info") end) end
@@ -97,10 +87,23 @@ local function LoaderProgress(target, cap)
     if Loader then pcall(function() Loader:SetProgress(target, cap) end) end
 end
 
-LoaderProgress(4, 13)
-
 local function LoaderDestroy()
     if Loader then pcall(function() Loader:Destroy() end) Loader = nil end
+end
+
+local function StartLoader()
+    if Loader then return end
+
+    local ok, result = pcall(function()
+        return loadstring(game:HttpGet(BASE_URL .. "Manager/LoadingScreen.lua"))()
+    end)
+    if ok and type(result) == "table" then
+        Loader = result
+        env.MugiwaraRegisterCleanup(function() pcall(function() result:Destroy() end) end)
+        LoaderProgress(4, 13)
+    elseif not ok then
+        warn("[Mugiwara HUB] Loading screen failed: " .. tostring(result))
+    end
 end
 
 -- Queue the hub for the next teleport once per server. Keying the flag on JobId means a
@@ -150,6 +153,12 @@ if makefolder and isfolder and not isfolder(FOLDER) then makefolder(FOLDER) end
 -- PANDA AUTH PUSL-V4 SYSTEM
 local savedKeyPath = FOLDER .. "/PremiumKey.txt"
 local isPremiumUser = false
+
+-- Key tersimpan = langsung proses load, jadi loading screen tampil dari awal. Tanpa key tersimpan
+-- (perangkat baru) layar key harus muncul lebih dulu; loading screen baru dibuat setelah key
+-- valid dan window dibuat. Kalau key tersimpan ternyata ditolak, loading screen disembunyikan
+-- otomatis saat layar key muncul (lihat sebelum CreateWindow).
+if readfile and isfile and isfile(savedKeyPath) then StartLoader() end
 
 LoaderStatus("Loading Panda Auth")
 local libOk, PUSL = pcall(function() return loadstring(game:HttpGet("https://secure.pandauth.com/pv4/lib"))() end)
@@ -305,6 +314,9 @@ end
 local Window = WindUI:CreateWindow(windowConfig)
 
 if keyScreenConnection then keyScreenConnection:Disconnect() end
+-- Key valid (atau lolos tanpa layar key): kalau loading screen belum dibuat, mulai sekarang
+-- sehingga animasi masuknya terlihat.
+if not Loader then StartLoader() end
 if Loader then
     pcall(function() Loader.Gui.Enabled = true end)
     LoaderProgress(52, 52 + math.floor(18 / 3) - 1)
