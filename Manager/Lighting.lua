@@ -60,6 +60,63 @@ LightingModule.BuiltInPresets = {
                 Spread = 0.1
             }
         }
+    },
+    ["Realistic Sunset"] = {
+        Desc = "Golden hour hangat, fog tipis dari warna skybox.",
+        Skybox = "2573514779",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(105, 85, 92),
+                Brightness = 2.4,
+                ColorShift_Top = Color3.fromRGB(255, 170, 110),
+                ColorShift_Bottom = Color3.fromRGB(70, 50, 80),
+                EnvironmentDiffuseScale = 0.9,
+                EnvironmentSpecularScale = 0.8,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(135, 108, 115),
+                ShadowSoftness = 0.35,
+                ClockTime = 17,
+                GeographicLatitude = 15,
+                ExposureCompensation = -0.1
+            },
+            Atmosphere = {
+                Density = 0.36,
+                Offset = 0.35,
+                Color = Color3.fromRGB(225, 175, 150),
+                Decay = Color3.fromRGB(150, 90, 80),
+                Glare = 0.2,
+                Haze = 0
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 0.5,
+                Size = 24,
+                Threshold = 2.2
+            },
+            Blur = {
+                Enabled = false,
+                Size = 4
+            },
+            ColorCorrection = {
+                Enabled = true,
+                Brightness = 0,
+                Contrast = 0.12,
+                Saturation = -0.05,
+                TintColor = Color3.fromRGB(255, 238, 225)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.08,
+                FocusDistance = 120,
+                InFocusRadius = 60,
+                NearIntensity = 0.1
+            },
+            SunRays = {
+                Enabled = true,
+                Intensity = 0.08,
+                Spread = 0.7
+            }
+        }
     }
 }
 
