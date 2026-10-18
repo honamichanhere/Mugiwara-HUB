@@ -231,7 +231,7 @@ table.insert(connections, animationEvent:Connect(function()
 end))
 
 function Movement.SetAnimSpeed(value)
-    if type(value) ~= "number" or value <= 0 then return end
+    if type(value) ~= "number" or value < 0 then return end
 
     Movement.AnimSpeedValue = value
     Movement.AnimSpeedEnabled = value ~= 1
