@@ -1,7 +1,7 @@
 local ReflectionManager = {}
 ReflectionManager.Enabled = false
 ReflectionManager.Transparency = 10 -- sengaja >1: bug engine Roblox yang membuat kaca punya reflection "deep"
-ReflectionManager.Offset = 0.1 
+ReflectionManager.Offset = 0 -- stud; slider Reflection Offset mulai dari 0
 ReflectionManager.Connections = {}
 ReflectionManager.GlobalModel = nil
 ReflectionManager.Intensity = 0 -- 0..1; 0 = objek asli tidak diubah
@@ -150,22 +150,27 @@ function ReflectionManager.SetOffset(value)
 
     layoutApplying = true
     task.spawn(function()
-        local target
-        repeat
-            target = ReflectionManager.Offset
-            local parts = {}
-            for part in pairs(Layers) do parts[#parts + 1] = part end
+        -- pcall + reset flag di luar: error di tengah loop tidak boleh meninggalkan flag menyala,
+        -- kalau tidak slider berhenti bereaksi sampai toggle dimatikan lalu dinyalakan lagi.
+        local ok, err = pcall(function()
+            local target
+            repeat
+                target = ReflectionManager.Offset
+                local parts = {}
+                for part in pairs(Layers) do parts[#parts + 1] = part end
 
-            for index, part in ipairs(parts) do
-                if ReflectionManager.Offset ~= target then break end
-                local clone = Layers[part]
-                if clone and clone.Parent and part.Parent then
-                    pcall(RelayoutClone, part, clone)
+                for index, part in ipairs(parts) do
+                    if ReflectionManager.Offset ~= target then break end
+                    local clone = Layers[part]
+                    if clone and clone.Parent and part.Parent then
+                        pcall(RelayoutClone, part, clone)
+                    end
+                    if index % LAYOUT_BATCH_SIZE == 0 then task.wait() end
                 end
-                if index % LAYOUT_BATCH_SIZE == 0 then task.wait() end
-            end
-        until target == ReflectionManager.Offset or not ReflectionManager.GlobalModel
+            until target == ReflectionManager.Offset or not ReflectionManager.GlobalModel
+        end)
         layoutApplying = false
+        if not ok then warn("[Mugiwara HUB] Reflection offset error: " .. tostring(err)) end
     end)
 end
 
@@ -237,16 +242,20 @@ function ReflectionManager.SetIntensity(value)
 
     applying = true
     task.spawn(function()
-        local target
-        repeat
-            target = ReflectionManager.Intensity
-            for index, part in ipairs(SnapshotParts()) do
-                if ReflectionManager.Intensity ~= target then break end
-                ApplyIntensity(part)
-                if index % BATCH_SIZE == 0 then task.wait() end
-            end
-        until target == ReflectionManager.Intensity or not ReflectionManager.GlobalModel
+        -- Lihat catatan di SetOffset: flag harus selalu di-reset walau ada error.
+        local ok, err = pcall(function()
+            local target
+            repeat
+                target = ReflectionManager.Intensity
+                for index, part in ipairs(SnapshotParts()) do
+                    if ReflectionManager.Intensity ~= target then break end
+                    pcall(ApplyIntensity, part)
+                    if index % BATCH_SIZE == 0 then task.wait() end
+                end
+            until target == ReflectionManager.Intensity or not ReflectionManager.GlobalModel
+        end)
         applying = false
+        if not ok then warn("[Mugiwara HUB] Reflection intensity error: " .. tostring(err)) end
     end)
 end
 

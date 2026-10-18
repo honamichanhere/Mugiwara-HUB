@@ -161,7 +161,7 @@ return function(Window, isPremiumUser, WindUI)
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Step = 1,
-        Value = { Min = 0, Max = 100, Default = 5 }, -- 0-100 = 0-2 stud; 5 = 0.1 stud (bawaan lama)
+        Value = { Min = 0, Max = 100, Default = 0 }, -- 0-100 = 0-2 stud
         Callback = function(Value) ReflectionModule.SetOffset(Value / 100 * 2) end
     })
 
