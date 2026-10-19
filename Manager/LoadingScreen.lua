@@ -159,10 +159,10 @@ local ScreenGui = create("ScreenGui", {
     Parent = guiParent,
 })
 
--- backdrop hampir opak supaya window hub di belakangnya (yang dibangun tab demi tab) tidak kelihatan.
+-- backdrop transparan seperti desain awal (0.35). Window hub di belakangnya (yang dibangun tab demi tab) terlihat samar di balik backdrop ini.
 -- INSTANT_COVER: dipasang Main.lua kalau loading screen dibuat belakangan (perangkat baru, setelah
 -- key valid), jadi layar langsung tertutup tanpa fade.
-local COVER_TRANSPARENCY = 0.04
+local COVER_TRANSPARENCY = 0.35
 local INSTANT_COVER = (getgenv and getgenv().MugiwaraLoaderInstantCover) == true
 
 -- background gelap full layar
