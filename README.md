@@ -8,7 +8,7 @@ Roblox script hub by Honami, built on [WindUI](https://github.com/Footagesus/Win
 | --- | --- |
 | Premium Access | Key activation and premium purchase info |
 | Home | Player and server info, links, credits |
-| Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, volumetric clouds, hide sun, reflection effect |
+| Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, volumetric clouds, hide sun |
 | Camera | Free camera, spectate, FOV and zoom lock, stabilizers |
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
 | Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, rebindable keyboard shortcuts, Unload Hub |
@@ -21,7 +21,7 @@ Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm wit
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
 Tabs/                    UI tabs (Home, Lighting, Camera, Misc, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection, Server, Keybinds, Cursor)
+Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 

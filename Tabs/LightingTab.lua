@@ -1,5 +1,4 @@
 local LightingModule = getgenv().MugiwaraImport("Manager/Lighting.lua")
-local ReflectionModule = getgenv().MugiwaraImport("Manager/Reflection.lua")
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -125,44 +124,6 @@ return function(Window, isPremiumUser, WindUI)
             local success, msg = LightingModule.PasteSkybox()
             WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
         end
-    })
-
-
-    PremiumSection:Toggle({
-        Title = "Reflection Effect",
-        Desc = "Create deep reflections on objects.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function(Value)
-            if Value then
-                WindUI:Notify({ Title = "Processing", Content = "Generating reflection layers. Please wait...", Duration = 3 })
-            else
-                WindUI:Notify({ Title = "Cleaning Up", Content = "Removing reflection layers...", Duration = 3 })
-            end
-            task.spawn(function()
-                ReflectionModule.Toggle(Value)
-            end)
-        end
-    })
-
-    PremiumSection:Slider({
-        Title = "Reflection Intensity",
-        Desc = "Reflection strength.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Step = 1,
-        Value = { Min = 0, Max = 100, Default = 0 },
-        Callback = function(Value) ReflectionModule.SetIntensity(Value / 100) end
-    })
-
-    PremiumSection:Slider({
-        Title = "Reflection Offset",
-        Desc = "Reflection layer size offset.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Step = 1,
-        Value = { Min = 0, Max = 100, Default = 0 }, -- 0-100 = 0-2 stud
-        Callback = function(Value) ReflectionModule.SetOffset(Value / 100 * 2) end
     })
 
     TabLighting:Divider({ Title = "System Control" })
