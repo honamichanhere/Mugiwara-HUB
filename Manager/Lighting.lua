@@ -283,6 +283,74 @@ function LightingModule.SetSunHidden(state)
     end)
 end
 
+-- ---------- Sinkron nilai milik game ----------
+-- TargetValues / Defaults / ActiveSkybox adalah snapshot. Snapshot yang basi lalu dipaksakan oleh
+-- Lock Lighting membuat langit atau efek berubah sendiri, jadi snapshot diambil ulang saat perlu.
+
+local function SnapshotSky(sky)
+    local snapshot = {
+        SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt,
+        SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp,
+        SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount,
+        CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize
+    }
+    -- Matahari yang sedang disembunyikan tidak boleh ikut tersimpan sebagai nilai aslinya.
+    if LightingModule.SunHidden then
+        snapshot.SunAngularSize, snapshot.SunTextureId, snapshot.CelestialBodiesShown = UnhiddenSunValues()
+    end
+    return snapshot
+end
+
+-- Ambil nilai objek yang sekarang untuk satu kategori. updateDefaults = true juga memperbarui nilai
+-- default (dipakai preset "Default" dan pemulihan saat hub di-unload). UI diberi tahu lewat OnPropertyChanged.
+local function ResyncCategory(category, updateDefaults, notify)
+    local obj = LightingModule.Objects[category]
+    local properties = LightingModule.TrackedProperties[category]
+    if not obj or not properties then return end
+
+    LightingModule.TargetValues[category] = LightingModule.TargetValues[category] or {}
+    LightingModule.Defaults[category] = LightingModule.Defaults[category] or {}
+
+    for _, propName in ipairs(properties) do
+        local ok, value = pcall(function() return obj[propName] end)
+        if ok and value ~= nil then
+            LightingModule.TargetValues[category][propName] = value
+            if updateDefaults then LightingModule.Defaults[category][propName] = value end
+            if notify and LightingModule.OnPropertyChanged then
+                pcall(LightingModule.OnPropertyChanged, category, propName, value)
+            end
+        end
+    end
+end
+
+-- Objek untuk satu kategori diganti. Kalau yang lama buatan hub (prefix Mugiwara_) dan yang baru milik
+-- game, nilai milik game yang dipakai; snapshot lama dari objek buatan hub tidak boleh ditimpakan
+-- ke objek game (itu yang membuat awan/efek game berubah sendiri saat Lock Lighting menyala).
+local function AdoptObject(category, newObj)
+    local previous = LightingModule.Objects[category]
+    if previous == newObj then return end
+    LightingModule.Objects[category] = newObj
+
+    if previous and string.sub(previous.Name, 1, #PREFIX) == PREFIX and string.sub(newObj.Name, 1, #PREFIX) ~= PREFIX then
+        ResyncCategory(category, true, true)
+    end
+end
+
+-- Lock Lighting. Saat dinyalakan, kondisi yang sedang terlihat diambil dulu supaya yang dikunci adalah
+-- tampilan sekarang, bukan snapshot lama dari saat hub di-execute.
+function LightingModule.SetLock(state)
+    state = state == true
+    if state and not LightingModule.LockEnabled then
+        for category in pairs(LightingModule.TrackedProperties) do
+            ResyncCategory(category, false, false)
+        end
+
+        local sky = Lighting:FindFirstChildOfClass("Sky")
+        if sky then LightingModule.ActiveSkybox = SnapshotSky(sky) end
+    end
+    LightingModule.LockEnabled = state
+end
+
 function LightingModule.LoadSkybox(id)
     id = tostring(id or ""):match("^%s*(%d+)%s*$") -- hanya angka; buang input aneh
     if not id then return end
@@ -548,7 +616,7 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
     local trackedClasses = { Atmosphere = "Atmosphere", Bloom = "BloomEffect", Blur = "BlurEffect", ColorCorrection = "ColorCorrectionEffect", DepthOfField = "DepthOfFieldEffect", SunRays = "SunRaysEffect" }
     for cat, clsName in pairs(trackedClasses) do
         if counts[clsName] then
-            LightingModule.Objects[cat] = counts[clsName]
+            AdoptObject(cat, counts[clsName])
         else
             if LightingModule.LockEnabled then
                 local newObj = Instance.new(clsName)
@@ -585,7 +653,7 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
             clouds.Enabled = false
             clouds.Parent = terrain
         end
-        if clouds then LightingModule.Objects.Clouds = clouds end
+        if clouds then AdoptObject("Clouds", clouds) end
     end
 
     local currentSky = counts["Sky"]
