@@ -161,10 +161,48 @@ LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
 LightingModule.SunHidden = false
 
--- Volumetric clouds: objek Clouds hidup di Workspace.Terrain (bukan di Lighting). Ada paling banyak
--- satu; kalau game punya sendiri, itu yang dipakai, kalau tidak hub membuat satu (prefix Mugiwara_).
+-- Volumetric clouds: objek Clouds hidup di Workspace.Terrain (bukan di Lighting). Hanya satu objek
+-- yang dipakai dan itu SELALU buatan hub (Mugiwara_Clouds, default Enabled = false). Clouds milik game
+-- (yang bisa membawa attribute/skrip lokal yang menimpa nilainya) dibuang begitu ketemu, termasuk yang
+-- muncul belakangan; objeknya disimpan (clone) dan dikembalikan saat hub di-unload.
 local function GetTerrain()
     return workspace:FindFirstChildOfClass("Terrain")
+end
+
+local function IsOurs(instance)
+    return string.sub(instance.Name, 1, #PREFIX) == PREFIX
+end
+
+LightingModule.RemovedClouds = nil -- clone Clouds milik game pertama yang dibuang
+
+local function RemoveForeignClouds(child)
+    if not LightingModule.RemovedClouds then
+        pcall(function()
+            local wasArchivable = child.Archivable
+            child.Archivable = true
+            LightingModule.RemovedClouds = child:Clone()
+            child.Archivable = wasArchivable
+        end)
+    end
+    child:Destroy()
+end
+
+-- Membuat Clouds hub. Kalau user sudah mengatur nilainya (TargetValues), nilai itu dipasang lagi
+-- supaya pengaturan tidak hilang saat objeknya dibuat ulang.
+local function CreateOurClouds(terrain)
+    local clouds = Instance.new("Clouds")
+    clouds.Name = PREFIX .. "Clouds"
+    clouds.Enabled = false
+
+    local target = LightingModule.TargetValues.Clouds
+    if target then
+        for propName, value in pairs(target) do
+            pcall(function() clouds[propName] = value end)
+        end
+    end
+
+    clouds.Parent = terrain
+    return clouds
 end
 
 function LightingModule.Init()
@@ -185,14 +223,19 @@ function LightingModule.Init()
 
     local terrain = GetTerrain()
     if terrain then
-        local clouds = terrain:FindFirstChildOfClass("Clouds")
-        if not clouds then
-            clouds = Instance.new("Clouds")
-            clouds.Name = PREFIX .. "Clouds"
-            clouds.Enabled = false
-            clouds.Parent = terrain
+        local ours = nil
+        for _, child in ipairs(terrain:GetChildren()) do
+            if child.ClassName == "Clouds" then
+                if IsOurs(child) and not ours then
+                    ours = child
+                elseif IsOurs(child) then
+                    child:Destroy()
+                else
+                    RemoveForeignClouds(child)
+                end
+            end
         end
-        LightingModule.Objects.Clouds = clouds
+        LightingModule.Objects.Clouds = ours or CreateOurClouds(terrain)
     end
 
     for category, properties in pairs(LightingModule.TrackedProperties) do
@@ -629,31 +672,24 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
-    -- Clouds ada di Terrain: satu objek saja. Milik game didahulukan; duplikat buatan hub dihapus.
+    -- Clouds ada di Terrain: hanya satu, dan harus buatan hub. Clouds asing (milik game, termasuk yang
+    -- baru muncul atau menggantikan yang lama) langsung dibuang; kalau punya hub hilang, dibuat lagi
+    -- dengan nilai yang sudah diatur user.
     local terrain = GetTerrain()
     if terrain then
-        local clouds = nil
+        local ours = nil
         for _, child in ipairs(terrain:GetChildren()) do
             if child.ClassName == "Clouds" then
-                local isOurs = string.sub(child.Name, 1, #PREFIX) == PREFIX
-                if not clouds then
-                    clouds = child
-                elseif isOurs then
+                if IsOurs(child) and not ours then
+                    ours = child
+                elseif IsOurs(child) then
                     child:Destroy()
-                elseif string.sub(clouds.Name, 1, #PREFIX) == PREFIX then
-                    clouds:Destroy()
-                    clouds = child
+                else
+                    RemoveForeignClouds(child)
                 end
             end
         end
-
-        if not clouds and LightingModule.LockEnabled then
-            clouds = Instance.new("Clouds")
-            clouds.Name = PREFIX .. "Clouds"
-            clouds.Enabled = false
-            clouds.Parent = terrain
-        end
-        if clouds then AdoptObject("Clouds", clouds) end
+        LightingModule.Objects.Clouds = ours or CreateOurClouds(terrain)
     end
 
     local currentSky = counts["Sky"]
@@ -744,6 +780,13 @@ getgenv().MugiwaraRegisterCleanup(function()
     if terrain then
         for _, child in ipairs(terrain:GetChildren()) do
             if child.ClassName == "Clouds" and string.sub(child.Name, 1, #PREFIX) == PREFIX then child:Destroy() end
+        end
+
+        -- Kembalikan Clouds milik game yang tadi dibuang (kalau belum ada Clouds lain di Terrain).
+        local removed = LightingModule.RemovedClouds
+        LightingModule.RemovedClouds = nil
+        if removed and not terrain:FindFirstChildOfClass("Clouds") then
+            pcall(function() removed.Parent = terrain end)
         end
     end
 end)
