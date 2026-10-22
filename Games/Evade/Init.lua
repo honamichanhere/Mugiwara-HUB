@@ -2,6 +2,7 @@ local VisualAccModule = getgenv().MugiwaraImport("Games/Evade/VisualAccessories.
 local AvatarChangerModule = getgenv().MugiwaraImport("Games/Evade/AvatarChanger.lua")
 local TicketFarmModule = getgenv().MugiwaraImport("Games/Evade/TicketFarm.lua")
 local AfkFarmUI = getgenv().MugiwaraImport("Games/Evade/AfkFarmUI.lua")
+local Risk = getgenv().MugiwaraImport("Manager/Risk.lua") or { Desc = function(_, text) return text end, Warn = function() end }
 
 return function(Window, isPremiumUser, WindUI)
     
@@ -169,16 +170,18 @@ return function(Window, isPremiumUser, WindUI)
 
         FarmSection:Toggle({
             Title = "Auto Farm Tickets",
-            Desc = "Teleports to each Halloween ticket and waits until it is collected. When no tickets are left you stay put and can move freely.",
+            Desc = Risk.Desc("TicketFarm", "Teleports to each Halloween ticket and waits until it is collected. When no tickets are left you stay put and can move freely."),
             Callback = function(Value)
+                Risk.Warn(WindUI, "TicketFarm", Value)
                 TicketFarmModule.SetFarm(Value)
             end
         })
 
         FarmSection:Toggle({
             Title = "Avoid NextBots",
-            Desc = "Teleports you to a safe item spawn whenever a NextBot gets too close. Also skips tickets that are next to a NextBot.",
+            Desc = Risk.Desc("AvoidNextBots", "Teleports you to a safe item spawn whenever a NextBot gets too close. Also skips tickets that are next to a NextBot."),
             Callback = function(Value)
+                Risk.Warn(WindUI, "AvoidNextBots", Value)
                 TicketFarmModule.SetAvoid(Value)
             end
         })

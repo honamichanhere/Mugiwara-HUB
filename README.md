@@ -21,7 +21,7 @@ Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm wit
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
 Tabs/                    UI tabs (Home, Lighting, Camera, Misc, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor)
+Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 
@@ -142,3 +142,11 @@ Hooked in `Main.lua` with
 `Window:OnOpen` and `Window:OnClose`; can be turned off with Misc > Hub > Free Cursor When Open.
 Misc > Hub > Lock Cursor releases the free-cursor override and locks the mouse to the centre
 immediately; it is free again the next time the window is opened.
+
+## Risk markers
+
+`Manager/Risk.lua` lists the features that are easy for the game (Evade) to detect because position, speed
+and remote calls are checked server-side: Speed Hack, Tween Speed, Jump Power, Infinite Jump, Fly, Noclip,
+AFK Farm, Auto Execute (Auto Commands), Auto Farm Tickets and Avoid NextBots. Their description starts with
+`[HIGH RISK]` and turning one ON shows a warning notification with the reason. Nothing is blocked; it only
+marks and warns. Visual features (Lighting, Korless, camera, ...) only change the client's view and are not marked.
