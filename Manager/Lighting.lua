@@ -117,6 +117,63 @@ LightingModule.BuiltInPresets = {
                 Spread = 0.7
             }
         }
+    },
+    ["Anime Blue"] = {
+        Desc = "Langit biru royal ala anime, cumulus besar, warna pekat.",
+        Skybox = "110030232333507",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(110, 135, 185),
+                Brightness = 2.8,
+                ColorShift_Top = Color3.fromRGB(255, 235, 200),
+                ColorShift_Bottom = Color3.fromRGB(90, 130, 210),
+                EnvironmentDiffuseScale = 1,
+                EnvironmentSpecularScale = 1,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(125, 155, 215),
+                ShadowSoftness = 0.25,
+                ClockTime = 13.5,
+                GeographicLatitude = 0,
+                ExposureCompensation = 0.05
+            },
+            Atmosphere = {
+                Density = 0.12,
+                Offset = 0.25,
+                Color = Color3.fromRGB(150, 190, 255),
+                Decay = Color3.fromRGB(80, 125, 215),
+                Glare = 0,
+                Haze = 0
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 0.35,
+                Size = 26,
+                Threshold = 2.4
+            },
+            Blur = {
+                Enabled = false,
+                Size = 4
+            },
+            ColorCorrection = {
+                Enabled = true,
+                Brightness = 0.02,
+                Contrast = 0.1,
+                Saturation = 0.3,
+                TintColor = Color3.fromRGB(242, 247, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.1,
+                FocusDistance = 100,
+                InFocusRadius = 60,
+                NearIntensity = 0.1
+            },
+            SunRays = {
+                Enabled = true,
+                Intensity = 0.06,
+                Spread = 0.8
+            }
+        }
     }
 }
 
@@ -161,10 +218,48 @@ LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
 LightingModule.SunHidden = false
 
--- Volumetric clouds: objek Clouds hidup di Workspace.Terrain (bukan di Lighting). Ada paling banyak
--- satu; kalau game punya sendiri, itu yang dipakai, kalau tidak hub membuat satu (prefix Mugiwara_).
+-- Volumetric clouds: objek Clouds hidup di Workspace.Terrain (bukan di Lighting). Hanya satu objek
+-- yang dipakai dan itu SELALU buatan hub (Mugiwara_Clouds, default Enabled = false). Clouds milik game
+-- (yang bisa membawa attribute/skrip lokal yang menimpa nilainya) dibuang begitu ketemu, termasuk yang
+-- muncul belakangan; objeknya disimpan (clone) dan dikembalikan saat hub di-unload.
 local function GetTerrain()
     return workspace:FindFirstChildOfClass("Terrain")
+end
+
+local function IsOurs(instance)
+    return string.sub(instance.Name, 1, #PREFIX) == PREFIX
+end
+
+LightingModule.RemovedClouds = nil -- clone Clouds milik game pertama yang dibuang
+
+local function RemoveForeignClouds(child)
+    if not LightingModule.RemovedClouds then
+        pcall(function()
+            local wasArchivable = child.Archivable
+            child.Archivable = true
+            LightingModule.RemovedClouds = child:Clone()
+            child.Archivable = wasArchivable
+        end)
+    end
+    child:Destroy()
+end
+
+-- Membuat Clouds hub. Kalau user sudah mengatur nilainya (TargetValues), nilai itu dipasang lagi
+-- supaya pengaturan tidak hilang saat objeknya dibuat ulang.
+local function CreateOurClouds(terrain)
+    local clouds = Instance.new("Clouds")
+    clouds.Name = PREFIX .. "Clouds"
+    clouds.Enabled = false
+
+    local target = LightingModule.TargetValues.Clouds
+    if target then
+        for propName, value in pairs(target) do
+            pcall(function() clouds[propName] = value end)
+        end
+    end
+
+    clouds.Parent = terrain
+    return clouds
 end
 
 function LightingModule.Init()
@@ -185,14 +280,19 @@ function LightingModule.Init()
 
     local terrain = GetTerrain()
     if terrain then
-        local clouds = terrain:FindFirstChildOfClass("Clouds")
-        if not clouds then
-            clouds = Instance.new("Clouds")
-            clouds.Name = PREFIX .. "Clouds"
-            clouds.Enabled = false
-            clouds.Parent = terrain
+        local ours = nil
+        for _, child in ipairs(terrain:GetChildren()) do
+            if child.ClassName == "Clouds" then
+                if IsOurs(child) and not ours then
+                    ours = child
+                elseif IsOurs(child) then
+                    child:Destroy()
+                else
+                    RemoveForeignClouds(child)
+                end
+            end
         end
-        LightingModule.Objects.Clouds = clouds
+        LightingModule.Objects.Clouds = ours or CreateOurClouds(terrain)
     end
 
     for category, properties in pairs(LightingModule.TrackedProperties) do
@@ -281,6 +381,74 @@ function LightingModule.SetSunHidden(state)
             sky.SunTextureId = texture
         end
     end)
+end
+
+-- ---------- Sinkron nilai milik game ----------
+-- TargetValues / Defaults / ActiveSkybox adalah snapshot. Snapshot yang basi lalu dipaksakan oleh
+-- Lock Lighting membuat langit atau efek berubah sendiri, jadi snapshot diambil ulang saat perlu.
+
+local function SnapshotSky(sky)
+    local snapshot = {
+        SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt,
+        SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp,
+        SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount,
+        CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize
+    }
+    -- Matahari yang sedang disembunyikan tidak boleh ikut tersimpan sebagai nilai aslinya.
+    if LightingModule.SunHidden then
+        snapshot.SunAngularSize, snapshot.SunTextureId, snapshot.CelestialBodiesShown = UnhiddenSunValues()
+    end
+    return snapshot
+end
+
+-- Ambil nilai objek yang sekarang untuk satu kategori. updateDefaults = true juga memperbarui nilai
+-- default (dipakai preset "Default" dan pemulihan saat hub di-unload). UI diberi tahu lewat OnPropertyChanged.
+local function ResyncCategory(category, updateDefaults, notify)
+    local obj = LightingModule.Objects[category]
+    local properties = LightingModule.TrackedProperties[category]
+    if not obj or not properties then return end
+
+    LightingModule.TargetValues[category] = LightingModule.TargetValues[category] or {}
+    LightingModule.Defaults[category] = LightingModule.Defaults[category] or {}
+
+    for _, propName in ipairs(properties) do
+        local ok, value = pcall(function() return obj[propName] end)
+        if ok and value ~= nil then
+            LightingModule.TargetValues[category][propName] = value
+            if updateDefaults then LightingModule.Defaults[category][propName] = value end
+            if notify and LightingModule.OnPropertyChanged then
+                pcall(LightingModule.OnPropertyChanged, category, propName, value)
+            end
+        end
+    end
+end
+
+-- Objek untuk satu kategori diganti. Kalau yang lama buatan hub (prefix Mugiwara_) dan yang baru milik
+-- game, nilai milik game yang dipakai; snapshot lama dari objek buatan hub tidak boleh ditimpakan
+-- ke objek game (itu yang membuat awan/efek game berubah sendiri saat Lock Lighting menyala).
+local function AdoptObject(category, newObj)
+    local previous = LightingModule.Objects[category]
+    if previous == newObj then return end
+    LightingModule.Objects[category] = newObj
+
+    if previous and string.sub(previous.Name, 1, #PREFIX) == PREFIX and string.sub(newObj.Name, 1, #PREFIX) ~= PREFIX then
+        ResyncCategory(category, true, true)
+    end
+end
+
+-- Lock Lighting. Saat dinyalakan, kondisi yang sedang terlihat diambil dulu supaya yang dikunci adalah
+-- tampilan sekarang, bukan snapshot lama dari saat hub di-execute.
+function LightingModule.SetLock(state)
+    state = state == true
+    if state and not LightingModule.LockEnabled then
+        for category in pairs(LightingModule.TrackedProperties) do
+            ResyncCategory(category, false, false)
+        end
+
+        local sky = Lighting:FindFirstChildOfClass("Sky")
+        if sky then LightingModule.ActiveSkybox = SnapshotSky(sky) end
+    end
+    LightingModule.LockEnabled = state
 end
 
 function LightingModule.LoadSkybox(id)
@@ -548,7 +716,7 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
     local trackedClasses = { Atmosphere = "Atmosphere", Bloom = "BloomEffect", Blur = "BlurEffect", ColorCorrection = "ColorCorrectionEffect", DepthOfField = "DepthOfFieldEffect", SunRays = "SunRaysEffect" }
     for cat, clsName in pairs(trackedClasses) do
         if counts[clsName] then
-            LightingModule.Objects[cat] = counts[clsName]
+            AdoptObject(cat, counts[clsName])
         else
             if LightingModule.LockEnabled then
                 local newObj = Instance.new(clsName)
@@ -561,31 +729,24 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
-    -- Clouds ada di Terrain: satu objek saja. Milik game didahulukan; duplikat buatan hub dihapus.
+    -- Clouds ada di Terrain: hanya satu, dan harus buatan hub. Clouds asing (milik game, termasuk yang
+    -- baru muncul atau menggantikan yang lama) langsung dibuang; kalau punya hub hilang, dibuat lagi
+    -- dengan nilai yang sudah diatur user.
     local terrain = GetTerrain()
     if terrain then
-        local clouds = nil
+        local ours = nil
         for _, child in ipairs(terrain:GetChildren()) do
             if child.ClassName == "Clouds" then
-                local isOurs = string.sub(child.Name, 1, #PREFIX) == PREFIX
-                if not clouds then
-                    clouds = child
-                elseif isOurs then
+                if IsOurs(child) and not ours then
+                    ours = child
+                elseif IsOurs(child) then
                     child:Destroy()
-                elseif string.sub(clouds.Name, 1, #PREFIX) == PREFIX then
-                    clouds:Destroy()
-                    clouds = child
+                else
+                    RemoveForeignClouds(child)
                 end
             end
         end
-
-        if not clouds and LightingModule.LockEnabled then
-            clouds = Instance.new("Clouds")
-            clouds.Name = PREFIX .. "Clouds"
-            clouds.Enabled = false
-            clouds.Parent = terrain
-        end
-        if clouds then LightingModule.Objects.Clouds = clouds end
+        LightingModule.Objects.Clouds = ours or CreateOurClouds(terrain)
     end
 
     local currentSky = counts["Sky"]
@@ -676,6 +837,13 @@ getgenv().MugiwaraRegisterCleanup(function()
     if terrain then
         for _, child in ipairs(terrain:GetChildren()) do
             if child.ClassName == "Clouds" and string.sub(child.Name, 1, #PREFIX) == PREFIX then child:Destroy() end
+        end
+
+        -- Kembalikan Clouds milik game yang tadi dibuang (kalau belum ada Clouds lain di Terrain).
+        local removed = LightingModule.RemovedClouds
+        LightingModule.RemovedClouds = nil
+        if removed and not terrain:FindFirstChildOfClass("Clouds") then
+            pcall(function() removed.Parent = terrain end)
         end
     end
 end)

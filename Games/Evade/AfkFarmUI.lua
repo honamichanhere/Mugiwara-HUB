@@ -1,5 +1,6 @@
 local AfkFarm = getgenv().MugiwaraImport("Games/Evade/AfkFarm.lua")
 local VIPCommands = getgenv().MugiwaraImport("Games/Evade/VIPCommands.lua")
+local Risk = getgenv().MugiwaraImport("Manager/Risk.lua") or { Desc = function(_, text) return text end, Warn = function() end }
 
 -- Dua bagian UI, dipanggil terpisah oleh Init.lua supaya urutan section bisa diatur di sana:
 --   BuildFarm(Section, ...)    : AFK Farm (premium), ditaruh di dalam section Premium Features
@@ -21,11 +22,12 @@ function UI.BuildFarm(Section, isPremiumUser, WindUI)
 
     Section:Toggle({
         Title = "AFK Farm",
-        Desc = "Hold the AFK spot, floating with Fly.",
+        Desc = Risk.Desc("AfkFarm", "Hold the AFK spot, floating with Fly."),
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Value = false,
         Callback = function(Value)
+            Risk.Warn(WindUI, "AfkFarm", Value)
             AfkFarm.SetFarm(Value)
         end
     })
@@ -97,9 +99,10 @@ function UI.BuildCommands(TabMain, isPremiumUser, WindUI)
 
     Section:Toggle({
         Title = "Auto Execute",
-        Desc = "Send each event's command when its trigger happens.",
+        Desc = Risk.Desc("AutoCommands", "Send each event's command when its trigger happens."),
         Value = false,
         Callback = function(Value)
+            Risk.Warn(WindUI, "AutoCommands", Value)
             AfkFarm.SetAutoExec(Value)
         end
     })
