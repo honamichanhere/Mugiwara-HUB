@@ -117,6 +117,63 @@ LightingModule.BuiltInPresets = {
                 Spread = 0.7
             }
         }
+    },
+    ["Anime Blue"] = {
+        Desc = "Langit biru royal ala anime, cumulus besar, warna pekat.",
+        Skybox = "110030232333507",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(110, 135, 185),
+                Brightness = 2.8,
+                ColorShift_Top = Color3.fromRGB(255, 235, 200),
+                ColorShift_Bottom = Color3.fromRGB(90, 130, 210),
+                EnvironmentDiffuseScale = 1,
+                EnvironmentSpecularScale = 1,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(125, 155, 215),
+                ShadowSoftness = 0.25,
+                ClockTime = 13.5,
+                GeographicLatitude = 0,
+                ExposureCompensation = 0.05
+            },
+            Atmosphere = {
+                Density = 0.12,
+                Offset = 0.25,
+                Color = Color3.fromRGB(150, 190, 255),
+                Decay = Color3.fromRGB(80, 125, 215),
+                Glare = 0,
+                Haze = 0
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 0.35,
+                Size = 26,
+                Threshold = 2.4
+            },
+            Blur = {
+                Enabled = false,
+                Size = 4
+            },
+            ColorCorrection = {
+                Enabled = true,
+                Brightness = 0.02,
+                Contrast = 0.1,
+                Saturation = 0.3,
+                TintColor = Color3.fromRGB(242, 247, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.1,
+                FocusDistance = 100,
+                InFocusRadius = 60,
+                NearIntensity = 0.1
+            },
+            SunRays = {
+                Enabled = true,
+                Intensity = 0.06,
+                Spread = 0.8
+            }
+        }
     }
 }
 
