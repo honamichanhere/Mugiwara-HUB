@@ -258,12 +258,35 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- AFK FARM (tahan di koordinat AFK memakai Fly)
+-- AFK FARM (tempat AFK kecil 50x50 di koordinat AFK)
 -- ==========================================
+-- Saat dinyalakan, tempat AFK dibangun dulu (beberapa detik) di koordinat target, baru karakter
+-- dipindahkan ke atasnya dan duduk. Karakter tidak disentuh selama tempat itu dibangun, jadi tidak
+-- ada saat karakter berada di udara tanpa lantai. Kalau tempatnya terhapus atau di-refresh game,
+-- tempat itu dibangun ulang selama farm masih menyala; saat farm dimatikan semuanya dibersihkan.
+-- Semua bagian adalah Part buatan client (Instance.new), jadi hanya terlihat di layar sendiri.
 AfkFarm.FarmEnabled = false
+AfkFarm.OnStatus = nil -- diisi UI: function(message)
+
+local SPOT_NAME = "MugiwaraAfkSpot"
+local SPOT_SIZE = 50        -- studs, persegi
+local STAND_OFFSET = 3      -- jarak HumanoidRootPart ke lantai saat berdiri; lantai = target - ini
+local SEAT_TOP = 1.6        -- tinggi permukaan dudukan di atas lantai
+local BUILD_STEP = 0.3      -- detik per tahap saat membangun
+
+local ACCENT = Color3.fromRGB(255, 214, 120)
+local WARM = Color3.fromRGB(255, 226, 170)
+
+local TweenService = game:GetService("TweenService")
 
 local heldPosition = nil -- dipakai kalau belum ada koordinat tersimpan
-local flyOwned = false   -- true kalau Fly dinyalakan oleh modul ini
+local spot = nil         -- { Model, Seat, Floor, Base, Target, Count, Connections, Closing }
+local building = false   -- true selama tempat sedang dibangun (karakter belum dipindah)
+local buildToken = 0     -- naik tiap ada permintaan baru / farm dimatikan; membatalkan build lama
+local buildFailed = false
+local flyOwned = false   -- cadangan: Fly dipakai kalau tempat gagal dibangun
+
+local Maintain -- didefinisikan di bawah
 
 local function GetRoot()
     local character = LocalPlayer.Character
@@ -281,6 +304,10 @@ local function SetFly(state)
     else
         Movement.ToggleFly(state)
     end
+end
+
+local function Status(message)
+    if AfkFarm.OnStatus then pcall(AfkFarm.OnStatus, message) end
 end
 
 function AfkFarm.GetPosition()
@@ -328,16 +355,341 @@ function AfkFarm.UseCurrentPosition()
     return true, AfkFarm.FormatPosition()
 end
 
+-- ------------------------------------------
+-- Membangun tempat AFK
+-- ------------------------------------------
+local function DestroySpot()
+    local current = spot
+    spot = nil
+    if not current then return end
+
+    current.Closing = true
+    for _, connection in ipairs(current.Connections or {}) do pcall(function() connection:Disconnect() end) end
+    pcall(function() current.Model:Destroy() end)
+end
+
+-- animated: tahap demi tahap dengan efek muncul (dipakai saat pertama dibangun); false = sekaligus
+-- (dipakai saat membangun ulang, supaya karakter tidak lama tanpa lantai).
+-- cancelled: function() -> true kalau build ini sudah tidak dibutuhkan lagi.
+local function BuildSpot(target, animated, cancelled)
+    local base = Vector3.new(target.X, target.Y - STAND_OFFSET, target.Z) -- permukaan lantai, tengah
+    local model = Instance.new("Model")
+    model.Name = SPOT_NAME
+
+    local record = { Model = model, Base = base, Target = target, Closing = false, Connections = {} }
+    spot = record
+    model.Parent = workspace
+
+    local stage = {}
+
+    local function At(x, y, z)
+        return base + Vector3.new(x, y, z)
+    end
+
+    local function Put(class, props)
+        local part = Instance.new(class)
+        part.Anchored = true
+        part.CanTouch = class == "Seat"
+        part.TopSurface = Enum.SurfaceType.Smooth
+        part.BottomSurface = Enum.SurfaceType.Smooth
+        for key, value in pairs(props) do part[key] = value end
+        table.insert(stage, { Part = part, Transparency = part.Transparency })
+        if animated then part.Transparency = 1 end
+        part.Parent = model
+        return part
+    end
+
+    local function Light(part, color, brightness, range)
+        local light = Instance.new("PointLight")
+        light.Color = color
+        light.Brightness = brightness
+        light.Range = range
+        light.Shadows = false
+        light.Parent = part
+    end
+
+    -- Menampilkan bagian-bagian tahap ini; false kalau build dibatalkan selagi menunggu.
+    local function Reveal()
+        local entries = stage
+        stage = {}
+        if not animated then return true end
+
+        for _, entry in ipairs(entries) do
+            TweenService:Create(entry.Part, TweenInfo.new(0.35), { Transparency = entry.Transparency }):Play()
+        end
+        task.wait(BUILD_STEP)
+        return not (cancelled and cancelled())
+    end
+
+    local function Abort()
+        if spot == record then
+            DestroySpot()
+        else
+            pcall(function() model:Destroy() end)
+        end
+    end
+
+    -- 1. lantai marmer + garis neon di tepinya
+    record.Floor = Put("Part", {
+        Name = "Floor", Size = Vector3.new(SPOT_SIZE, 2, SPOT_SIZE), CFrame = CFrame.new(At(0, -1, 0)),
+        Material = Enum.Material.Marble, Color = Color3.fromRGB(30, 32, 46),
+    })
+    local edge = SPOT_SIZE / 2 - 1.5
+    for _, side in ipairs({ -1, 1 }) do
+        Put("Part", {
+            Name = "TrimX", Size = Vector3.new(SPOT_SIZE - 3, 0.12, 0.5), CFrame = CFrame.new(At(0, 0.06, side * edge)),
+            Material = Enum.Material.Neon, Color = ACCENT,
+        })
+        Put("Part", {
+            Name = "TrimZ", Size = Vector3.new(0.5, 0.12, SPOT_SIZE - 3), CFrame = CFrame.new(At(side * edge, 0.06, 0)),
+            Material = Enum.Material.Neon, Color = ACCENT,
+        })
+    end
+    if not Reveal() then return Abort() end
+
+    -- 2. pagar kaca di keempat sisi (karakter tidak bisa jatuh dari tepi) + garis neon di atasnya
+    local rail = SPOT_SIZE / 2 - 0.3
+    for _, side in ipairs({ -1, 1 }) do
+        Put("Part", {
+            Name = "RailX", Size = Vector3.new(SPOT_SIZE, 4, 0.6), CFrame = CFrame.new(At(0, 2, side * rail)),
+            Material = Enum.Material.Glass, Color = Color3.fromRGB(150, 200, 255), Transparency = 0.7,
+        })
+        Put("Part", {
+            Name = "RailZ", Size = Vector3.new(0.6, 4, SPOT_SIZE - 1.2), CFrame = CFrame.new(At(side * rail, 2, 0)),
+            Material = Enum.Material.Glass, Color = Color3.fromRGB(150, 200, 255), Transparency = 0.7,
+        })
+        Put("Part", {
+            Name = "RailTopX", Size = Vector3.new(SPOT_SIZE, 0.2, 0.8), CFrame = CFrame.new(At(0, 4.1, side * rail)),
+            Material = Enum.Material.Neon, Color = ACCENT,
+        })
+        Put("Part", {
+            Name = "RailTopZ", Size = Vector3.new(0.8, 0.2, SPOT_SIZE - 1.2), CFrame = CFrame.new(At(side * rail, 4.1, 0)),
+            Material = Enum.Material.Neon, Color = ACCENT,
+        })
+    end
+    if not Reveal() then return Abort() end
+
+    -- 3. empat tiang sudut, masing-masing dengan lampu
+    local corner = SPOT_SIZE / 2 - 1
+    for _, sx in ipairs({ -1, 1 }) do
+        for _, sz in ipairs({ -1, 1 }) do
+            Put("Part", {
+                Name = "Pillar", Size = Vector3.new(1.8, 8, 1.8), CFrame = CFrame.new(At(sx * corner, 4, sz * corner)),
+                Material = Enum.Material.Slate, Color = Color3.fromRGB(28, 28, 40),
+            })
+            local cap = Put("Part", {
+                Name = "PillarLamp", Size = Vector3.new(2.4, 0.6, 2.4), CFrame = CFrame.new(At(sx * corner, 8.3, sz * corner)),
+                Material = Enum.Material.Neon, Color = WARM,
+            })
+            Light(cap, WARM, 1.4, 30)
+        end
+    end
+    if not Reveal() then return Abort() end
+
+    -- 4. karpet bundar di tengah (lingkaran neon tipis sebagai bingkainya)
+    local upright = CFrame.Angles(0, 0, math.pi / 2) -- silinder Roblox rebah di sumbu X; ditegakkan
+    Put("Part", {
+        Name = "RugRing", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.12, 21, 21), CFrame = CFrame.new(At(0, 0.06, 0)) * upright,
+        Material = Enum.Material.Neon, Color = ACCENT,
+    })
+    Put("Part", {
+        Name = "Rug", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 20, 20), CFrame = CFrame.new(At(0, 0.1, 0)) * upright,
+        Material = Enum.Material.Fabric, Color = Color3.fromRGB(58, 48, 110),
+    })
+    if not Reveal() then return Abort() end
+
+    -- 5. sofa (tempat duduk menghadap +Z) dan meja kecil dengan lampu
+    local sofaColor = Color3.fromRGB(82, 70, 150)
+    local sofaDark = Color3.fromRGB(64, 54, 120)
+    record.Seat = Put("Seat", {
+        Name = "Seat", Size = Vector3.new(7, 1.4, 4), CFrame = CFrame.new(At(0, 0.9, 0)) * CFrame.Angles(0, math.pi, 0),
+        Material = Enum.Material.Fabric, Color = sofaColor,
+    })
+    Put("Part", {
+        Name = "SofaBack", Size = Vector3.new(8.8, 3.2, 1), CFrame = CFrame.new(At(0, 1.8, -2.5)),
+        Material = Enum.Material.Fabric, Color = sofaDark,
+    })
+    for _, side in ipairs({ -1, 1 }) do
+        Put("Part", {
+            Name = "SofaArm", Size = Vector3.new(0.9, 2.2, 4.4), CFrame = CFrame.new(At(side * 3.95, 1.3, 0)),
+            Material = Enum.Material.Fabric, Color = sofaDark,
+        })
+    end
+    Put("Part", {
+        Name = "Table", Size = Vector3.new(6, 1.2, 3), CFrame = CFrame.new(At(0, 0.8, 7)),
+        Material = Enum.Material.Wood, Color = Color3.fromRGB(150, 105, 70),
+    })
+    local lamp = Put("Part", {
+        Name = "TableLamp", Shape = Enum.PartType.Ball, Size = Vector3.new(0.9, 0.9, 0.9), CFrame = CFrame.new(At(0, 1.85, 7)),
+        Material = Enum.Material.Neon, Color = WARM,
+    })
+    Light(lamp, WARM, 1.2, 16)
+    if not Reveal() then return Abort() end
+
+    -- 6. bola cahaya melayang di atas sofa
+    local orb = Put("Part", {
+        Name = "Orb", Shape = Enum.PartType.Ball, Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(At(0, 18, 0)),
+        Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 236, 190),
+    })
+    Light(orb, Color3.fromRGB(255, 236, 200), 2, 48)
+    if not Reveal() then return Abort() end
+
+    record.Count = #model:GetChildren()
+
+    -- Terhapus atau berubah oleh game: periksa lagi segera (selain itu loop memeriksa tiap 0.5 detik).
+    local function onChange()
+        if not record.Closing and Maintain then task.defer(Maintain) end
+    end
+    table.insert(record.Connections, model.ChildRemoved:Connect(onChange))
+    table.insert(record.Connections, model.AncestryChanged:Connect(onChange))
+    return record
+end
+
+local function SpotIntact()
+    if not spot or not spot.Count then return false end
+    local model = spot.Model
+    return model.Parent == workspace
+        and spot.Floor.Parent == model
+        and spot.Seat.Parent == model
+        and #model:GetChildren() >= spot.Count
+end
+
+local function InsideSpot(position)
+    local half = SPOT_SIZE / 2 + 1
+    local base = spot.Base
+    return math.abs(position.X - base.X) <= half
+        and math.abs(position.Z - base.Z) <= half
+        and position.Y >= base.Y - 1
+        and position.Y <= base.Y + 40
+end
+
+-- Karakter diturunkan sedikit di atas sofa dan duduk; tempat sudah ada, jadi tidak ada yang jatuh.
+local function TeleportToSpot()
+    if not spot then return end
+    local root = GetRoot()
+    if not root then return end
+
+    local humanoid = root.Parent:FindFirstChildOfClass("Humanoid")
+    if humanoid then humanoid.Sit = false end
+
+    local base = spot.Base
+    local position = Vector3.new(base.X, base.Y + SEAT_TOP + 2.8, base.Z)
+    root.CFrame = CFrame.new(position, position + Vector3.new(0, 0, 1))
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
+
+    local seat = spot.Seat
+    task.delay(0.6, function()
+        if humanoid and humanoid.Parent and humanoid.Health > 0 and not humanoid.SeatPart and seat and seat.Parent then
+            pcall(function() seat:Sit(humanoid) end)
+        end
+    end)
+end
+
+-- Membangun dari awal dengan efek bertahap; karakter baru dipindah setelah selesai.
+local function Prepare(target)
+    buildToken = buildToken + 1
+    local mine = buildToken
+    building = true
+    DestroySpot()
+
+    local function cancelled()
+        return mine ~= buildToken or not AfkFarm.FarmEnabled or not alive
+    end
+
+    task.spawn(function()
+        Status("Building your AFK spot...")
+        local ok, err = pcall(BuildSpot, target, true, cancelled)
+        if mine ~= buildToken then return end -- digantikan permintaan yang lebih baru
+        building = false
+
+        if not AfkFarm.FarmEnabled or not alive then
+            DestroySpot()
+            return
+        end
+        if not ok or not spot or not spot.Count then
+            DestroySpot()
+            buildFailed = true
+            warn("[Mugiwara HUB] AFK spot could not be built: " .. tostring(err))
+            Status("The AFK spot could not be built. Holding your position with Fly instead.")
+            return
+        end
+
+        TeleportToSpot()
+        Status("Your AFK spot is ready.")
+    end)
+end
+
+-- Cadangan kalau tempat gagal dibangun: tahan posisi memakai Fly seperti versi lama.
+local function MaintainLegacy(target)
+    local root = GetRoot()
+    if not root then return end
+
+    if (root.Position - target).Magnitude > RETURN_DISTANCE then
+        root.CFrame = CFrame.new(target) * (root.CFrame - root.CFrame.Position)
+        root.AssemblyLinearVelocity = Vector3.zero
+    end
+
+    if Movement and not Movement.FlyEnabled then
+        SetFly(true)
+        flyOwned = true
+    end
+end
+
+Maintain = function()
+    if not AfkFarm.FarmEnabled or building or not alive then return end
+
+    local target = AfkFarm.GetPosition() or heldPosition
+    if not target then
+        -- Belum ada koordinat dan karakter belum ada saat farm dinyalakan: pakai posisi pertama yang muncul.
+        local root = GetRoot()
+        if not root then return end
+        heldPosition = root.Position
+        target = heldPosition
+    end
+
+    if buildFailed then return MaintainLegacy(target) end
+
+    -- Belum ada, atau koordinatnya diganti selagi farm menyala: bangun di lokasi yang benar.
+    if not spot or (spot.Target - target).Magnitude > 0.5 then
+        Prepare(target)
+        return
+    end
+
+    -- Terhapus / di-refresh game: bangun ulang sekaligus, lalu kembalikan karakter ke atasnya.
+    if not SpotIntact() then
+        DestroySpot()
+        local ok, err = pcall(BuildSpot, target, false)
+        if ok and spot and spot.Count then
+            TeleportToSpot()
+        else
+            DestroySpot()
+            buildFailed = true
+            warn("[Mugiwara HUB] AFK spot could not be rebuilt: " .. tostring(err))
+        end
+        return
+    end
+
+    -- Karakter keluar dari tempat (mati lalu respawn, ditarik game): kembalikan.
+    local root = GetRoot()
+    if root and not InsideSpot(root.Position) then TeleportToSpot() end
+end
+
 function AfkFarm.SetFarm(state)
     AfkFarm.FarmEnabled = state
+    buildToken = buildToken + 1 -- membatalkan build yang masih berjalan
+    building = false
 
     if state then
+        buildFailed = false
         if not settings.Position then
             local root = GetRoot()
             heldPosition = root and root.Position or nil
         end
+        Maintain()
     else
         heldPosition = nil
+        DestroySpot()
         if flyOwned then
             flyOwned = false
             SetFly(false)
@@ -348,24 +700,8 @@ end
 task.spawn(function()
     while alive do
         task.wait(MAINTAIN_INTERVAL)
-        if AfkFarm.FarmEnabled then
-            local ok, err = pcall(function()
-                local root = GetRoot()
-                if not root then return end
-
-                local target = AfkFarm.GetPosition() or heldPosition
-                if target and (root.Position - target).Magnitude > RETURN_DISTANCE then
-                    root.CFrame = CFrame.new(target) * (root.CFrame - root.CFrame.Position)
-                    root.AssemblyLinearVelocity = Vector3.zero
-                end
-
-                if Movement and not Movement.FlyEnabled then
-                    SetFly(true)
-                    flyOwned = true
-                end
-            end)
-            if not ok then warn("[Mugiwara HUB] AFK Farm error: " .. tostring(err)) end
-        end
+        local ok, err = pcall(Maintain)
+        if not ok then warn("[Mugiwara HUB] AFK Farm error: " .. tostring(err)) end
     end
 end)
 
@@ -376,6 +712,9 @@ getgenv().MugiwaraRegisterCleanup(function()
     generation = generation + 1
     table.clear(queue)
 
+    buildToken = buildToken + 1
+    building = false
+    DestroySpot() -- tempat AFK ikut dibersihkan
     if AfkFarm.FarmEnabled then
         AfkFarm.FarmEnabled = false
         if flyOwned then pcall(SetFly, false) end

@@ -20,10 +20,15 @@ function UI.BuildFarm(Section, isPremiumUser, MugiwaraUI)
     if not AfkFarm then return end
     local Notify = MakeNotify(MugiwaraUI)
 
+    -- Kabar singkat saat tempat AFK dibangun / siap.
+    AfkFarm.OnStatus = function(message)
+        Notify("AFK Farm", message, 2)
+    end
+
     Section:Toggle({
         Title = "AFK Farm",
         Icon = "lucide:moon",
-        Desc = Risk.Desc("AfkFarm", "Hold the AFK spot, floating with Fly."),
+        Desc = Risk.Desc("AfkFarm", "Builds a small 50x50 lounge at the AFK coordinates, then sits you there. Rebuilt if the game removes it, cleaned up when turned off."),
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Value = false,

@@ -12,7 +12,7 @@ Risk.Features = {
     InfiniteJump = { Name = "Infinite Jump", Reason = "Jumping in mid-air is easily flagged by the server." },
     Fly = { Name = "Fly", Reason = "Flying or hovering is easily flagged, and other players can report you." },
     Noclip = { Name = "Noclip", Reason = "Walking through walls is easily flagged by the server." },
-    AfkFarm = { Name = "AFK Farm", Reason = "Holds your character floating in one spot with Fly. Easily flagged and reported." },
+    AfkFarm = { Name = "AFK Farm", Reason = "Builds a platform at your AFK coordinates and teleports your character onto it. Teleporting is easily flagged by the server." },
     AutoCommands = { Name = "Auto Execute", Reason = "Sends VIP commands automatically. Without VIP Commands access or a Private Server/Community you own, the game may treat this as exploiting." },
     TicketFarm = { Name = "Auto Farm Tickets", Reason = "Teleports your character between tickets. Teleporting is easily flagged by the server." },
     AvoidNextBots = { Name = "Avoid NextBots", Reason = "Teleports your character away from NextBots. Teleporting is easily flagged by the server." },
