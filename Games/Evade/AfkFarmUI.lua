@@ -22,6 +22,7 @@ function UI.BuildFarm(Section, isPremiumUser, MugiwaraUI)
 
     Section:Toggle({
         Title = "AFK Farm",
+        Icon = "lucide:moon",
         Desc = Risk.Desc("AfkFarm", "Hold the AFK spot, floating with Fly."),
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -37,6 +38,7 @@ function UI.BuildFarm(Section, isPremiumUser, MugiwaraUI)
 
     CoordinateInput = Section:Input({
         Title = "AFK Coordinates",
+        Icon = "lucide:map",
         Desc = "Format: x, y, z. Empty = your current spot.",
         Placeholder = "x, y, z",
         Value = AfkFarm.FormatPosition(),
@@ -99,6 +101,7 @@ function UI.BuildCommands(TabMain, isPremiumUser, MugiwaraUI)
 
     Section:Toggle({
         Title = "Auto Execute",
+        Icon = "lucide:play",
         Desc = Risk.Desc("AutoCommands", "Send each event's command when its trigger happens."),
         Value = false,
         Callback = function(Value)
@@ -156,6 +159,7 @@ function UI.BuildCommands(TabMain, isPremiumUser, MugiwaraUI)
 
         event.Titled.Command = Track(Section:Input({
             Title = label .. ": Command",
+            Icon = "lucide:terminal",
             Desc = "For example !timer 1",
             Placeholder = "!timer 1",
             Value = rule.Command,
@@ -176,6 +180,7 @@ function UI.BuildCommands(TabMain, isPremiumUser, MugiwaraUI)
 
         event.Titled.Trigger = Track(Section:Dropdown({
             Title = label .. ": Trigger",
+            Icon = "lucide:zap",
             Desc = "The event that starts the command.",
             Values = AfkFarm.Triggers,
             Value = rule.Trigger,
@@ -186,6 +191,7 @@ function UI.BuildCommands(TabMain, isPremiumUser, MugiwaraUI)
 
         event.Titled.Delay = Track(Section:Slider({
             Title = label .. ": Delay (seconds)",
+            Icon = "lucide:timer",
             Desc = "Wait this long after the trigger.",
             Step = 0.5,
             Value = { Min = 0, Max = AfkFarm.MaxDelay, Default = rule.Delay },

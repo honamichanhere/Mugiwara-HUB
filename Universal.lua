@@ -4,6 +4,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     
     TabMain:Paragraph({
         Title = "Universal Mode Active",
+        Icon = "lucide:info",
         Desc = "This game is not explicitly supported. Loading universal character movements as fallback."
     })
 

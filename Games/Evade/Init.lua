@@ -20,6 +20,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     local AccSection = TabMain:Section({ 
         Title = '<font color="#ffff82">Premium Features</font>', 
         Icon = "rbxassetid://74594159374416", 
+        IconColor = Color3.fromRGB(255, 255, 130), 
         Opened = false, 
         Box = true 
     })
@@ -40,6 +41,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     AccSection:Dropdown({
         Title = "Accessory Templates",
+        Icon = "lucide:shirt",
         Desc = "Choose from popular pre-defined accessories.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -66,6 +68,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     local CustomAccInput
     CustomAccInput = AccSection:Input({
         Title = "Load Custom Asset ID",
+        Icon = "lucide:hash",
         Desc = "Enter a valid Marketplace Accessory ID.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -86,6 +89,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     AccSection:Button({
         Title = "Clear All Custom Accessories",
+        Icon = "lucide:trash-2",
         Desc = "Remove all spawned accessories from your character.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -96,6 +100,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     AccSection:Toggle({
         Title = "Headless Head",
+        Icon = "lucide:skull",
         Desc = "Visually removes your character's head.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -108,6 +113,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     AccSection:Toggle({
         Title = "Korblox Left Leg",
+        Icon = "lucide:footprints",
         Desc = "Applies Korblox visual mesh to the left leg.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -120,6 +126,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     AccSection:Toggle({
         Title = "Korblox Right Leg",
+        Icon = "lucide:footprints",
         Desc = "Applies Korblox visual mesh to the right leg.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -133,6 +140,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     local AvatarInput
     AvatarInput = AccSection:Input({
         Title = "Morph By Username",
+        Icon = "lucide:user-round",
         Desc = "Copy any player's avatar exactly 1:1.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -149,6 +157,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     AccSection:Button({
         Title = "Revert to Original",
+        Icon = "lucide:undo-2",
         Desc = "Back to original avatar.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -170,6 +179,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
         FarmSection:Toggle({
             Title = "Auto Farm Tickets",
+            Icon = "lucide:ticket",
             Desc = Risk.Desc("TicketFarm", "Teleports to each Halloween ticket and waits until it is collected. When no tickets are left you stay put and can move freely."),
             Callback = function(Value)
                 Risk.Warn(MugiwaraUI, "TicketFarm", Value)
@@ -179,6 +189,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
         FarmSection:Toggle({
             Title = "Avoid NextBots",
+            Icon = "lucide:shield-alert",
             Desc = Risk.Desc("AvoidNextBots", "Teleports you to a safe item spawn whenever a NextBot gets too close. Also skips tickets that are next to a NextBot."),
             Callback = function(Value)
                 Risk.Warn(MugiwaraUI, "AvoidNextBots", Value)
@@ -188,6 +199,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
         FarmSection:Slider({
             Title = "NextBot Safe Distance",
+            Icon = "lucide:ruler",
             Desc = "How close a NextBot can get before you are teleported away.",
             Step = 1,
             Value = { Min = 10, Max = 100, Default = TicketFarmModule.SafeDistance },

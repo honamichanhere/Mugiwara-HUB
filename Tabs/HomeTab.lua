@@ -41,14 +41,16 @@ return function(Window, isPremiumUser, MugiwaraUI)
     TabHome:Divider({ Title = "System Information" })
     
     TabHome:Paragraph({ 
-        Title = gameName, 
+        Title = gameName,
+        Icon = "lucide:gamepad-2", 
         Desc = string.format("Place ID: %d\nJob ID: %s\nActive Players: %d / %d\nExecution Mode: Client-Side", game.PlaceId, game.JobId, #Players:GetPlayers(), Players.MaxPlayers)
     })
 
     TabHome:Divider({ Title = "Developer & Administration" })
     
     TabHome:Paragraph({ 
-        Title = "Script Founder: Honami", 
+        Title = "Script Founder: Honami",
+        Icon = "lucide:user-round", 
         Desc = "Honami (@honamichandesu) is the sole creator and lead developer of Mugiwara HUB, dedicated to delivering a seamless, high-performance scripting experience." 
     })
 

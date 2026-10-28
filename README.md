@@ -12,6 +12,8 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 | Camera | Free camera, spectate, FOV and zoom lock, stabilizers |
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
 | Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, rebindable keyboard shortcuts, Hide GUI, Unload Hub |
+| Chat | Live chat with everyone running the hub (needs the chat server address in `Main.lua`) |
+| UI Config (Appearance) | Theme picker, theme creator, wallpaper, UI scale, background blur. Saved in `MugiwaraHubConfig/UISettings.json`; nothing to do with the game |
 
 Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm with NextBot avoidance). Every other game gets the **Universal** movement module.
 
@@ -20,8 +22,8 @@ Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm wit
 ```
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
-Tabs/                    UI tabs (Home, Lighting, Camera, Misc, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk, HideGui, UIExtras)
+Tabs/                    UI tabs (Home, Lighting, Camera, Misc, Chat, UIConfig, MovementInjector)
+Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk, HideGui, UIExtras, UISettings)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 
@@ -73,7 +75,9 @@ Saved premium key, lighting presets and the copied skybox live in the executor w
 
 The hub uses [Mugiwara UI](https://github.com/honamichanhere/Mugiwara-UI) for the key card, the loading screen, the window and every element. `Main.lua` loads it from a **pinned tag** (`UI_VERSION`), so a later push to the library cannot break the hub; change that tag to upgrade.
 
-`Manager/UIExtras.lua` adds a few things the library does not have, from the hub side: the "Premium Only" text on locked elements (`LockedTitle`), a thumbnail beside a Paragraph (`Image` + `ImageSize`), coloured Tab and Section titles (`<font color=...>`), `SetValue` / `SetColor`, and open / close callbacks for the window.
+Icons follow the theme accent. Only premium things are coloured (`IconColor`, gold like the premium titles): the Premium Access tab, the Premium Features sections and the activation controls.
+
+`Manager/UIExtras.lua` adds a few things the library does not have, from the hub side: the "Premium Only" text on locked elements (`LockedTitle`), a thumbnail beside a Paragraph (`Image` + `ImageSize`), coloured Tab and Section titles (`<font color=...>`), an icon in the Section header (`Icon` + `IconColor`), `SetValue` / `SetColor`, and open / close callbacks for the window.
 
 ## Conventions
 

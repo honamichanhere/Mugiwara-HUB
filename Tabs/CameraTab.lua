@@ -4,10 +4,11 @@ return function(Window, isPremiumUser, MugiwaraUI)
     
     local TabCamera = Window:Tab({ Title = "Camera", Icon = "lucide:video" })
 
-    local PremiumSection = TabCamera:Section({ Title = '<font color="#ffff82">Premium Features</font>', Icon = "rbxassetid://74594159374416", Opened = false, Box = true })
+    local PremiumSection = TabCamera:Section({ Title = '<font color="#ffff82">Premium Features</font>', Icon = "rbxassetid://74594159374416", IconColor = Color3.fromRGB(255, 255, 130), Opened = false, Box = true })
     
     local ToggleFreecam = PremiumSection:Toggle({
         Title = "Enable Free Camera",
+        Icon = "lucide:video",
         Desc = "Detach camera. Move with WASD/QE. Rotate by holding Right-Click or using Arrow Keys.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -21,6 +22,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     PremiumSection:Slider({
         Title = "Free Camera Speed",
+        Icon = "lucide:gauge",
         Desc = "Adjust the movement speed of the free camera.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -36,6 +38,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     local DropdownSpectate
     DropdownSpectate = PremiumSection:Dropdown({
         Title = "Spectate Player",
+        Icon = "lucide:eye",
         Desc = "Select a player from the server to observe their perspective.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -81,6 +84,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     PremiumSection:Slider({
         Title = "Position Stabilizer",
+        Icon = "lucide:move",
         Desc = "Adds spring-like lag to character tracking.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -93,6 +97,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     PremiumSection:Slider({
         Title = "Rotation Stabilizer",
+        Icon = "lucide:rotate-3d",
         Desc = "Smooths out camera aiming for a cinematic feel.",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
@@ -108,6 +113,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     local ToggleFOV
     ToggleFOV = FovSection:Toggle({
         Title = "Force Lock FOV",
+        Icon = "lucide:lock",
         Desc = "Prevent the game from dynamically altering your field of view.",
         Callback = function(Value)
             CameraModule.FOVLocked = Value
@@ -120,6 +126,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     local SliderFOV
     SliderFOV = FovSection:Slider({
         Title = "Adjust FOV",
+        Icon = "lucide:scan-eye",
         Desc = "Set your preferred field of view. Syncs automatically if game alters it.",
         Step = 1,
         Value = { Min = 20, Max = 120, Default = safeFov },
@@ -132,6 +139,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     ZoomSection:Toggle({
         Title = "Force Lock Zoom",
+        Icon = "lucide:lock",
         Desc = "Lock camera distance. Prevents game or scrolling from altering zoom.",
         Callback = function(Value)
             CameraModule.ZoomLocked = Value
@@ -144,6 +152,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     ZoomSection:Slider({
         Title = "Adjust Zoom Distance",
+        Icon = "lucide:zoom-in",
         Desc = "Set manual distance.",
         Step = 0.5,
         Value = { Min = 0, Max = 200, Default = 12.5 },

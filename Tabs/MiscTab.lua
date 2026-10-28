@@ -12,6 +12,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     if not ServerModule then
         TabMisc:Paragraph({
             Title = "Misc Unavailable",
+            Icon = "lucide:triangle-alert",
             Desc = "The server module failed to load. Re-execute the hub to try again."
         })
         return
@@ -33,6 +34,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     ProtectionSection:Toggle({
         Title = "Anti-AFK",
+        Icon = "lucide:coffee",
         Desc = "Prevents Roblox from kicking you after 20 minutes of inactivity.",
         Value = true,
         Callback = function(Value)
@@ -42,6 +44,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     ProtectionSection:Toggle({
         Title = "Auto Rejoin",
+        Icon = "lucide:repeat",
         Desc = "Joins a new server automatically if you are kicked or disconnected (max 3 attempts).",
         Value = false,
         Callback = function(Value)
@@ -69,6 +72,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     ServerSection:Dropdown({
         Title = "Server Hop Mode",
+        Icon = "lucide:server-cog",
         Desc = "Which kind of server Server Hop should pick.",
         Values = ServerModule.HopModes,
         Value = hopMode,
@@ -111,6 +115,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
     ServerSection:Input({
         Title = "Job ID",
+        Icon = "lucide:hash",
         Desc = "Paste the Job ID of a public server of this game, then press Join Server.",
         Placeholder = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         Callback = function(Text)
@@ -140,6 +145,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
         ShortcutSection:Paragraph({
             Title = "How shortcuts work",
+            Icon = "lucide:info",
             Desc = "Shortcuts are OFF by default. Turn them on below, then click a key box and press a new key to change it. Shortcuts do nothing while you type in chat, and mouse buttons are not supported. Keyboard only (PC)."
         })
 
@@ -149,6 +155,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
         ShortcutSection:Toggle({
             Title = "Enable Keyboard Shortcuts",
+            Icon = "lucide:keyboard",
             Desc = "When off, none of the keys below do anything (including Show / Hide Hub and Panic).",
             Value = shortcutsEnabled,
             Callback = function(Value)
@@ -173,9 +180,9 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
 
         local Shortcuts = {
-            { Id = "ToggleUI", Title = "Show / Hide Hub", Desc = "Open or close this window.", Default = "K" },
+            { Id = "ToggleUI", Title = "Show / Hide Hub", Desc = "Open or close this window.", Default = "K", Icon = "lucide:app-window" },
             {
-                Id = "Fly", Title = "Fly", Desc = "Turn Fly on or off.", Default = "Y",
+                Id = "Fly", Title = "Fly", Desc = "Turn Fly on or off.", Default = "Y", Icon = "lucide:plane",
                 Run = function()
                     if not MovementModule then return end
                     Flip(MovementModule.UI and MovementModule.UI.Fly, "Fly", function()
@@ -186,7 +193,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
                 end
             },
             {
-                Id = "Noclip", Title = "Noclip", Desc = "Walk through walls on or off.", Default = "N",
+                Id = "Noclip", Title = "Noclip", Desc = "Walk through walls on or off.", Default = "N", Icon = "lucide:ghost",
                 Run = function()
                     if not MovementModule then return end
                     Flip(MovementModule.UI and MovementModule.UI.Noclip, "Noclip", function()
@@ -196,7 +203,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
                 end
             },
             {
-                Id = "Speed", Title = "Speed Hack", Desc = "Turn Speed Hack on or off. Uses the speed you set in the Main tab.", Default = "Z",
+                Id = "Speed", Title = "Speed Hack", Desc = "Turn Speed Hack on or off. Uses the speed you set in the Main tab.", Default = "Z", Icon = "lucide:zap",
                 Run = function()
                     if not MovementModule then return end
                     Flip(MovementModule.UI and MovementModule.UI.Speed, "Speed Hack", function()
@@ -207,7 +214,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
                 end
             },
             {
-                Id = "InfJump", Title = "Infinite Jump", Desc = "Turn Infinite Jump on or off.", Default = "J",
+                Id = "InfJump", Title = "Infinite Jump", Desc = "Turn Infinite Jump on or off.", Default = "J", Icon = "lucide:chevrons-up",
                 Run = function()
                     if not MovementModule then return end
                     Flip(MovementModule.UI and MovementModule.UI.InfJump, "Infinite Jump", function()
@@ -217,7 +224,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
                 end
             },
             {
-                Id = "Freecam", Title = "Free Camera", Desc = "Turn Free Camera on or off.", Default = "P", Premium = true,
+                Id = "Freecam", Title = "Free Camera", Desc = "Turn Free Camera on or off.", Default = "P", Premium = true, Icon = "lucide:video",
                 Run = function()
                     if not CameraModule then return end
                     if not isPremiumUser then
@@ -232,7 +239,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
                 end
             },
             {
-                Id = "Panic", Title = "Panic: Unload Hub", Desc = "Instantly remove the hub and undo everything. No confirmation.", Default = "End",
+                Id = "Panic", Title = "Panic: Unload Hub", Desc = "Instantly remove the hub and undo everything. No confirmation.", Default = "End", Icon = "lucide:triangle-alert",
                 Run = function()
                     if getgenv().MugiwaraUnload then getgenv().MugiwaraUnload() end
                 end
@@ -254,6 +261,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
             local element = ShortcutSection:Keybind({
                 Title = def.Title,
                 Desc = def.Desc,
+                Icon = def.Icon,
                 Value = initial,
                 Locked = def.Premium and not isPremiumUser or false,
                 LockedTitle = "Premium Only",
@@ -324,6 +332,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
 
         InterfaceSection:Toggle({
             Title = "Hide GUI",
+            Icon = "lucide:eye-off",
             Desc = "Hides every other GUI: the game's menus, Roblox's own UI (chat, player list, top bar, touch controls), and other scripts' windows. Only this hub stays visible. Turn it off to bring everything back.",
             Value = false,
             Callback = function(Value)
@@ -340,6 +349,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     if CursorModule then
         HubSection:Toggle({
             Title = "Free Cursor When Open",
+            Icon = "lucide:mouse-pointer-2",
             Desc = "Unlock the mouse while this window is open, even with shift lock on.",
             Value = CursorModule.Enabled,
             Callback = function(Value)
@@ -360,7 +370,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     HubSection:Button({
         Title = "Unload Hub",
         Desc = "Remove the hub and undo everything it changed. Re-execute the script to bring it back.",
-        Icon = "lucide:x-circle",
+        Icon = "lucide:circle-x",
         Callback = function()
             Window:Dialog({
                 Title = "Unload Hub?",

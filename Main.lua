@@ -162,7 +162,7 @@ if makefolder and isfolder and not isfolder(FOLDER) then makefolder(FOLDER) end
 -- Dimuat lebih dulu karena loading screen dan layar key adalah bagian dari library. Versinya
 -- dipatok ke satu tag (tag tidak pernah berubah, jadi push baru ke library tidak merusak hub).
 -- Untuk memakai versi library yang lebih baru, ganti tag-nya di sini.
-local UI_VERSION = "v0.7.0"
+local UI_VERSION = "v0.8.0"
 local UI_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-UI/" .. UI_VERSION .. "/dist/main.lua"
 
 local uiOk, uiResult = pcall(function() return loadstring(game:HttpGet(UI_URL))() end)
@@ -172,6 +172,23 @@ if not uiOk or type(uiResult) ~= "table" or type(uiResult.CreateWindow) ~= "func
 end
 MugiwaraUI = uiResult
 env.MugiwaraRegisterCleanup(function() pcall(function() MugiwaraUI:Destroy() end) end)
+
+-- Pengaturan tampilan tersimpan (tema pilihan user dan tema buatannya) dipasang sebelum layar key
+-- dan loading screen dibuat, supaya keduanya sudah memakai tema yang dipilih.
+local UISettings = env.MugiwaraImport("Manager/UISettings.lua")
+if UISettings then
+    local okSettings, errSettings = pcall(function()
+        UISettings.Load()
+        UISettings.RegisterThemes(MugiwaraUI)
+        MugiwaraUI:SetTheme(UISettings.Get("Theme"))
+    end)
+    if not okSettings then warn("[Mugiwara HUB] UI settings error: " .. tostring(errSettings)) end
+    env.MugiwaraRegisterCleanup(UISettings.Flush)
+end
+
+-- Alamat server chat (Cloudflare Worker milik Mugiwara UI), contoh "https://mugiwara-chat.<akun>.workers.dev".
+-- Kosong = tab Chat hanya menampilkan penjelasan.
+local CHAT_URL = ""
 
 -- PANDA AUTH PUSL-V4 SYSTEM
 local savedKeyPath = FOLDER .. "/PremiumKey.txt"
@@ -299,6 +316,12 @@ if UIExtras then
     if not okExtras then warn("[Mugiwara HUB] UIExtras error: " .. tostring(errExtras)) end
 end
 
+-- Skala, blur, dan wallpaper tersimpan (tema sudah terpasang di atas).
+if UISettings then
+    local okApply, errApply = pcall(UISettings.ApplyAll, MugiwaraUI, Window)
+    if not okApply then warn("[Mugiwara HUB] UI settings apply error: " .. tostring(errApply)) end
+end
+
 -- Key valid (atau lolos tanpa layar key): kalau loading screen belum dibuat, mulai sekarang
 -- sehingga animasi masuknya terlihat. Loading screen langsung menutup layar (tanpa fade) supaya
 -- tab yang dibangun tidak kelihatan.
@@ -324,7 +347,8 @@ UnlockPremiumFeatures = function()
 end
 
 -- TAB PREMIUM ACCESS (GLOBAL)
-local TabPremium = Window:Tab({ Title = '<font color="#ffff82">Premium Access</font>', Icon = "lucide:crown" })
+local PREMIUM_GOLD = Color3.fromRGB(255, 255, 130) -- sama dengan #ffff82 pada judul premium
+local TabPremium = Window:Tab({ Title = '<font color="#ffff82">Premium Access</font>', Icon = "lucide:crown", IconColor = PREMIUM_GOLD })
 local InputKeyPremium = ""
 
 local PremiumParagraph = TabPremium:Paragraph({
@@ -339,22 +363,27 @@ if not isPremiumUser then
         Title = "Purchase Premium Key", 
         Desc = "Click to copy the official TikTok link, then send a direct message to purchase.", 
         Icon = "lucide:shopping-cart",
+        IconColor = PREMIUM_GOLD,
         Callback = function() 
             if setclipboard then setclipboard("https://tiktok.com/@honamichanhere") end
             MugiwaraUI:Notify({ Title = "Action Successful", Content = "The purchase link has been copied to your clipboard.", Duration = 5 }) 
         end
     })
 
-    local VIPSection = TabPremium:Section({ Title = "Premium Activation", Icon = "lucide:key", Opened = true, Box = true })
-    
-    VIPSection:Input({ 
-        Title = "Premium Key", 
+    local VIPSection = TabPremium:Section({ Title = "Premium Activation", Icon = "lucide:key", IconColor = PREMIUM_GOLD, Opened = true, Box = true })
+
+    VIPSection:Input({
+        Title = "Premium Key",
+        Icon = "lucide:key-round",
+        IconColor = PREMIUM_GOLD,
         Placeholder = "Enter your premium key here...", 
         Callback = function(Text) InputKeyPremium = Text end 
     })
     
     VIPSection:Button({
         Title = "Verify & Activate",
+        Icon = "lucide:badge-check",
+        IconColor = PREMIUM_GOLD,
         Callback = function()
             if InputKeyPremium == "" then return end
             MugiwaraUI:Notify({ Title = "Validation in Progress", Content = "Connecting to Panda Auth server...", Duration = 2 })
@@ -452,6 +481,19 @@ local buildMisc = getgenv().MugiwaraImport("Tabs/MiscTab.lua")
 if type(buildMisc) == "function" then
     local ok, err = pcall(buildMisc, Window, isPremiumUser, MugiwaraUI)
     if not ok then warn("[Mugiwara HUB] Misc tab error: " .. tostring(err)) end
+end
+
+-- Chat tepat di bawah Misc; UI Config (tab section Appearance) paling bawah.
+local buildChat = getgenv().MugiwaraImport("Tabs/ChatTab.lua")
+if type(buildChat) == "function" then
+    local ok, err = pcall(buildChat, Window, isPremiumUser, MugiwaraUI, CHAT_URL)
+    if not ok then warn("[Mugiwara HUB] Chat tab error: " .. tostring(err)) end
+end
+
+local buildUIConfig = getgenv().MugiwaraImport("Tabs/UIConfigTab.lua")
+if type(buildUIConfig) == "function" then
+    local ok, err = pcall(buildUIConfig, Window, isPremiumUser, MugiwaraUI)
+    if not ok then warn("[Mugiwara HUB] UI Config tab error: " .. tostring(err)) end
 end
 LoaderProgress(80, 93)
 

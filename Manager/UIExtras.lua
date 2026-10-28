@@ -2,7 +2,7 @@ local UIExtras = {}
 
 -- Mugiwara UI tidak punya beberapa hal yang dipakai hub sejak masih WindUI: teks "Premium Only" di
 -- elemen terkunci (LockedTitle), gambar kecil di samping Paragraph (Image + ImageSize), judul Tab dan
--- Section berwarna (rich text), SetValue/SetColor, dan event buka/tutup window. Library tidak
+-- Section berwarna (rich text), ikon di header Section, SetValue/SetColor, dan event buka/tutup window. Library tidak
 -- diubah; semuanya ditambahkan dari sisi hub lewat modul ini.
 --
 -- Install(Window) dipanggil SEKALI tepat setelah window dibuat, sebelum elemen apa pun dibuat.
@@ -66,6 +66,44 @@ local function FindByName(root, name)
     return nil
 end
 
+-- Warna ikon: Color3 (tetap), nama token tema seperti "Success" (ikut tema), atau nil (aksen tema).
+local function PaintIcon(UI, Window, image, color)
+    if typeof(color) == "Color3" then
+        UI.Icons.Tint(image, color)
+    elseif type(color) == "string" and Window.Theme.Tokens[color] ~= nil then
+        UI.Icons.BindImage(Window.Theme, image, color)
+    else
+        UI.Icons.BindImage(Window.Theme, image, "Accent")
+    end
+end
+
+-- Section di library belum punya Icon. Ikon (opts.Icon, warna opts.IconColor) dipasang di header
+-- sebelum judul; teks judul bergeser sebesar lebar ikon.
+local function AttachSectionIcon(UI, Window, section, header, title, icon, color)
+    local holder = Instance.new("Frame")
+    holder.Name = "IconHolder"
+    holder.AnchorPoint = Vector2.new(0, 0.5)
+    holder.Position = UDim2.new(0, 14, 0.5, 0)
+    holder.Size = UDim2.fromOffset(16, 16)
+    holder.BackgroundTransparency = 1
+    holder.Parent = header
+
+    local image = UI.Icons.Create(icon, holder)
+    if not image then
+        holder:Destroy()
+        return
+    end
+    PaintIcon(UI, Window, image, color)
+
+    title.Position = UDim2.fromOffset(38, 0)
+    title.Size = UDim2.new(1, -74, 1, 0)
+
+    section.IconLabel = image
+    function section:SetIconColor(newColor)
+        PaintIcon(UI, Window, image, newColor)
+    end
+end
+
 function UIExtras.Install(UI, Window)
     if Window._MugiwaraExtras then return end
     Window._MugiwaraExtras = true
@@ -122,13 +160,18 @@ function UIExtras.Install(UI, Window)
         return originalParagraph(self, opts)
     end
 
-    -- Judul Section berwarna: `<font color="#ffff82">...</font>`.
+    -- Judul Section berwarna (`<font color="#ffff82">...</font>`) dan ikon di header Section.
     local originalSection = Container.Section
     Container.Section = function(self, opts)
         local section = originalSection(self, opts)
-        if type(opts) == "table" and HasMarkup(opts.Title) and section and section.Frame then
+        if type(opts) == "table" and section and section.Frame then
             local header = FindByName(section.Frame, "Header")
-            EnableRichText(header and header:FindFirstChildOfClass("TextLabel"))
+            local title = header and header:FindFirstChildOfClass("TextLabel")
+            if HasMarkup(opts.Title) then EnableRichText(title) end
+            if title and opts.Icon ~= nil and opts.Icon ~= "" then
+                local ok, err = pcall(AttachSectionIcon, UI, Window, section, header, title, opts.Icon, opts.IconColor)
+                if not ok then warn("[Mugiwara HUB] Section icon error: " .. tostring(err)) end
+            end
         end
         return section
     end

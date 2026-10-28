@@ -481,15 +481,18 @@ function LightingModule.LoadSkybox(id)
     end
 end
 
--- Daftar nama preset untuk dropdown (teks biasa): "Default" (peta asli), preset bawaan, lalu
--- preset tersimpan. Dropdown Mugiwara UI hanya menerima teks, jadi tidak ada pemisah atau deskripsi.
+-- Daftar preset untuk dropdown: "Default" (peta asli), preset bawaan, lalu preset tersimpan.
+-- Tiap item { Title, Desc, Icon }; dropdown mengembalikan Title-nya. Dropdown Mugiwara UI tidak
+-- punya pemisah antar kelompok, jadi urutan saja yang membedakan.
 function LightingModule.GetPresetsList()
-    local list = { "Default" }
+    local list = { { Title = "Default", Desc = "Restore the map's original lighting.", Icon = "lucide:sun" } }
 
     local builtIn = {}
     for name in pairs(LightingModule.BuiltInPresets) do table.insert(builtIn, name) end
     table.sort(builtIn)
-    for _, name in ipairs(builtIn) do table.insert(list, name) end
+    for _, name in ipairs(builtIn) do
+        table.insert(list, { Title = name, Desc = LightingModule.BuiltInPresets[name].Desc, Icon = "lucide:cloudy" })
+    end
 
     if listfiles then
         local ok, files = pcall(listfiles, ROOT .. "/Presets")
@@ -500,7 +503,9 @@ function LightingModule.GetPresetsList()
                 if name and name ~= "Default" and not LightingModule.BuiltInPresets[name] then table.insert(saved, name) end
             end
             table.sort(saved)
-            for _, name in ipairs(saved) do table.insert(list, name) end
+            for _, name in ipairs(saved) do
+                table.insert(list, { Title = name, Desc = "Custom Preset (Saved)", Icon = "lucide:save" })
+            end
         end
     end
     return list
