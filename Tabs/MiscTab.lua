@@ -5,7 +5,7 @@ local CameraModule = getgenv().MugiwaraImport("Manager/Camera.lua")
 local CursorModule = getgenv().MugiwaraImport("Manager/Cursor.lua")
 local HideGuiModule = getgenv().MugiwaraImport("Manager/HideGui.lua")
 
-return function(Window, isPremiumUser, WindUI)
+return function(Window, isPremiumUser, MugiwaraUI)
 
     local TabMisc = Window:Tab({ Title = "Misc", Icon = "lucide:wrench" })
 
@@ -18,7 +18,7 @@ return function(Window, isPremiumUser, WindUI)
     end
 
     local function Notify(title, content, duration)
-        WindUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
+        MugiwaraUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
     end
 
     -- Teleport yang ditolak Roblox (server penuh, private, dll) dilaporkan lewat sini.
@@ -240,9 +240,9 @@ return function(Window, isPremiumUser, WindUI)
         }
 
         local entries = {}
-        local uiEntry = nil -- entry "Show / Hide Hub"; tombolnya ditangani langsung oleh WindUI
+        local uiEntry = nil -- entry "Show / Hide Hub"; tombolnya ditangani langsung oleh Window (SetToggleKey)
 
-        -- Pasang tombol buka/tutup ke WindUI hanya saat shortcut aktif; saat OFF dikosongkan.
+        -- Pasang tombol buka/tutup ke Window hanya saat shortcut aktif; saat OFF dikosongkan.
         RefreshUIKey = function()
             if not Window.SetToggleKey then return end
             local keyCode = shortcutsEnabled and uiEntry and KeybindsModule.GetKeyCode(uiEntry.Last) or nil
@@ -279,8 +279,8 @@ return function(Window, isPremiumUser, WindUI)
             end
         })
 
-        -- WindUI tidak punya event "key berubah", jadi nilai tiap Keybind dicek berkala.
-        -- Di sini perubahan divalidasi, dicek bentrok, disimpan, dan diterapkan.
+        -- Nilai tiap Keybind dicek berkala. Di sini perubahan divalidasi, dicek bentrok, disimpan,
+        -- dan diterapkan (Escape mengosongkan key di library; itu dikembalikan di bawah).
         local watching = true
         getgenv().MugiwaraRegisterCleanup(function() watching = false end)
 
@@ -291,7 +291,7 @@ return function(Window, isPremiumUser, WindUI)
                     local value = entry.Element and entry.Element.Value
                     if value ~= entry.Last then
                         if not KeybindsModule.IsValidKey(value) then
-                            -- Tombol mouse tidak dipicu oleh Keybind WindUI, jadi dikembalikan.
+                            -- Key kosong atau bukan keyboard tidak bisa dipakai sebagai shortcut, jadi dikembalikan.
                             entry.Element:Set(entry.Last)
                             Notify("Unsupported Key", "Only keyboard keys can be used as shortcuts.", 3)
                         else
@@ -320,8 +320,6 @@ return function(Window, isPremiumUser, WindUI)
     -- INTERFACE
     -- ==========================================
     if HideGuiModule then
-        HideGuiModule.WindUI = WindUI -- supaya UI hub sendiri tidak ikut disembunyikan
-
         local InterfaceSection = TabMisc:Section({ Title = "Interface", Icon = "lucide:eye-off", Opened = false, Box = true })
 
         InterfaceSection:Toggle({

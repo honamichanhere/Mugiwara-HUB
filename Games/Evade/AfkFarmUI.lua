@@ -7,18 +7,18 @@ local Risk = getgenv().MugiwaraImport("Manager/Risk.lua") or { Desc = function(_
 --   BuildCommands(TabMain, ...) : section "Auto Commands" (gratis), event Command > Trigger > Delay
 local UI = {}
 
-local function MakeNotify(WindUI)
+local function MakeNotify(MugiwaraUI)
     return function(title, content, duration)
-        WindUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
+        MugiwaraUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
     end
 end
 
 -- ==========================================
 -- AFK FARM (premium)
 -- ==========================================
-function UI.BuildFarm(Section, isPremiumUser, WindUI)
+function UI.BuildFarm(Section, isPremiumUser, MugiwaraUI)
     if not AfkFarm then return end
-    local Notify = MakeNotify(WindUI)
+    local Notify = MakeNotify(MugiwaraUI)
 
     Section:Toggle({
         Title = "AFK Farm",
@@ -27,7 +27,7 @@ function UI.BuildFarm(Section, isPremiumUser, WindUI)
         LockedTitle = "Premium Only",
         Value = false,
         Callback = function(Value)
-            Risk.Warn(WindUI, "AfkFarm", Value)
+            Risk.Warn(MugiwaraUI, "AfkFarm", Value)
             AfkFarm.SetFarm(Value)
         end
     })
@@ -44,7 +44,7 @@ function UI.BuildFarm(Section, isPremiumUser, WindUI)
         LockedTitle = "Premium Only",
         Callback = function(Text)
             if updatingInput then return end
-            -- WindUI memanggil callback saat elemen dibuat dengan nilai awalnya; tanpa
+            -- Library lama (WindUI) memanggil callback saat elemen dibuat dengan nilai awalnya; tanpa
             -- perubahan nilai tidak ada yang perlu disimpan atau diberi notifikasi.
             if Text == AfkFarm.FormatPosition() then return end
             local ok, result = AfkFarm.SetPositionFromText(Text)
@@ -80,9 +80,9 @@ end
 -- ==========================================
 -- AUTO COMMANDS (gratis)
 -- ==========================================
-function UI.BuildCommands(TabMain, isPremiumUser, WindUI)
+function UI.BuildCommands(TabMain, isPremiumUser, MugiwaraUI)
     if not AfkFarm or not VIPCommands then return end
-    local Notify = MakeNotify(WindUI)
+    local Notify = MakeNotify(MugiwaraUI)
 
     local Section = TabMain:Section({
         Title = "Auto Commands",
@@ -102,7 +102,7 @@ function UI.BuildCommands(TabMain, isPremiumUser, WindUI)
         Desc = Risk.Desc("AutoCommands", "Send each event's command when its trigger happens."),
         Value = false,
         Callback = function(Value)
-            Risk.Warn(WindUI, "AutoCommands", Value)
+            Risk.Warn(MugiwaraUI, "AutoCommands", Value)
             AfkFarm.SetAutoExec(Value)
         end
     })
@@ -204,7 +204,7 @@ function UI.BuildCommands(TabMain, isPremiumUser, WindUI)
                 local position = PositionOf(rule)
                 if position then table.remove(events, position) end
 
-                -- Dihapus dari yang terakhir ke yang pertama supaya urutan internal WindUI tetap benar.
+                -- Dihapus dari yang terakhir ke yang pertama supaya urutan internal library tetap benar.
                 for index = #event.Elements, 1, -1 do
                     local element = event.Elements[index]
                     local ok = element.Destroy and pcall(function() element:Destroy() end)

@@ -1,6 +1,6 @@
 local CameraModule = getgenv().MugiwaraImport("Manager/Camera.lua")
 
-return function(Window, isPremiumUser, WindUI)
+return function(Window, isPremiumUser, MugiwaraUI)
     
     local TabCamera = Window:Tab({ Title = "Camera", Icon = "lucide:video" })
 
@@ -42,12 +42,12 @@ return function(Window, isPremiumUser, WindUI)
         Multi = false,
         Values = CameraModule.GetPlayerList(),
         Callback = function(Value)
-            -- WindUI memanggil callback dropdown saat UI dibuat (nilai kosong); abaikan supaya
+            -- Library lama (WindUI) memanggil callback dropdown saat UI dibuat (nilai kosong); guard ini dipertahankan supaya
             -- tidak muncul notifikasi "Observation Active" tiap hub dijalankan.
             if type(Value) ~= "string" or Value == "" then return end
 
             local success, msg = CameraModule.SetSpectate(Value)
-            WindUI:Notify({ Title = success and "Observation Active" or "Observation Failed", Content = msg, Duration = 3 })
+            MugiwaraUI:Notify({ Title = success and "Observation Active" or "Observation Failed", Content = msg, Duration = 3 })
         end
     })
 
@@ -60,7 +60,7 @@ return function(Window, isPremiumUser, WindUI)
         Callback = function()
             if DropdownSpectate and DropdownSpectate.Refresh then
                 DropdownSpectate:Refresh(CameraModule.GetPlayerList())
-                WindUI:Notify({ Title = "List Updated", Content = "The player list has been successfully refreshed.", Duration = 2 })
+                MugiwaraUI:Notify({ Title = "List Updated", Content = "The player list has been successfully refreshed.", Duration = 2 })
             end
         end
     })
@@ -73,7 +73,7 @@ return function(Window, isPremiumUser, WindUI)
         Icon = "lucide:user-x",
         Callback = function()
             local success, msg = CameraModule.SetSpectate(nil)
-            WindUI:Notify({ Title = "Camera Reset", Content = msg, Duration = 3 })
+            MugiwaraUI:Notify({ Title = "Camera Reset", Content = msg, Duration = 3 })
         end
     })
 

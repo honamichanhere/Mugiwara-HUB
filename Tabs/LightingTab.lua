@@ -1,12 +1,11 @@
 local LightingModule = getgenv().MugiwaraImport("Manager/Lighting.lua")
 
-return function(Window, isPremiumUser, WindUI)
+return function(Window, isPremiumUser, MugiwaraUI)
     
     local TabLighting = Window:Tab({ Title = "Lighting", Icon = "lucide:sun" })
 
-    -- Semua data dihitung SEBELUM section dibuat. Section WindUI baru "final" lewat task.defer; kalau
-    -- belum ada elemen saat itu (ada yield / download di antara membuat section dan elemen pertama)
-    -- section-nya tetap kosong. Jadi elemen pertama harus langsung menyusul tanpa yield.
+    -- Semua data dihitung SEBELUM section dibuat, supaya section dan elemen pertamanya dibuat
+    -- berurutan tanpa yield (download atau yield di antaranya bisa menunda tampilan section).
     local presetsList = LightingModule.GetPresetsList and LightingModule.GetPresetsList() or {}
     local skyboxNames2 = {}
     for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames2, name) end
@@ -26,8 +25,8 @@ return function(Window, isPremiumUser, WindUI)
         Values = presetsList,
         Value = "Default",
         Callback = function(Option)
-            if Option and Option.Title then
-                LightingModule.LoadPreset(Option.Title) 
+            if type(Option) == "string" and Option ~= "" then
+                LightingModule.LoadPreset(Option)
             end
         end
     })
@@ -44,9 +43,9 @@ return function(Window, isPremiumUser, WindUI)
             local success, status = LightingModule.SavePreset(Text) 
             if success then
                 if status == "Overwrite" then
-                    WindUI:Notify({ Title = "Preset Overwritten!", Content = "Preset '" .. Text .. "' successfully updated!", Duration = 3 })
+                    MugiwaraUI:Notify({ Title = "Preset Overwritten!", Content = "Preset '" .. Text .. "' successfully updated!", Duration = 3 })
                 else
-                    WindUI:Notify({ Title = "Preset Saved!", Content = "New preset '" .. Text .. "' successfully saved!", Duration = 3 })
+                    MugiwaraUI:Notify({ Title = "Preset Saved!", Content = "New preset '" .. Text .. "' successfully saved!", Duration = 3 })
                 end           
                 
                 pcall(function() VipSavePreset:Set("") end)
@@ -111,7 +110,7 @@ return function(Window, isPremiumUser, WindUI)
         LockedTitle = "Premium Only",
         Callback = function()
             local success, msg = LightingModule.CopySkybox()
-            WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
+            MugiwaraUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
         end
     })
 
@@ -122,7 +121,7 @@ return function(Window, isPremiumUser, WindUI)
         LockedTitle = "Premium Only",
         Callback = function()
             local success, msg = LightingModule.PasteSkybox()
-            WindUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
+            MugiwaraUI:Notify({ Title = success and "Success!" or "Failed!", Content = msg, Duration = 3 })
         end
     })
 

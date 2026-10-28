@@ -28,12 +28,12 @@ function Risk.Desc(key, description)
 end
 
 -- Dipanggil dari callback toggle. Hanya memperingatkan saat fitur DINYALAKAN.
-function Risk.Warn(WindUI, key, state)
+function Risk.Warn(MugiwaraUI, key, state)
     local feature = Risk.Features[key]
-    if not state or not feature or not WindUI then return end
+    if not state or not feature or not MugiwaraUI then return end
 
     pcall(function()
-        WindUI:Notify({
+        MugiwaraUI:Notify({
             Title = "High risk: " .. feature.Name,
             Content = feature.Reason,
             Duration = 6,

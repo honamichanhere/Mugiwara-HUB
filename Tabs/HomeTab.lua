@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local LocalPlayer = Players.LocalPlayer
 
-return function(Window, isPremiumUser, WindUI)
+return function(Window, isPremiumUser, MugiwaraUI)
     local TabHome = Window:Tab({ Title = "Home", Icon = "lucide:house" })
     
     local success, gameInfo = pcall(function() return MarketplaceService:GetProductInfo(game.PlaceId) end)
@@ -58,7 +58,7 @@ return function(Window, isPremiumUser, WindUI)
         Icon = "lucide:external-link", 
         Callback = function() 
             if setclipboard then setclipboard("https://tiktok.com/@honamichanhere") end
-            WindUI:Notify({ Title = "Action Successful", Content = "The official TikTok profile link has been copied to your clipboard.", Duration = 3 }) 
+            MugiwaraUI:Notify({ Title = "Action Successful", Content = "The official TikTok profile link has been copied to your clipboard.", Duration = 3 }) 
         end 
     })
 
@@ -68,19 +68,19 @@ return function(Window, isPremiumUser, WindUI)
         Icon = "lucide:message-square", 
         Callback = function() 
             if setclipboard then setclipboard("https://discord.gg/djmrevtSV7") end
-            WindUI:Notify({ Title = "Action Successful", Content = "The Discord community invite link has been copied to your clipboard.", Duration = 3 }) 
+            MugiwaraUI:Notify({ Title = "Action Successful", Content = "The Discord community invite link has been copied to your clipboard.", Duration = 3 }) 
         end 
     })
 
     TabHome:Divider({ Title = "Acknowledgments & Credits" })
     
     TabHome:Button({ 
-        Title = "UI Framework: WindUI", 
-        Desc = "Open-source interface library utilized for Mugiwara HUB.",
-        Icon = "lucide:code", 
-        Callback = function() 
-            if setclipboard then setclipboard("https://github.com/Footagesus/WindUI") end
-            WindUI:Notify({ Title = "Action Successful", Content = "The repository link for WindUI has been copied to your clipboard.", Duration = 3 }) 
+        Title = "UI Framework: Mugiwara UI",
+        Desc = "Open-source glass and neon interface library, built for Mugiwara HUB. API inspired by WindUI.",
+        Icon = "lucide:code",
+        Callback = function()
+            if setclipboard then setclipboard("https://github.com/honamichanhere/Mugiwara-UI") end
+            MugiwaraUI:Notify({ Title = "Action Successful", Content = "The repository link for Mugiwara UI has been copied to your clipboard.", Duration = 3 })
         end 
     })
 
@@ -90,7 +90,7 @@ return function(Window, isPremiumUser, WindUI)
         Icon = "lucide:shield-check", 
         Callback = function() 
             if setclipboard then setclipboard("https://discord.gg/panda-auth") end
-            WindUI:Notify({ Title = "Action Successful", Content = "The Panda Auth reference link has been copied to your clipboard.", Duration = 3 }) 
+            MugiwaraUI:Notify({ Title = "Action Successful", Content = "The Panda Auth reference link has been copied to your clipboard.", Duration = 3 }) 
         end 
     })
 end

@@ -43,10 +43,10 @@ local State = {
 -- ==========================================
 -- HELPERS
 -- ==========================================
-local function Notify(WindUI, title, content, duration)
-    if not WindUI then return end
+local function Notify(MugiwaraUI, title, content, duration)
+    if not MugiwaraUI then return end
     pcall(function()
-        WindUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
+        MugiwaraUI:Notify({ Title = title, Content = content, Duration = duration or 3 })
     end)
 end
 
@@ -404,7 +404,7 @@ end
 -- ==========================================
 -- PUBLIC API  (signature sama kayak v1)
 -- ==========================================
-function AvatarChanger.Clear(showNotif, WindUI)
+function AvatarChanger.Clear(showNotif, MugiwaraUI)
     if State.Conn then
         State.Conn:Disconnect()
         State.Conn = nil
@@ -426,31 +426,31 @@ function AvatarChanger.Clear(showNotif, WindUI)
     State.Char = nil
 
     if showNotif then
-        Notify(WindUI, "Reverted", "Your original avatar has been restored.", 3)
+        Notify(MugiwaraUI, "Reverted", "Your original avatar has been restored.", 3)
     end
 end
 
-local function DoApply(username, WindUI)
+local function DoApply(username, MugiwaraUI)
     username = string.match(tostring(username or ""), "^%s*(.-)%s*$")
     if username == "" then return end
 
     local char, hum = GetCharacter()
     if not char or not hum then
-        Notify(WindUI, "Error", "Your character was not found, please try again in a moment.", 3)
+        Notify(MugiwaraUI, "Error", "Your character was not found, please try again in a moment.", 3)
         return
     end
 
-    Notify(WindUI, "Processing", "Fetching avatar data for " .. username .. "...", 2)
+    Notify(MugiwaraUI, "Processing", "Fetching avatar data for " .. username .. "...", 2)
 
     local okId, userId = pcall(function() return Players:GetUserIdFromNameAsync(username) end)
     if not okId or not userId then
-        Notify(WindUI, "Error", "Invalid or unknown username!", 3)
+        Notify(MugiwaraUI, "Error", "Invalid or unknown username!", 3)
         return
     end
 
     local okDesc, desc = pcall(function() return Players:GetHumanoidDescriptionFromUserId(userId) end)
     if not okDesc or not desc then
-        Notify(WindUI, "Error", "Failed to fetch the target avatar details!", 3)
+        Notify(MugiwaraUI, "Error", "Failed to fetch the target avatar details!", 3)
         return
     end
 
@@ -473,26 +473,26 @@ local function DoApply(username, WindUI)
 
     if not ok then
         AvatarChanger.Clear(false)
-        Notify(WindUI, "Error", err or "Avatar morph failed.", 4)
+        Notify(MugiwaraUI, "Error", err or "Avatar morph failed.", 4)
         return
     end
 
-    Notify(WindUI, "Success", "Your avatar is now a 1:1 copy of " .. username .. " (" .. rig .. ")", 3)
+    Notify(MugiwaraUI, "Success", "Your avatar is now a 1:1 copy of " .. username .. " (" .. rig .. ")", 3)
 end
 
-function AvatarChanger.Apply(username, WindUI)
+function AvatarChanger.Apply(username, MugiwaraUI)
     if State.Busy then
-        Notify(WindUI, "Please wait", "The previous morph is still processing.", 2)
+        Notify(MugiwaraUI, "Please wait", "The previous morph is still processing.", 2)
         return
     end
     State.Busy = true
-    local ok, err = pcall(DoApply, username, WindUI)
+    local ok, err = pcall(DoApply, username, MugiwaraUI)
     State.Busy = false
 
     if not ok then
         warn("[Mugiwara] AvatarChanger error: " .. tostring(err))
         pcall(AvatarChanger.Clear, false)
-        Notify(WindUI, "Error", "Morph failed, changes were rolled back.", 3)
+        Notify(MugiwaraUI, "Error", "Morph failed, changes were rolled back.", 3)
     end
 end
 

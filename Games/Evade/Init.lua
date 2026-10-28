@@ -4,7 +4,7 @@ local TicketFarmModule = getgenv().MugiwaraImport("Games/Evade/TicketFarm.lua")
 local AfkFarmUI = getgenv().MugiwaraImport("Games/Evade/AfkFarmUI.lua")
 local Risk = getgenv().MugiwaraImport("Manager/Risk.lua") or { Desc = function(_, text) return text end, Warn = function() end }
 
-return function(Window, isPremiumUser, WindUI)
+return function(Window, isPremiumUser, MugiwaraUI)
     
     local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ship" })
     
@@ -26,7 +26,7 @@ return function(Window, isPremiumUser, WindUI)
 
     -- AFK Farm (premium) ada di urutan paling atas section ini, lalu fitur tampilan.
     if AfkFarmUI then
-        local ok, err = pcall(AfkFarmUI.BuildFarm, AccSection, isPremiumUser, WindUI)
+        local ok, err = pcall(AfkFarmUI.BuildFarm, AccSection, isPremiumUser, MugiwaraUI)
         if not ok then warn("[Mugiwara HUB] AFK Farm UI error: " .. tostring(err)) end
         AccSection:Divider({ Title = "Visuals" })
     end
@@ -56,7 +56,7 @@ return function(Window, isPremiumUser, WindUI)
                 end
                 if selectedId then
                     task.spawn(function()
-                        VisualAccModule.Apply(selectedId, WindUI)
+                        VisualAccModule.Apply(selectedId, MugiwaraUI)
                     end)
                 end
             end
@@ -75,11 +75,11 @@ return function(Window, isPremiumUser, WindUI)
             local assetId = tonumber(Text)
             if assetId then
                 task.spawn(function()
-                    if VisualAccModule then VisualAccModule.Apply(assetId, WindUI) end
+                    if VisualAccModule then VisualAccModule.Apply(assetId, MugiwaraUI) end
                 end)
                 pcall(function() CustomAccInput:Set("") end)
             else
-                WindUI:Notify({ Title = "Invalid Input", Content = "Please enter a valid numeric ID.", Duration = 3 })
+                MugiwaraUI:Notify({ Title = "Invalid Input", Content = "Please enter a valid numeric ID.", Duration = 3 })
             end
         end
     })
@@ -90,7 +90,7 @@ return function(Window, isPremiumUser, WindUI)
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Callback = function()
-            if VisualAccModule then VisualAccModule.Clear(WindUI) end
+            if VisualAccModule then VisualAccModule.Clear(MugiwaraUI) end
         end
     })
 
@@ -141,7 +141,7 @@ return function(Window, isPremiumUser, WindUI)
             if not Text or Text == "" then return end 
             
             task.spawn(function()
-                if AvatarChangerModule then AvatarChangerModule.Apply(Text, WindUI) end
+                if AvatarChangerModule then AvatarChangerModule.Apply(Text, MugiwaraUI) end
             end)
             pcall(function() AvatarInput:Set("") end)
         end
@@ -153,7 +153,7 @@ return function(Window, isPremiumUser, WindUI)
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Callback = function()
-            if AvatarChangerModule then AvatarChangerModule.Clear(true, WindUI) end
+            if AvatarChangerModule then AvatarChangerModule.Clear(true, MugiwaraUI) end
         end
     })
 
@@ -172,7 +172,7 @@ return function(Window, isPremiumUser, WindUI)
             Title = "Auto Farm Tickets",
             Desc = Risk.Desc("TicketFarm", "Teleports to each Halloween ticket and waits until it is collected. When no tickets are left you stay put and can move freely."),
             Callback = function(Value)
-                Risk.Warn(WindUI, "TicketFarm", Value)
+                Risk.Warn(MugiwaraUI, "TicketFarm", Value)
                 TicketFarmModule.SetFarm(Value)
             end
         })
@@ -181,7 +181,7 @@ return function(Window, isPremiumUser, WindUI)
             Title = "Avoid NextBots",
             Desc = Risk.Desc("AvoidNextBots", "Teleports you to a safe item spawn whenever a NextBot gets too close. Also skips tickets that are next to a NextBot."),
             Callback = function(Value)
-                Risk.Warn(WindUI, "AvoidNextBots", Value)
+                Risk.Warn(MugiwaraUI, "AvoidNextBots", Value)
                 TicketFarmModule.SetAvoid(Value)
             end
         })
@@ -201,12 +201,12 @@ return function(Window, isPremiumUser, WindUI)
     -- AUTO COMMANDS (free)
     -- ==========================================
     if AfkFarmUI then
-        local ok, err = pcall(AfkFarmUI.BuildCommands, TabMain, isPremiumUser, WindUI)
+        local ok, err = pcall(AfkFarmUI.BuildCommands, TabMain, isPremiumUser, MugiwaraUI)
         if not ok then warn("[Mugiwara HUB] Auto Commands UI error: " .. tostring(err)) end
     end
     local injectMovement = getgenv().MugiwaraImport("Tabs/MovementInjector.lua")
     if injectMovement then
-        injectMovement(TabMain, isPremiumUser, WindUI)
+        injectMovement(TabMain, isPremiumUser, MugiwaraUI)
     end
 
     pcall(function() Window:SelectTab(2) end)

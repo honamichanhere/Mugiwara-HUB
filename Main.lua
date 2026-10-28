@@ -31,6 +31,7 @@ env.MugiwaraRegisterCleanup = function(fn)
 end
 
 if env.MugiwaraExecuted then
+    -- Sisa dari versi hub yang masih memakai WindUI (satu kali, setelah update ke Mugiwara UI).
     pcall(function()
         for _, gui in pairs(game:GetService("CoreGui"):GetChildren()) do
             if gui:IsA("ScreenGui") and gui.Name == "WindUI" then gui:Destroy() end
@@ -71,10 +72,12 @@ env.MugiwaraImport = function(path)
     return result
 end
 
--- Loading screen menutupi proses load hub. Kapan dimulai tergantung ada tidaknya key tersimpan
--- (lihat StartLoader di bawah). Kalau gagal dimuat, hub tetap jalan tanpa loading screen.
--- Semua fungsi Loader* aman dipanggil sebelum loading screen dibuat (tidak melakukan apa-apa).
+-- Loading screen (MugiwaraUI:Loading) menutupi proses load hub. Kapan dimulai tergantung ada
+-- tidaknya key tersimpan (lihat StartLoader di bawah). Kalau gagal dibuat, hub tetap jalan tanpa
+-- loading screen. Semua fungsi Loader* aman dipanggil sebelum loading screen dibuat (tidak
+-- melakukan apa-apa).
 env.MugiwaraVersion = VERSION
+local MugiwaraUI = nil -- diisi setelah library dimuat (lihat "MUGIWARA UI" di bawah)
 local Loader = nil
 
 local function LoaderStatus(text)
@@ -95,7 +98,12 @@ local function StartLoader()
     if Loader then return end
 
     local ok, result = pcall(function()
-        return loadstring(game:HttpGet(BASE_URL .. "Manager/LoadingScreen.lua"))()
+        return MugiwaraUI:Loading({
+            Title = "Mugiwara HUB",
+            Owner = "Honami",
+            Version = "v" .. VERSION,
+            InstantCover = env.MugiwaraLoaderInstantCover == true,
+        })
     end)
     if ok and type(result) == "table" then
         Loader = result
@@ -150,6 +158,21 @@ pcall(MigrateLegacyData)
 
 if makefolder and isfolder and not isfolder(FOLDER) then makefolder(FOLDER) end
 
+-- MUGIWARA UI
+-- Dimuat lebih dulu karena loading screen dan layar key adalah bagian dari library. Versinya
+-- dipatok ke satu tag (tag tidak pernah berubah, jadi push baru ke library tidak merusak hub).
+-- Untuk memakai versi library yang lebih baru, ganti tag-nya di sini.
+local UI_VERSION = "v0.7.0"
+local UI_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-UI/" .. UI_VERSION .. "/dist/main.lua"
+
+local uiOk, uiResult = pcall(function() return loadstring(game:HttpGet(UI_URL))() end)
+if not uiOk or type(uiResult) ~= "table" or type(uiResult.CreateWindow) ~= "function" then
+    LocalPlayer:Kick("[Mugiwara HUB] UI library failed to load. Please try again.")
+    return
+end
+MugiwaraUI = uiResult
+env.MugiwaraRegisterCleanup(function() pcall(function() MugiwaraUI:Destroy() end) end)
+
 -- PANDA AUTH PUSL-V4 SYSTEM
 local savedKeyPath = FOLDER .. "/PremiumKey.txt"
 local isPremiumUser = false
@@ -201,150 +224,98 @@ if readfile and isfile and isfile(savedKeyPath) then
     end
 end
 
--- SETUP WIND UI & THEME
+-- KEY
 LoaderProgress(24, 42)
-LoaderStatus("Loading WindUI")
-local uiOk, WindUI = pcall(function() return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))() end)
-if not uiOk or type(WindUI) ~= "table" then
-    LoaderDestroy()
-    LocalPlayer:Kick("[Mugiwara HUB] UI library failed to load. Please try again.")
-    return
-end
-LoaderProgress(44, 51)
-local ThemesList = WindUI:GetThemes()
 
-ThemesList["Luffy"] = {}
-for key, value in pairs(ThemesList["Dark"]) do ThemesList["Luffy"][key] = value end
-ThemesList["Luffy"].Accent = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].Background = WindUI:Gradient({ ["0"] = { Color = Color3.fromHex("#643c23"), Transparency = 0 }, ["100"] = { Color = Color3.fromHex("#321900"), Transparency = 0 }},{ Rotation = -90 })
-ThemesList["Luffy"].BackgroundTransparency = 0.5
-ThemesList["Luffy"].Outline = Color3.fromHex("#ff9132")
-ThemesList["Luffy"].Text = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].Placeholder = Color3.fromHex("#3c2819")
-ThemesList["Luffy"].Button = Color3.fromHex("#7d4b32")
-ThemesList["Luffy"].Icon = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].WindowShadow = Color3.fromHex("#000000")
-ThemesList["Luffy"].WindowTopbarIcon = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].WindowTopbarTitle = Color3.fromHex("#ffdcc8")
-ThemesList["Luffy"].WindowTopbarAuthor = Color3.fromHex("#ffb98c")
-ThemesList["Luffy"].WindowTopbarButtonIcon = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].TabBackground = Color3.fromHex("#ff4b00")
-ThemesList["Luffy"].TabTitle = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].TabIcon = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].ElementBackground = Color3.fromHex("#b9784b")
-ThemesList["Luffy"].ElementTitle = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].ElementDesc = Color3.fromHex("#c8c8c8")
-ThemesList["Luffy"].ElementIcon = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].Toggle = Color3.fromHex("#ffaf64")
-ThemesList["Luffy"].ToggleBar = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].PopupBackground = Color3.fromHex("#643c23")
-ThemesList["Luffy"].PopupBackgroundTransparency = 0.5
-ThemesList["Luffy"].PopupTitle = Color3.fromHex("#ff6400")
-ThemesList["Luffy"].PopupContent = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].PopupIcon = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].DialogBackground = Color3.fromHex("#1F1108")
-ThemesList["Luffy"].DialogBackgroundTransparency = 0.5
-ThemesList["Luffy"].DialogTitle = Color3.fromHex("#FFD700")
-ThemesList["Luffy"].DialogContent = Color3.fromHex("#ffffff")
-ThemesList["Luffy"].DialogIcon = Color3.fromHex("#FF8C00")
-
-local UnlockPremiumFeatures
-
-local windowConfig = {
-    Title = "Mugiwara HUB", Icon = "lucide:sparkles", Author = "by Honami", Folder = "MugiwaraHubConfig",
-    Size = UDim2.fromOffset(580, 390), Transparent = true, Theme = "Luffy",
-}
-
+-- Tanpa key premium yang valid, layar key (komponen Mugiwara UI) tampil. Kalau loading screen sudah
+-- berjalan karena ada key tersimpan yang ditolak, loading screen ditutup dulu dan dibuat lagi setelah
+-- key diterima. Key yang diterima disimpan oleh library dan divalidasi ulang di run berikutnya
+-- (Validate dipanggil lagi dengan key itu), jadi layar key hanya muncul sekali.
 if not isPremiumUser then
-    windowConfig.KeySystem = {
-        Key = "LUFFY", Note = "Enter the Free Key or Premium Key.", URL = PUSL.getKeyUrl(), SaveKey = true,
-        KeyValidator = function(inputKey)
+    LoaderDestroy()
+
+    local keyOptions = {
+        Title = "Mugiwara HUB",
+        Subtitle = "by Honami",
+        Icon = "lucide:sparkles",
+        Note = "Enter the Free Key or Premium Key.",
+        Folder = "MugiwaraHubConfig",
+        SaveKey = true,
+        Validate = function(inputKey)
             local isValid, isPrem, result = ValidateKey(inputKey)
-            if isValid then
-                if isPrem then
-                    -- The window is only created after the key is accepted, so the tabs
-                    -- below load in premium mode without needing a reload.
-                    isPremiumUser = true
-                    if writefile then pcall(writefile, savedKeyPath, (tostring(inputKey):match("^%s*(.-)%s*$"))) end
-                    WindUI:Notify({ Title = "Premium Access!", Content = "Premium Key Valid!", Duration = 3 })
-                else
-                    WindUI:Notify({ Title = "Free Access!", Content = "Free Key Valid!", Duration = 3 })
-                end
-                return true 
-            else
-                WindUI:Notify({ Title = "Validation Failed!", Content = result.message or result.error or result.reason or "Invalid Key!", Duration = 3 })
-                return false
+            if not isValid then
+                return false, result.message or result.error or result.reason or "Invalid key!"
             end
-        end
+
+            if isPrem then
+                -- Window baru dibuat setelah key diterima, jadi tab premium langsung terbuka.
+                isPremiumUser = true
+                if writefile then pcall(writefile, savedKeyPath, (tostring(inputKey):match("^%s*(.-)%s*$"))) end
+                return true, "Premium key accepted"
+            end
+            return true, "Free key accepted"
+        end,
     }
-end
 
--- WindUI's built-in "Get key" button copies the link silently. While the key window is
--- open, setclipboard is wrapped so a notification appears when the key link is copied,
--- then the original function is restored once the window has been created.
-local originalSetClipboard = setclipboard
-if not isPremiumUser and originalSetClipboard and windowConfig.KeySystem then
-    local keyUrl = windowConfig.KeySystem.URL
-    getgenv().setclipboard = function(text, ...)
-        local ok, err = pcall(originalSetClipboard, text, ...)
-        if ok and text == keyUrl then
-            pcall(function()
-                WindUI:Notify({ Title = "Key Link Copied", Content = "Paste it in your browser to get your key.", Duration = 4 })
-            end)
-        end
-        if not ok then error(err, 0) end
+    local keyUrl = PUSL.getKeyUrl()
+    if keyUrl then
+        keyOptions.Links = { { Title = "Get Key", Icon = "lucide:external-link", Link = keyUrl } }
     end
+
+    local KeyUI = MugiwaraUI:KeySystem(keyOptions)
+    if not KeyUI:Wait() then return end -- kartu key ditutup tanpa key: hub tidak dimuat
 end
 
--- Layar key (kalau muncul) berada di bawah loading screen, jadi loading screen disembunyikan
--- selama layar key tampil dan ditampilkan lagi begitu window dibuat (key sudah valid).
--- Key yang tersimpan langsung lolos tanpa layar key, jadi loading screen tidak terputus.
-local keyScreenConnection = nil
-if Loader and windowConfig.KeySystem then
-    pcall(function()
-        local keyFolder = WindUI.ScreenGui:FindFirstChild("KeySystem")
-        if keyFolder then
-            keyScreenConnection = keyFolder.ChildAdded:Connect(function()
-                pcall(function() Loader.Gui.Enabled = false end)
-            end)
-        end
-    end)
-end
+-- WINDOW
+LoaderProgress(44, 51)
+LoaderStatus("Creating window")
 
-local Window = WindUI:CreateWindow(windowConfig)
+local Window = MugiwaraUI:CreateWindow({
+    Title = "Mugiwara HUB",
+    Subtitle = "by Honami",
+    Icon = "lucide:sparkles",
+    Folder = "MugiwaraHubConfig",
+    Version = "v" .. VERSION,
+    Size = UDim2.fromOffset(640, 420),
+})
+env.MugiwaraRegisterCleanup(function() Window:Destroy() end)
 
-if keyScreenConnection then keyScreenConnection:Disconnect() end
--- Layar WindUI hanya dimatikan sebentar (celah saat loading screen dibuat, dan saat loading screen
--- keluar). Selama tab dibangun layar WindUI harus tetap menyala: layout elemen tidak dihitung
--- pada ScreenGui yang dimatikan, dan itu bisa membuat isi section (mis. Misc > Hub) kosong.
-local function SetHubVisible(visible)
-    pcall(function() WindUI.ScreenGui.Enabled = visible end)
+-- Window dibangun dalam keadaan tertutup selama loading screen tampil, lalu dibuka lagi dengan
+-- animasi pop-up di akhir (ShowWindowWithPopup). Library membuka window sendiri saat dibuat, jadi
+-- langsung ditutup di frame yang sama (belum ada yang sempat terlihat). ScreenGui-nya SENGAJA tetap
+-- menyala: layout elemen tidak dihitung pada ScreenGui yang dimatikan, jadi tab yang dibangun
+-- selagi mati bisa tampil kosong.
+pcall(function()
+    Window:Close()
+    -- Close() memunculkan tombol buka kecil; tombol itu baru boleh muncul kalau user menutup window.
+    if Window.OpenButton then Window.OpenButton.Visible = false end
+end)
+
+-- Tambahan dari sisi hub untuk hal yang tidak ada di library (teks "Premium Only", gambar di
+-- samping Paragraph, judul Tab/Section berwarna, SetValue/SetColor, event buka/tutup).
+local UIExtras = env.MugiwaraImport("Manager/UIExtras.lua")
+if UIExtras then
+    local okExtras, errExtras = pcall(UIExtras.Install, MugiwaraUI, Window)
+    if not okExtras then warn("[Mugiwara HUB] UIExtras error: " .. tostring(errExtras)) end
 end
 
 -- Key valid (atau lolos tanpa layar key): kalau loading screen belum dibuat, mulai sekarang
--- sehingga animasi masuknya terlihat. Window disembunyikan selama loading screen dibuat, dan
--- loading screen langsung menutup layar (tanpa fade) supaya tab yang dibangun tidak kelihatan.
+-- sehingga animasi masuknya terlihat. Loading screen langsung menutup layar (tanpa fade) supaya
+-- tab yang dibangun tidak kelihatan.
 if not Loader then
-    SetHubVisible(false)
     env.MugiwaraLoaderInstantCover = true
     StartLoader()
     env.MugiwaraLoaderInstantCover = nil
-    SetHubVisible(true)
 end
 if Loader then
-    pcall(function() Loader.Gui.Enabled = true end)
     LoaderProgress(52, 52 + math.floor(18 / 3) - 1)
     LoaderStatus("Building tabs")
 end
 
-if originalSetClipboard then getgenv().setclipboard = originalSetClipboard end
-Window:Tag({ Title = "v" .. VERSION, Icon = "lucide:refresh-ccw-dot", Color = Color3.fromHex("#ffbe6e"), Radius = 13 })
-env.MugiwaraRegisterCleanup(function() Window:Destroy() end)
-
 -- Locked state is decided when each element is created, so after activating through the
 -- "Verify & Activate" button the hub reloads to unlock every premium feature.
 UnlockPremiumFeatures = function()
-    WindUI:Notify({ Title = "Premium Unlocked", Content = "Reloading hub to unlock premium features...", Duration = 3 })
+    MugiwaraUI:Notify({ Title = "Premium Unlocked", Content = "Reloading hub to unlock premium features...", Duration = 3 })
     task.delay(1.5, function()
         pcall(function() Window:Destroy() end)
         local ok, err = pcall(function() loadstring(game:HttpGet(BASE_URL .. "Main.lua"))() end)
@@ -353,7 +324,7 @@ UnlockPremiumFeatures = function()
 end
 
 -- TAB PREMIUM ACCESS (GLOBAL)
-local TabPremium = Window:Tab({ Title = '<font color="#ffff82">Premium Access</font>', Icon = "lucide:crown", IconColor = Color3.fromHex("#ffff82") })
+local TabPremium = Window:Tab({ Title = '<font color="#ffff82">Premium Access</font>', Icon = "lucide:crown" })
 local InputKeyPremium = ""
 
 local PremiumParagraph = TabPremium:Paragraph({
@@ -370,7 +341,7 @@ if not isPremiumUser then
         Icon = "lucide:shopping-cart",
         Callback = function() 
             if setclipboard then setclipboard("https://tiktok.com/@honamichanhere") end
-            WindUI:Notify({ Title = "Action Successful", Content = "The purchase link has been copied to your clipboard.", Duration = 5 }) 
+            MugiwaraUI:Notify({ Title = "Action Successful", Content = "The purchase link has been copied to your clipboard.", Duration = 5 }) 
         end
     })
 
@@ -386,13 +357,13 @@ if not isPremiumUser then
         Title = "Verify & Activate",
         Callback = function()
             if InputKeyPremium == "" then return end
-            WindUI:Notify({ Title = "Validation in Progress", Content = "Connecting to Panda Auth server...", Duration = 2 })
+            MugiwaraUI:Notify({ Title = "Validation in Progress", Content = "Connecting to Panda Auth server...", Duration = 2 })
             
             local isValid, isPrem, result = ValidateKey(InputKeyPremium)
             if isValid and isPrem then
                 if writefile then pcall(writefile, savedKeyPath, (tostring(InputKeyPremium):match("^%s*(.-)%s*$"))) end
                 isPremiumUser = true
-                WindUI:Notify({ Title = "Authentication Successful", Content = "Premium access granted and key safely stored.", Duration = 3 })
+                MugiwaraUI:Notify({ Title = "Authentication Successful", Content = "Premium access granted and key safely stored.", Duration = 3 })
 
                 PremiumParagraph:SetDesc('<font color="#ffffff">You are already a Premium user! Thank you for your continued support.</font>')
 
@@ -400,7 +371,7 @@ if not isPremiumUser then
                 if VIPSection then VIPSection:Destroy() end
                 UnlockPremiumFeatures()
             else
-                WindUI:Notify({ Title = "Authentication Failed", Content = result.message or result.error or result.reason or "Invalid, expired, or non-premium key provided.", Duration = 3 })
+                MugiwaraUI:Notify({ Title = "Authentication Failed", Content = result.message or result.error or result.reason or "Invalid, expired, or non-premium key provided.", Duration = 3 })
             end
         end
     })
@@ -414,7 +385,7 @@ local function LoadGlobalTabs()
     for index, path in ipairs(GlobalTabs) do
         local build = getgenv().MugiwaraImport(path)
         if type(build) == "function" then
-            local ok, err = pcall(build, Window, isPremiumUser, WindUI)
+            local ok, err = pcall(build, Window, isPremiumUser, MugiwaraUI)
             if not ok then warn("[Mugiwara HUB] Tab " .. path .. " error: " .. tostring(err)) end
         end
 
@@ -453,7 +424,7 @@ local pendingBuilds = 0
 local function BuildAsync(func)
     pendingBuilds = pendingBuilds + 1
     task.spawn(function()
-        local ok, err = pcall(func, Window, isPremiumUser, WindUI)
+        local ok, err = pcall(func, Window, isPremiumUser, MugiwaraUI)
         if not ok then warn("[Mugiwara HUB] Game module error: " .. tostring(err)) end
         pendingBuilds = pendingBuilds - 1
     end)
@@ -479,37 +450,26 @@ end
 -- Misc is global and is created after the game's Main tab so it always sits below it.
 local buildMisc = getgenv().MugiwaraImport("Tabs/MiscTab.lua")
 if type(buildMisc) == "function" then
-    local ok, err = pcall(buildMisc, Window, isPremiumUser, WindUI)
+    local ok, err = pcall(buildMisc, Window, isPremiumUser, MugiwaraUI)
     if not ok then warn("[Mugiwara HUB] Misc tab error: " .. tostring(err)) end
 end
 LoaderProgress(80, 93)
-
-Window:EditOpenButton({ Title = "Open Mugiwara HUB", CornerRadius = UDim.new(1, 0), OnlyMobile = false, Enabled = true, Draggable = true })
 
 -- Tunggu modul game yang masih membangun tab (maksimal 15 detik), lalu tampilkan window.
 local revealDeadline = os.clock() + 15
 while pendingBuilds > 0 and os.clock() < revealDeadline do task.wait(0.1) end
 LoaderProgress(96, 98)
 
--- Window sudah "terbuka" selagi tertutup loading screen, jadi animasi munculnya diputar ulang.
--- Keadaan awal animasi itu (tinggi kecil, background transparan) dipasang dulu sebelum layar
--- ditampilkan, supaya tidak ada kilatan window penuh sebelum animasinya mulai.
+-- Window ditutup selagi dibangun (lihat bagian WINDOW), jadi Open() memutar animasi pop-up library
+-- dari awal.
 local function ShowWindowWithPopup()
-    pcall(function()
-        local main = Window.UIElements.Main
-        main.Size = UDim2.new(Window.Size.X.Scale, Window.Size.X.Offset, 0, 100)
-        main.Background.ImageTransparency = 1
-    end)
-    SetHubVisible(true)
     pcall(function() Window:Open() end)
 end
 
 -- Loading screen diselesaikan dulu (animasi keluar). Semua tab sudah dibangun dan layout-nya sudah
--- dihitung, jadi window baru boleh disembunyikan selama loading screen memudar, lalu muncul
--- dengan animasi pop-up begitu loading screen selesai.
+-- dihitung; window tetap tertutup selama loading screen memudar, lalu muncul dengan animasi
+-- pop-up begitu loading screen selesai.
 if Loader then
-    SetHubVisible(false)
-
     local loaderDone = false
     local doneConnection = Loader.Finished:Connect(function()
         if loaderDone then return end
@@ -526,15 +486,18 @@ if Loader then
         ShowWindowWithPopup() -- loading screen macet: tampilkan paksa
     end
     LoaderDestroy()
+else
+    ShowWindowWithPopup() -- loading screen tidak bisa dibuat: window langsung ditampilkan
 end
 
 -- Selama jendela hub terbuka kursor dibebaskan (shift lock mengunci mouse di tengah layar);
 -- saat ditutup, kondisi aslinya dikembalikan. Window:Open() sudah jalan sebelum callback
--- dipasang, jadi keadaan awal dibaca dari Window.Closed. Dipasang setelah window ditampilkan,
+-- dipasang, jadi keadaan awal dibaca dari Window.Opened. Dipasang setelah window ditampilkan,
 -- supaya kursor tidak dibebaskan selagi window masih tersembunyi.
 local Cursor = env.MugiwaraImport("Manager/Cursor.lua")
 if Cursor then
-    Window:OnOpen(function() Cursor.SetWindowOpen(true) end)
-    Window:OnClose(function() Cursor.SetWindowOpen(false) end)
-    Cursor.SetWindowOpen(not Window.Closed)
+    if UIExtras then
+        UIExtras.HookVisibility(Window, function() Cursor.SetWindowOpen(true) end, function() Cursor.SetWindowOpen(false) end)
+    end
+    Cursor.SetWindowOpen(Window.Opened == true)
 end

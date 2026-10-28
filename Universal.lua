@@ -1,4 +1,4 @@
-return function(Window, isPremiumUser, WindUI)
+return function(Window, isPremiumUser, MugiwaraUI)
     
     local TabMain = Window:Tab({ Title = "Main", Icon = "lucide:ship" })
     
@@ -8,7 +8,7 @@ return function(Window, isPremiumUser, WindUI)
     })
 
     local injectMovement = getgenv().MugiwaraImport("Tabs/MovementInjector.lua")
-    if injectMovement then injectMovement(TabMain, isPremiumUser, WindUI) end
+    if injectMovement then injectMovement(TabMain, isPremiumUser, MugiwaraUI) end
 
     pcall(function() Window:SelectTab(2) end)
 end

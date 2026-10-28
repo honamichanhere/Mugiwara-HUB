@@ -1,6 +1,6 @@
 # Mugiwara HUB
 
-Roblox script hub by Honami, built on [WindUI](https://github.com/Footagesus/WindUI) with key validation through Panda Auth.
+Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamichanhere/Mugiwara-UI) with key validation through Panda Auth.
 
 ## Features
 
@@ -21,7 +21,7 @@ Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm wit
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
 Tabs/                    UI tabs (Home, Lighting, Camera, Misc, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk)
+Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk, HideGui, UIExtras)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 
@@ -65,9 +65,15 @@ Saved premium key, lighting presets and the copied skybox live in the executor w
 
 ## Adding a game
 
-1. Create `Games/<Game>/Init.lua` that returns `function(Window, isPremiumUser, WindUI) ... end`.
+1. Create `Games/<Game>/Init.lua` that returns `function(Window, isPremiumUser, MugiwaraUI) ... end`.
 2. Add its PlaceIds and path to `SupportedGames` in `Main.lua`.
 3. Register a teardown for anything the game module creates.
+
+## UI library
+
+The hub uses [Mugiwara UI](https://github.com/honamichanhere/Mugiwara-UI) for the key card, the loading screen, the window and every element. `Main.lua` loads it from a **pinned tag** (`UI_VERSION`), so a later push to the library cannot break the hub; change that tag to upgrade.
+
+`Manager/UIExtras.lua` adds a few things the library does not have, from the hub side: the "Premium Only" text on locked elements (`LockedTitle`), a thumbnail beside a Paragraph (`Image` + `ImageSize`), coloured Tab and Section titles (`<font color=...>`), `SetValue` / `SetColor`, and open / close callbacks for the window.
 
 ## Conventions
 

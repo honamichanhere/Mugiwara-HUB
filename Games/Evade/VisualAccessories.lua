@@ -358,14 +358,14 @@ local function EquipOnRig(character, humanoid, cachedAcc, assetId)
     return true
 end
 
-function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
+function VisualAccessories.Apply(assetId, MugiwaraUI, isAutoApply)
     local rigs = GetAllRigs()
     if #rigs == 0 then return end
 
     local cachedAcc = Cache.LoadedAccessories[assetId]
 
     if not cachedAcc then
-        if WindUI and not isAutoApply then WindUI:Notify({ Title = "Loading", Content = "Fetching asset from Marketplace...", Duration = 2 }) end
+        if MugiwaraUI and not isAutoApply then MugiwaraUI:Notify({ Title = "Loading", Content = "Fetching asset from Marketplace...", Duration = 2 }) end
         local success, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(assetId)) end)
         if success and objects and objects[1] then
             local loaded = objects[1]
@@ -390,7 +390,7 @@ function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
     end
 
     if not cachedAcc then
-        if WindUI and not isAutoApply then WindUI:Notify({ Title = "Failed", Content = "Failed to load asset ID.", Duration = 3 }) end
+        if MugiwaraUI and not isAutoApply then MugiwaraUI:Notify({ Title = "Failed", Content = "Failed to load asset ID.", Duration = 3 }) end
         return
     end
 
@@ -400,10 +400,10 @@ function VisualAccessories.Apply(assetId, WindUI, isAutoApply)
     end
 
     VisualAccessories.State.Accessories[assetId] = true
-    if equipped and WindUI and not isAutoApply then WindUI:Notify({ Title = "Success", Content = "Accessory equipped!", Duration = 3 }) end
+    if equipped and MugiwaraUI and not isAutoApply then MugiwaraUI:Notify({ Title = "Success", Content = "Accessory equipped!", Duration = 3 }) end
 end
 
-function VisualAccessories.Clear(WindUI)
+function VisualAccessories.Clear(MugiwaraUI)
     VisualAccessories.State.Accessories = {}
     local count = 0
     for _, entry in ipairs(GetAllRigs()) do
@@ -414,7 +414,7 @@ function VisualAccessories.Clear(WindUI)
             end
         end
     end
-    if WindUI then WindUI:Notify({ Title = "Cleaned", Content = "Removed " .. count .. " custom accessories.", Duration = 3 }) end
+    if MugiwaraUI then MugiwaraUI:Notify({ Title = "Cleaned", Content = "Removed " .. count .. " custom accessories.", Duration = 3 }) end
 end
 
 -- Full teardown on re-execute: stop the watcher loop, undo visual changes, drop the cache.

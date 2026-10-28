@@ -15,7 +15,6 @@ local LocalPlayer = Players.LocalPlayer
 -- karena GC berarti ScreenGui tidak pernah dikembalikan.
 
 HideGui.Enabled = false
-HideGui.WindUI = nil -- diisi dari tab Misc; dipakai untuk mengenali GUI milik hub
 
 local saved = {}        -- [ScreenGui] = nilai Enabled sebelum disembunyikan
 local watchers = {}     -- [ScreenGui] = koneksi pantau Enabled
@@ -28,14 +27,10 @@ for _, coreType in ipairs(Enum.CoreGuiType:GetEnumItems()) do
     if coreType ~= Enum.CoreGuiType.All then table.insert(coreTypes, coreType) end
 end
 
--- GUI milik hub: keempat ScreenGui WindUI, loading screen, dan apa pun yang diawali "Mugiwara".
+-- GUI milik hub: semua ScreenGui Mugiwara UI (window, notifikasi, layar key, loading) diberi nama
+-- berawalan "Mugiwara", jadi cukup dikenali dari namanya.
 local function IsHubGui(gui)
-    local ui = HideGui.WindUI
-    if ui and (gui == ui.ScreenGui or gui == ui.NotificationGui or gui == ui.DropdownGui or gui == ui.TooltipGui) then
-        return true
-    end
-    local name = gui.Name
-    return name:sub(1, 6) == "WindUI" or name:sub(1, 8) == "Mugiwara"
+    return gui.Name:sub(1, 8) == "Mugiwara"
 end
 
 local function Hide(gui)
