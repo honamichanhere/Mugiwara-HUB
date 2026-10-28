@@ -258,11 +258,11 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- AFK FARM (tempat AFK kecil 50x50 di koordinat AFK)
+-- AFK FARM (taman AFK kecil 50x50 di koordinat AFK)
 -- ==========================================
--- Saat dinyalakan, tempat AFK dibangun dulu (beberapa detik) di koordinat target, baru karakter
--- dipindahkan ke atasnya dan duduk. Karakter tidak disentuh selama tempat itu dibangun, jadi tidak
--- ada saat karakter berada di udara tanpa lantai. Kalau tempatnya terhapus atau di-refresh game,
+-- Saat dinyalakan, taman AFK dibangun dulu (beberapa detik) di koordinat target, baru karakter
+-- dipindahkan ke plazanya. Karakter tidak disentuh selama taman itu dibangun, jadi tidak ada saat
+-- karakter berada di udara tanpa lantai. Duduk di bangku hanya lewat tombol (ToggleSit). Kalau tempatnya terhapus atau di-refresh game,
 -- tempat itu dibangun ulang selama farm masih menyala; saat farm dimatikan semuanya dibersihkan.
 -- Semua bagian adalah Part buatan client (Instance.new), jadi hanya terlihat di layar sendiri.
 AfkFarm.FarmEnabled = false
@@ -271,16 +271,25 @@ AfkFarm.OnStatus = nil -- diisi UI: function(message)
 local SPOT_NAME = "MugiwaraAfkSpot"
 local SPOT_SIZE = 50        -- studs, persegi
 local STAND_OFFSET = 3      -- jarak HumanoidRootPart ke lantai saat berdiri; lantai = target - ini
-local SEAT_TOP = 1.6        -- tinggi permukaan dudukan di atas lantai
 local BUILD_STEP = 0.3      -- detik per tahap saat membangun
 
-local ACCENT = Color3.fromRGB(255, 214, 120)
-local WARM = Color3.fromRGB(255, 226, 170)
+local GRASS = Color3.fromRGB(92, 138, 74)
+local HEDGE = Color3.fromRGB(46, 92, 52)
+local LEAF = Color3.fromRGB(62, 128, 66)
+local LEAF_LIGHT = Color3.fromRGB(88, 152, 80)
+local BARK = Color3.fromRGB(110, 76, 50)
+local STONE = Color3.fromRGB(150, 142, 130)
+local STONE_DARK = Color3.fromRGB(96, 92, 88)
+local STONE_LIGHT = Color3.fromRGB(176, 168, 154)
+local WATER = Color3.fromRGB(120, 180, 230)
+local IRON = Color3.fromRGB(40, 42, 48)
+local PLANK = Color3.fromRGB(140, 100, 66)
+local WARM = Color3.fromRGB(255, 214, 150)
 
 local TweenService = game:GetService("TweenService")
 
 local heldPosition = nil -- dipakai kalau belum ada koordinat tersimpan
-local spot = nil         -- { Model, Seat, Floor, Base, Target, Count, Connections, Closing }
+local spot = nil         -- { Model, Seats, Floor, Base, Target, Count, Connections, Closing }
 local building = false   -- true selama tempat sedang dibangun (karakter belum dipindah)
 local buildToken = 0     -- naik tiap ada permintaan baru / farm dimatikan; membatalkan build lama
 local buildFailed = false
@@ -356,7 +365,7 @@ function AfkFarm.UseCurrentPosition()
 end
 
 -- ------------------------------------------
--- Membangun tempat AFK
+-- Membangun taman AFK
 -- ------------------------------------------
 local function DestroySpot()
     local current = spot
@@ -372,15 +381,17 @@ end
 -- (dipakai saat membangun ulang, supaya karakter tidak lama tanpa lantai).
 -- cancelled: function() -> true kalau build ini sudah tidak dibutuhkan lagi.
 local function BuildSpot(target, animated, cancelled)
-    local base = Vector3.new(target.X, target.Y - STAND_OFFSET, target.Z) -- permukaan lantai, tengah
+    local base = Vector3.new(target.X, target.Y - STAND_OFFSET, target.Z) -- permukaan rumput, tengah
     local model = Instance.new("Model")
     model.Name = SPOT_NAME
 
-    local record = { Model = model, Base = base, Target = target, Closing = false, Connections = {} }
+    local record = { Model = model, Base = base, Target = target, Closing = false, Connections = {}, Seats = {} }
     spot = record
     model.Parent = workspace
 
     local stage = {}
+    local half = SPOT_SIZE / 2
+    local upright = CFrame.Angles(0, 0, math.pi / 2) -- silinder Roblox rebah di sumbu X; ditegakkan
 
     local function At(x, y, z)
         return base + Vector3.new(x, y, z)
@@ -389,7 +400,7 @@ local function BuildSpot(target, animated, cancelled)
     local function Put(class, props)
         local part = Instance.new(class)
         part.Anchored = true
-        part.CanTouch = class == "Seat"
+        part.CanTouch = false
         part.TopSurface = Enum.SurfaceType.Smooth
         part.BottomSurface = Enum.SurfaceType.Smooth
         for key, value in pairs(props) do part[key] = value end
@@ -429,109 +440,147 @@ local function BuildSpot(target, animated, cancelled)
         end
     end
 
-    -- 1. lantai marmer + garis neon di tepinya
+    -- 1. rumput, jalan setapak berbentuk salib, dan plaza bundar di tengah
     record.Floor = Put("Part", {
         Name = "Floor", Size = Vector3.new(SPOT_SIZE, 2, SPOT_SIZE), CFrame = CFrame.new(At(0, -1, 0)),
-        Material = Enum.Material.Marble, Color = Color3.fromRGB(30, 32, 46),
+        Material = Enum.Material.Grass, Color = GRASS,
     })
-    local edge = SPOT_SIZE / 2 - 1.5
+    Put("Part", {
+        Name = "PathX", Size = Vector3.new(SPOT_SIZE - 4, 0.12, 6), CFrame = CFrame.new(At(0, 0.06, 0)),
+        Material = Enum.Material.Cobblestone, Color = STONE,
+    })
+    Put("Part", {
+        Name = "PathZ", Size = Vector3.new(6, 0.12, SPOT_SIZE - 4), CFrame = CFrame.new(At(0, 0.06, 0)),
+        Material = Enum.Material.Cobblestone, Color = STONE,
+    })
+    Put("Part", {
+        Name = "PlazaRim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.14, 17.4, 17.4), CFrame = CFrame.new(At(0, 0.07, 0)) * upright,
+        Material = Enum.Material.Slate, Color = STONE_DARK,
+    })
+    Put("Part", {
+        Name = "Plaza", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 16, 16), CFrame = CFrame.new(At(0, 0.09, 0)) * upright,
+        Material = Enum.Material.Cobblestone, Color = STONE_LIGHT,
+    })
+    if not Reveal() then return Abort() end
+
+    -- 2. pagar tanaman rendah di keempat sisi + dinding tak terlihat (karakter tidak bisa keluar atau jatuh)
     for _, side in ipairs({ -1, 1 }) do
         Put("Part", {
-            Name = "TrimX", Size = Vector3.new(SPOT_SIZE - 3, 0.12, 0.5), CFrame = CFrame.new(At(0, 0.06, side * edge)),
-            Material = Enum.Material.Neon, Color = ACCENT,
+            Name = "HedgeX", Size = Vector3.new(SPOT_SIZE, 3, 2), CFrame = CFrame.new(At(0, 1.5, side * (half - 1))),
+            Material = Enum.Material.Grass, Color = HEDGE,
         })
         Put("Part", {
-            Name = "TrimZ", Size = Vector3.new(0.5, 0.12, SPOT_SIZE - 3), CFrame = CFrame.new(At(side * edge, 0.06, 0)),
-            Material = Enum.Material.Neon, Color = ACCENT,
+            Name = "HedgeZ", Size = Vector3.new(2, 3, SPOT_SIZE - 4), CFrame = CFrame.new(At(side * (half - 1), 1.5, 0)),
+            Material = Enum.Material.Grass, Color = HEDGE,
+        })
+        Put("Part", {
+            Name = "WallX", Size = Vector3.new(SPOT_SIZE + 2, 16, 1), CFrame = CFrame.new(At(0, 8, side * (half + 0.5))),
+            Transparency = 1,
+        })
+        Put("Part", {
+            Name = "WallZ", Size = Vector3.new(1, 16, SPOT_SIZE + 2), CFrame = CFrame.new(At(side * (half + 0.5), 8, 0)),
+            Transparency = 1,
         })
     end
     if not Reveal() then return Abort() end
 
-    -- 2. pagar kaca di keempat sisi (karakter tidak bisa jatuh dari tepi) + garis neon di atasnya
-    local rail = SPOT_SIZE / 2 - 0.3
-    for _, side in ipairs({ -1, 1 }) do
-        Put("Part", {
-            Name = "RailX", Size = Vector3.new(SPOT_SIZE, 4, 0.6), CFrame = CFrame.new(At(0, 2, side * rail)),
-            Material = Enum.Material.Glass, Color = Color3.fromRGB(150, 200, 255), Transparency = 0.7,
-        })
-        Put("Part", {
-            Name = "RailZ", Size = Vector3.new(0.6, 4, SPOT_SIZE - 1.2), CFrame = CFrame.new(At(side * rail, 2, 0)),
-            Material = Enum.Material.Glass, Color = Color3.fromRGB(150, 200, 255), Transparency = 0.7,
-        })
-        Put("Part", {
-            Name = "RailTopX", Size = Vector3.new(SPOT_SIZE, 0.2, 0.8), CFrame = CFrame.new(At(0, 4.1, side * rail)),
-            Material = Enum.Material.Neon, Color = ACCENT,
-        })
-        Put("Part", {
-            Name = "RailTopZ", Size = Vector3.new(0.8, 0.2, SPOT_SIZE - 1.2), CFrame = CFrame.new(At(side * rail, 4.1, 0)),
-            Material = Enum.Material.Neon, Color = ACCENT,
-        })
-    end
-    if not Reveal() then return Abort() end
-
-    -- 3. empat tiang sudut, masing-masing dengan lampu
-    local corner = SPOT_SIZE / 2 - 1
+    -- 3. empat pohon (batang padat, daun tidak menghalangi) dengan bunga di kakinya
+    local flowerColors = { Color3.fromRGB(255, 160, 190), Color3.fromRGB(255, 226, 120), Color3.fromRGB(245, 245, 250) }
     for _, sx in ipairs({ -1, 1 }) do
         for _, sz in ipairs({ -1, 1 }) do
+            local x, z = sx * 16, sz * 15
             Put("Part", {
-                Name = "Pillar", Size = Vector3.new(1.8, 8, 1.8), CFrame = CFrame.new(At(sx * corner, 4, sz * corner)),
-                Material = Enum.Material.Slate, Color = Color3.fromRGB(28, 28, 40),
+                Name = "Trunk", Shape = Enum.PartType.Cylinder, Size = Vector3.new(7, 1.6, 1.6), CFrame = CFrame.new(At(x, 3.5, z)) * upright,
+                Material = Enum.Material.Wood, Color = BARK,
             })
-            local cap = Put("Part", {
-                Name = "PillarLamp", Size = Vector3.new(2.4, 0.6, 2.4), CFrame = CFrame.new(At(sx * corner, 8.3, sz * corner)),
-                Material = Enum.Material.Neon, Color = WARM,
+            Put("Part", {
+                Name = "Canopy", Shape = Enum.PartType.Ball, Size = Vector3.new(11, 9, 11), CFrame = CFrame.new(At(x, 9.2, z)),
+                Material = Enum.Material.Grass, Color = LEAF, CanCollide = false,
             })
-            Light(cap, WARM, 1.4, 30)
+            Put("Part", {
+                Name = "CanopyTop", Shape = Enum.PartType.Ball, Size = Vector3.new(7, 6, 7), CFrame = CFrame.new(At(x + sx * 1.6, 12, z - sz * 1.2)),
+                Material = Enum.Material.Grass, Color = LEAF_LIGHT, CanCollide = false,
+            })
+            for index, offset in ipairs({ { 2.6, 1.2 }, { -1.4, 2.8 }, { 3, -2 } }) do
+                Put("Part", {
+                    Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.new(0.9, 0.9, 0.9), CFrame = CFrame.new(At(x + offset[1] * sx, 0.45, z + offset[2] * sz)),
+                    Material = Enum.Material.SmoothPlastic, Color = flowerColors[index], CanCollide = false,
+                })
+            end
         end
     end
     if not Reveal() then return Abort() end
 
-    -- 4. karpet bundar di tengah (lingkaran neon tipis sebagai bingkainya)
-    local upright = CFrame.Angles(0, 0, math.pi / 2) -- silinder Roblox rebah di sumbu X; ditegakkan
+    -- 4. air mancur di tengah plaza
     Put("Part", {
-        Name = "RugRing", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.12, 21, 21), CFrame = CFrame.new(At(0, 0.06, 0)) * upright,
-        Material = Enum.Material.Neon, Color = ACCENT,
+        Name = "FountainBasin", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.2, 7, 7), CFrame = CFrame.new(At(0, 0.6, 0)) * upright,
+        Material = Enum.Material.Cobblestone, Color = STONE_DARK,
     })
     Put("Part", {
-        Name = "Rug", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 20, 20), CFrame = CFrame.new(At(0, 0.1, 0)) * upright,
-        Material = Enum.Material.Fabric, Color = Color3.fromRGB(58, 48, 110),
+        Name = "FountainWater", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 5.6, 5.6), CFrame = CFrame.new(At(0, 1.22, 0)) * upright,
+        Material = Enum.Material.Glass, Color = WATER, Transparency = 0.35, CanCollide = false,
+    })
+    Put("Part", {
+        Name = "FountainColumn", Shape = Enum.PartType.Cylinder, Size = Vector3.new(4, 0.9, 0.9), CFrame = CFrame.new(At(0, 3.2, 0)) * upright,
+        Material = Enum.Material.Slate, Color = STONE_LIGHT,
+    })
+    Put("Part", {
+        Name = "FountainTop", Shape = Enum.PartType.Ball, Size = Vector3.new(1.8, 1.8, 1.8), CFrame = CFrame.new(At(0, 5.3, 0)),
+        Material = Enum.Material.Slate, Color = STONE_LIGHT,
     })
     if not Reveal() then return Abort() end
 
-    -- 5. sofa (tempat duduk menghadap +Z) dan meja kecil dengan lampu
-    local sofaColor = Color3.fromRGB(82, 70, 150)
-    local sofaDark = Color3.fromRGB(64, 54, 120)
-    record.Seat = Put("Seat", {
-        Name = "Seat", Size = Vector3.new(7, 1.4, 4), CFrame = CFrame.new(At(0, 0.9, 0)) * CFrame.Angles(0, math.pi, 0),
-        Material = Enum.Material.Fabric, Color = sofaColor,
-    })
-    Put("Part", {
-        Name = "SofaBack", Size = Vector3.new(8.8, 3.2, 1), CFrame = CFrame.new(At(0, 1.8, -2.5)),
-        Material = Enum.Material.Fabric, Color = sofaDark,
-    })
-    for _, side in ipairs({ -1, 1 }) do
+    -- 5. lampu jalan: dasar, tiang, kap, dan bola lampu hangat
+    local function StreetLamp(x, z)
         Put("Part", {
-            Name = "SofaArm", Size = Vector3.new(0.9, 2.2, 4.4), CFrame = CFrame.new(At(side * 3.95, 1.3, 0)),
-            Material = Enum.Material.Fabric, Color = sofaDark,
+            Name = "LampBase", Size = Vector3.new(1.6, 0.6, 1.6), CFrame = CFrame.new(At(x, 0.3, z)),
+            Material = Enum.Material.Metal, Color = IRON,
+        })
+        Put("Part", {
+            Name = "LampPole", Shape = Enum.PartType.Cylinder, Size = Vector3.new(9, 0.5, 0.5), CFrame = CFrame.new(At(x, 5.1, z)) * upright,
+            Material = Enum.Material.Metal, Color = IRON,
+        })
+        local bulb = Put("Part", {
+            Name = "LampBulb", Shape = Enum.PartType.Ball, Size = Vector3.new(1.5, 1.5, 1.5), CFrame = CFrame.new(At(x, 10.3, z)),
+            Material = Enum.Material.Neon, Color = WARM,
+        })
+        Light(bulb, WARM, 1.6, 32)
+        Put("Part", {
+            Name = "LampHood", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 2.6, 2.6), CFrame = CFrame.new(At(x, 11.3, z)) * upright,
+            Material = Enum.Material.Metal, Color = IRON,
         })
     end
-    Put("Part", {
-        Name = "Table", Size = Vector3.new(6, 1.2, 3), CFrame = CFrame.new(At(0, 0.8, 7)),
-        Material = Enum.Material.Wood, Color = Color3.fromRGB(150, 105, 70),
-    })
-    local lamp = Put("Part", {
-        Name = "TableLamp", Shape = Enum.PartType.Ball, Size = Vector3.new(0.9, 0.9, 0.9), CFrame = CFrame.new(At(0, 1.85, 7)),
-        Material = Enum.Material.Neon, Color = WARM,
-    })
-    Light(lamp, WARM, 1.2, 16)
+    for _, sx in ipairs({ -1, 1 }) do
+        for _, sz in ipairs({ -1, 1 }) do
+            StreetLamp(sx * 9.5, sz * 9.5)
+        end
+    end
+    StreetLamp(4.5, 20)
+    StreetLamp(-4.5, -20)
     if not Reveal() then return Abort() end
 
-    -- 6. bola cahaya melayang di atas sofa
-    local orb = Put("Part", {
-        Name = "Orb", Shape = Enum.PartType.Ball, Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(At(0, 18, 0)),
-        Material = Enum.Material.Neon, Color = Color3.fromRGB(255, 236, 190),
-    })
-    Light(orb, Color3.fromRGB(255, 236, 200), 2, 48)
+    -- 6. dua bangku di tepi jalan setapak. Dudukan dimatikan; baru dinyalakan saat tombol Sit ditekan.
+    -- facing = arah hadap pada sumbu Z (-1 menghadap -Z): sandaran selalu di belakang.
+    local function Bench(x, z, facing)
+        local seat = Put("Seat", {
+            Name = "Bench", Size = Vector3.new(6, 0.5, 2), CFrame = CFrame.new(At(x, 1.5, z)) * CFrame.Angles(0, facing > 0 and math.pi or 0, 0),
+            Material = Enum.Material.WoodPlanks, Color = PLANK, Disabled = true,
+        })
+        seat.CanTouch = true
+        table.insert(record.Seats, seat)
+        Put("Part", {
+            Name = "BenchBack", Size = Vector3.new(6, 1.8, 0.4), CFrame = CFrame.new(At(x, 2.6, z - facing * 0.95)),
+            Material = Enum.Material.WoodPlanks, Color = PLANK,
+        })
+        for _, side in ipairs({ -1, 1 }) do
+            Put("Part", {
+                Name = "BenchLeg", Size = Vector3.new(0.4, 1.25, 1.6), CFrame = CFrame.new(At(x + side * 2.5, 0.62, z)),
+                Material = Enum.Material.Metal, Color = IRON,
+            })
+        end
+    end
+    Bench(-12, 4.6, -1)
+    Bench(12, -4.6, 1)
     if not Reveal() then return Abort() end
 
     record.Count = #model:GetChildren()
@@ -548,43 +597,95 @@ end
 local function SpotIntact()
     if not spot or not spot.Count then return false end
     local model = spot.Model
-    return model.Parent == workspace
-        and spot.Floor.Parent == model
-        and spot.Seat.Parent == model
-        and #model:GetChildren() >= spot.Count
+    if model.Parent ~= workspace or spot.Floor.Parent ~= model or #model:GetChildren() < spot.Count then
+        return false
+    end
+    for _, seat in ipairs(spot.Seats) do
+        if seat.Parent ~= model then return false end
+    end
+    return true
 end
 
 local function InsideSpot(position)
-    local half = SPOT_SIZE / 2 + 1
+    local limit = SPOT_SIZE / 2 + 1
     local base = spot.Base
-    return math.abs(position.X - base.X) <= half
-        and math.abs(position.Z - base.Z) <= half
+    return math.abs(position.X - base.X) <= limit
+        and math.abs(position.Z - base.Z) <= limit
         and position.Y >= base.Y - 1
         and position.Y <= base.Y + 40
 end
 
--- Karakter diturunkan sedikit di atas sofa dan duduk; tempat sudah ada, jadi tidak ada yang jatuh.
+local function GetHumanoid()
+    local character = LocalPlayer.Character
+    return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+-- Karakter diturunkan di plaza, di depan air mancur, menghadap ke sana. Tidak duduk otomatis.
 local function TeleportToSpot()
     if not spot then return end
     local root = GetRoot()
     if not root then return end
 
-    local humanoid = root.Parent:FindFirstChildOfClass("Humanoid")
+    local humanoid = GetHumanoid()
     if humanoid then humanoid.Sit = false end
 
     local base = spot.Base
-    local position = Vector3.new(base.X, base.Y + SEAT_TOP + 2.8, base.Z)
-    root.CFrame = CFrame.new(position, position + Vector3.new(0, 0, 1))
+    local position = Vector3.new(base.X, base.Y + STAND_OFFSET + 0.4, base.Z + 6)
+    root.CFrame = CFrame.new(position, Vector3.new(base.X, position.Y, base.Z))
     root.AssemblyLinearVelocity = Vector3.zero
     root.AssemblyAngularVelocity = Vector3.zero
-
-    local seat = spot.Seat
-    task.delay(0.6, function()
-        if humanoid and humanoid.Parent and humanoid.Health > 0 and not humanoid.SeatPart and seat and seat.Parent then
-            pcall(function() seat:Sit(humanoid) end)
-        end
-    end)
 end
+
+-- Duduk di bangku terdekat, atau berdiri lagi kalau sedang duduk. Dudukan hanya aktif selama ada
+-- yang duduk, jadi berjalan melewati bangku tidak membuat karakter duduk sendiri.
+function AfkFarm.ToggleSit()
+    if not AfkFarm.FarmEnabled or building or not spot or not spot.Count then
+        return false, "Turn AFK Farm on and wait until the park is built."
+    end
+
+    local root, humanoid = GetRoot(), GetHumanoid()
+    if not root or not humanoid then return false, "Your character was not found." end
+
+    if humanoid.SeatPart then
+        humanoid.Sit = false
+        return true, "Standing up."
+    end
+
+    local nearest, distance = nil, math.huge
+    for _, seat in ipairs(spot.Seats) do
+        local gap = (seat.Position - root.Position).Magnitude
+        if seat.Parent and gap < distance then nearest, distance = seat, gap end
+    end
+    if not nearest then return false, "There is no bench to sit on." end
+
+    nearest.Disabled = false
+    root.CFrame = CFrame.new(nearest.Position + Vector3.new(0, 3, 0))
+    root.AssemblyLinearVelocity = Vector3.zero
+    local sat = pcall(function() nearest:Sit(humanoid) end)
+
+    -- Setelah berdiri (tombol, lompat, atau terlempar) dudukan dimatikan lagi.
+    local released = false
+    local connection
+    local function release()
+        if released then return end
+        released = true
+        if connection then connection:Disconnect() end
+        nearest.Disabled = true
+    end
+    connection = humanoid:GetPropertyChangedSignal("SeatPart"):Connect(function()
+        if not humanoid.SeatPart then release() end
+    end)
+    task.delay(1, function()
+        if not humanoid.SeatPart then release() end -- gagal duduk
+    end)
+
+    if not sat then
+        release()
+        return false, "Could not sit down."
+    end
+    return true, "Sitting on the bench. Press again to stand up."
+end
+
 
 -- Membangun dari awal dengan efek bertahap; karakter baru dipindah setelah selesai.
 local function Prepare(target)
@@ -598,7 +699,7 @@ local function Prepare(target)
     end
 
     task.spawn(function()
-        Status("Building your AFK spot...")
+        Status("Building your AFK park...")
         local ok, err = pcall(BuildSpot, target, true, cancelled)
         if mine ~= buildToken then return end -- digantikan permintaan yang lebih baru
         building = false
@@ -611,12 +712,12 @@ local function Prepare(target)
             DestroySpot()
             buildFailed = true
             warn("[Mugiwara HUB] AFK spot could not be built: " .. tostring(err))
-            Status("The AFK spot could not be built. Holding your position with Fly instead.")
+            Status("The AFK park could not be built. Holding your position with Fly instead.")
             return
         end
 
         TeleportToSpot()
-        Status("Your AFK spot is ready.")
+        Status("Your AFK park is ready. Use Sit / Stand to take a seat.")
     end)
 end
 

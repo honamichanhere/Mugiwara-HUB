@@ -28,13 +28,25 @@ function UI.BuildFarm(Section, isPremiumUser, MugiwaraUI)
     Section:Toggle({
         Title = "AFK Farm",
         Icon = "lucide:moon",
-        Desc = Risk.Desc("AfkFarm", "Builds a small 50x50 lounge at the AFK coordinates, then sits you there. Rebuilt if the game removes it, cleaned up when turned off."),
+        Desc = Risk.Desc("AfkFarm", "Builds a small 50x50 park at the AFK coordinates and moves you there. Rebuilt if the game removes it, cleaned up when turned off."),
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
         Value = false,
         Callback = function(Value)
             Risk.Warn(MugiwaraUI, "AfkFarm", Value)
             AfkFarm.SetFarm(Value)
+        end
+    })
+
+    Section:Button({
+        Title = "Sit / Stand",
+        Desc = "Go to the nearest bench and sit, or stand up again. The benches never seat you by themselves.",
+        Icon = "lucide:armchair",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Callback = function()
+            local ok, message = AfkFarm.ToggleSit()
+            Notify("AFK Farm", message, ok and 2 or 3)
         end
     })
 

@@ -117,13 +117,14 @@ module.
 Evade Main tab order: Premium Features (AFK Farm on top, then the visual features), Halloween Ticket
 Farm, Auto Commands, Character Movement. All sections start collapsed, except Premium Activation.
 
-- **AFK Farm** (premium, inside Premium Features): builds a small 50x50 studs lounge (marble floor, glass
-  rails, corner lamps, rug, sofa, table, floating light; client-side Parts) at the saved coordinates
-  (`x, y, z`), then teleports the character onto the sofa and sits it there. The build takes a few seconds
-  and the character is not moved until it is finished, so it never falls. If the game deletes or refreshes
-  the lounge it is rebuilt at once while the farm is on; turning the farm off removes it. With no
-  coordinates saved it uses the spot where it was turned on. No Fly needed (Fly is only a fallback if the
-  lounge cannot be built).
+- **AFK Farm** (premium, inside Premium Features): builds a small 50x50 studs park (grass, cobblestone
+  paths and plaza, fountain, four trees with flowers, street lamps, two benches, hedges plus invisible
+  walls; client-side Parts) at the saved coordinates (`x, y, z`), then teleports the character to the
+  plaza. The build takes a few seconds and the character is not moved until it is finished, so it never
+  falls. **Sit / Stand** (button) walks to the nearest bench and sits; the benches never seat you on
+  their own. If the game deletes or refreshes the park it is rebuilt at once while the farm is on;
+  turning the farm off removes it. With no coordinates saved it uses the spot where it was turned on.
+  No Fly needed (Fly is only a fallback if the park cannot be built).
 - **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
   `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned, Intermission, Round Start,
   Round End, Vote. The round triggers come from `ReplicatedStorage.Events.UpdateServerStateRegistry`, which
