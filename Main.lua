@@ -188,7 +188,7 @@ end
 
 -- Alamat server chat (Cloudflare Worker milik Mugiwara UI), contoh "https://mugiwara-chat.<akun>.workers.dev".
 -- Kosong = tab Chat hanya menampilkan penjelasan.
-local CHAT_URL = ""
+local CHAT_URL = "https://mugiwara-chat.mugiwara-chat-worker.workers.dev"
 
 -- PANDA AUTH PUSL-V4 SYSTEM
 local savedKeyPath = FOLDER .. "/PremiumKey.txt"
