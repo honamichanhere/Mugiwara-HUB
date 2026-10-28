@@ -3,6 +3,7 @@ local KeybindsModule = getgenv().MugiwaraImport("Manager/Keybinds.lua")
 local MovementModule = getgenv().MugiwaraImport("Manager/Movement.lua")
 local CameraModule = getgenv().MugiwaraImport("Manager/Camera.lua")
 local CursorModule = getgenv().MugiwaraImport("Manager/Cursor.lua")
+local HideGuiModule = getgenv().MugiwaraImport("Manager/HideGui.lua")
 
 return function(Window, isPremiumUser, WindUI)
 
@@ -313,6 +314,24 @@ return function(Window, isPremiumUser, WindUI)
                 end
             end
         end)
+    end
+
+    -- ==========================================
+    -- INTERFACE
+    -- ==========================================
+    if HideGuiModule then
+        HideGuiModule.WindUI = WindUI -- supaya UI hub sendiri tidak ikut disembunyikan
+
+        local InterfaceSection = TabMisc:Section({ Title = "Interface", Icon = "lucide:eye-off", Opened = false, Box = true })
+
+        InterfaceSection:Toggle({
+            Title = "Hide GUI",
+            Desc = "Hides every other GUI: the game's menus, Roblox's own UI (chat, player list, top bar, touch controls), and other scripts' windows. Only this hub stays visible. Turn it off to bring everything back.",
+            Value = false,
+            Callback = function(Value)
+                HideGuiModule.SetHidden(Value)
+            end
+        })
     end
 
     -- ==========================================
