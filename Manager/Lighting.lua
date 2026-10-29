@@ -208,10 +208,32 @@ LightingModule.TrackedProperties = {
     Clouds = {"Enabled", "Cover", "Density", "Color"}
 }
 
-LightingModule.SkyboxDatabase = {
-    ["Default Sky"] = "", ["Sunset"] = "5186800496", ["Vaporwave"] = "5157589613", 
-    ["Starry Night"] = "143962526", ["Anime Sky"] = "14753835117"
+-- Daftar skybox untuk dropdown, urutannya dipakai apa adanya. Id-nya adalah model Sky (dimuat lewat GetObjects).
+local SKYBOXES = {
+    { "Default Sky", "" },
+    { "Sunset", "5186800496" },
+    { "Starry Night", "143962526" },
+    { "Red Castle", "15832476802" },
+    { "Red Night", "5834531764" },
+    { "Red Meteor", "138481177761557" },
+    { "Dark Green", "83611956387764" },
+    { "Sunless Blue", "591067775" },
+    { "Cartoon", "15387348852" },
+    { "Cartoon Clouds", "90729405148185" },
+    { "Anime Stylized", "99154845659277" },
+    { "Sky Blue Cartoon", "106789459824445" },
+    { "Clear Sky", "96508044206629" },
+    { "Space Blue", "90061645917520" },
+    { "Space Rock", "106776038523022" },
+    { "Dark Pink", "129373192920324" },
+    { "Galaxy Stars", "140207311615666" },
 }
+LightingModule.SkyboxOrder = {}    -- nama, sesuai urutan di atas
+LightingModule.SkyboxDatabase = {} -- nama -> id
+for _, entry in ipairs(SKYBOXES) do
+    table.insert(LightingModule.SkyboxOrder, entry[1])
+    LightingModule.SkyboxDatabase[entry[1]] = entry[2]
+end
 LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
 LightingModule.SunHidden = false

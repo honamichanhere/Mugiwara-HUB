@@ -8,7 +8,12 @@ return function(Window, isPremiumUser, MugiwaraUI)
     -- berurutan tanpa yield (download atau yield di antaranya bisa menunda tampilan section).
     local presetsList = LightingModule.GetPresetsList and LightingModule.GetPresetsList() or {}
     local skyboxNames2 = {}
-    for name, id in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames2, name) end
+    if type(LightingModule.SkyboxOrder) == "table" then
+        for _, name in ipairs(LightingModule.SkyboxOrder) do table.insert(skyboxNames2, name) end
+    else
+        for name in pairs(LightingModule.SkyboxDatabase) do table.insert(skyboxNames2, name) end
+        table.sort(skyboxNames2)
+    end
 
     local PremiumSection = TabLighting:Section({
         Title = '<font color="#ffff82">Premium Features</font>',
