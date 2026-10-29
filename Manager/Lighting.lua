@@ -5,7 +5,7 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
 local ROOT = getgenv().MugiwaraFolder or "MugiwaraHub"
-local PREFIX = "Mugiwara_" -- semua instance yang dibuat modul ini memakai prefix ini
+local PREFIX = "Mugiwara_"
 
 if makefolder and isfolder then
     if not isfolder(ROOT) then makefolder(ROOT) end
@@ -89,9 +89,9 @@ LightingModule.BuiltInPresets = {
             },
             Bloom = {
                 Enabled = true,
-                Intensity = 0.5,
-                Size = 24,
-                Threshold = 2.2
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
             },
             Blur = {
                 Enabled = false,
@@ -106,10 +106,10 @@ LightingModule.BuiltInPresets = {
             },
             DepthOfField = {
                 Enabled = true,
-                FarIntensity = 0.08,
-                FocusDistance = 120,
-                InFocusRadius = 60,
-                NearIntensity = 0.1
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
             },
             SunRays = {
                 Enabled = true,
@@ -118,59 +118,349 @@ LightingModule.BuiltInPresets = {
             }
         }
     },
-    ["Sunset"] = {
-        Desc = "Warm golden hour glow with long dramatic silhouettes.",
-        Skybox = "323391309",
+    ["Toxic Haze"] = {
+        Desc = "Poisonous green fog fills the atmosphere.",
+        Skybox = "921882045",
         Values = {
             Lighting = {
-                Ambient = Color3.fromRGB(66, 72, 81),
-                Brightness = 2,
-                ClockTime = 7.24,
-                ColorShift_Bottom = Color3.fromRGB(199, 144, 104),
-                ColorShift_Top = Color3.fromRGB(250, 151, 46),
-                EnvironmentDiffuseScale = 0.007,
-                EnvironmentSpecularScale = 0.93,
-                ExposureCompensation = 1.7,
+                Ambient = Color3.fromRGB(100, 97, 96),
+                Brightness = 2.6,
+                ClockTime = 12,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(0, 0, 0),
+                EnvironmentDiffuseScale = 0.9,
+                EnvironmentSpecularScale = 0.6,
+                ExposureCompensation = 0.1,
+                GeographicLatitude = 0,
                 GlobalShadows = true,
-                OutdoorAmbient = Color3.fromRGB(84, 67, 32),
+                OutdoorAmbient = Color3.fromRGB(107, 103, 102),
+                ShadowSoftness = 0.2,
             },
             Atmosphere = {
-                Color = Color3.fromRGB(203, 203, 203),
-                Decay = Color3.fromRGB(98, 115, 134),
-                Density = 0.35,
-                Glare = 0.56,
-                Haze = 1.2,
-                Offset = 0.19
+                Color = Color3.fromRGB(109, 139, 93),
+                Decay = Color3.fromRGB(117, 125, 65),
+                Density = 0.45,
+                Glare = 0.1,
+                Haze = 2.4,
+                Offset = 0.3
             },
             Bloom = {
                 Enabled = true,
-                Intensity = 0.65,
+                Intensity = 2,
                 Size = 56,
-                Threshold = 2.71
+                Threshold = 3
             },
             Blur = {
                 Enabled = false,
-                Size = 1.5
+                Size = 14
             },
             ColorCorrection = {
-                Brightness = 0.05,
-                Contrast = 0.19,
+                Brightness = 0.01,
+                Contrast = 0.07,
                 Enabled = true,
-                Saturation = 0,
-                TintColor = Color3.fromRGB(255, 191, 161)
+                Saturation = 0.05,
+                TintColor = Color3.fromRGB(255, 255, 255)
             },
             DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
                 Enabled = false,
-                FarIntensity = 0,
-                FocusDistance = 0,
+                Intensity = 0,
+                Spread = 0
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 3000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Arcane Mist"] = {
+        Desc = "Mystical green mist infused with ancient magic.",
+        Skybox = "144933338",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(131, 126, 121),
+                Brightness = 4,
+                ClockTime = 21,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(203, 190, 255),
+                EnvironmentDiffuseScale = 0.9,
+                EnvironmentSpecularScale = 0.6,
+                ExposureCompensation = 0.15,
+                GeographicLatitude = -13,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(126, 123, 122),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(82, 216, 104),
+                Decay = Color3.fromRGB(8, 18, 212),
+                Density = 0.39,
+                Glare = 0.25,
+                Haze = 2.1,
+                Offset = 0.3
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 14
+            },
+            ColorCorrection = {
+                Brightness = 0.03,
+                Contrast = 0.13,
+                Enabled = true,
+                Saturation = 0.1,
+                TintColor = Color3.fromRGB(243, 249, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
+                Enabled = false,
+                Intensity = 0.02,
+                Spread = 0.4
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 20,
+                StarCount = 1500,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Arctic Daylight"] = {
+        Desc = "Crisp blue daylight illuminates a frozen landscape.",
+        Skybox = "124785747583653",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(92, 99, 107),
+                Brightness = 2,
+                ClockTime = 15.77,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(0, 0, 0),
+                EnvironmentDiffuseScale = 0.7,
+                EnvironmentSpecularScale = 0.7,
+                ExposureCompensation = 0.05,
+                GeographicLatitude = -19.18,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(99, 105, 112),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(207, 225, 255),
+                Decay = Color3.fromRGB(215, 230, 247),
+                Density = 0.36,
+                Glare = 0.1,
+                Haze = 2.1,
+                Offset = 0.25
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 0
+            },
+            ColorCorrection = {
+                Brightness = 0,
+                Contrast = 0.08,
+                Enabled = true,
+                Saturation = 0.1,
+                TintColor = Color3.fromRGB(216, 234, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
                 InFocusRadius = 0,
                 NearIntensity = 0
             },
             SunRays = {
                 Enabled = true,
-                Intensity = 0.015,
-                Spread = 0.26
+                Intensity = 0.05,
+                Spread = 0.6
             },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 5000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Glacial Nebula"] = {
+        Desc = "A nebula glows over the frozen night.",
+        Skybox = "9831762777",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(92, 99, 107),
+                Brightness = 2,
+                ClockTime = 7,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(0, 0, 0),
+                EnvironmentDiffuseScale = 0.7,
+                EnvironmentSpecularScale = 0.7,
+                ExposureCompensation = 0.2,
+                GeographicLatitude = 0,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(99, 105, 112),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(207, 207, 255),
+                Decay = Color3.fromRGB(217, 215, 247),
+                Density = 0.4,
+                Glare = 0.1,
+                Haze = 2.1,
+                Offset = 0
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 0
+            },
+            ColorCorrection = {
+                Brightness = 0,
+                Contrast = 0.08,
+                Enabled = true,
+                Saturation = 0.1,
+                TintColor = Color3.fromRGB(216, 216, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
+                Enabled = true,
+                Intensity = 0.1,
+                Spread = 1
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 3000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Crimson Hell"] = {
+        Desc = "Burning red fog under a meteor-filled sky.",
+        Skybox = "98835519443062",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(135, 103, 154),
+                Brightness = 2,
+                ClockTime = 12,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(209, 159, 255),
+                EnvironmentDiffuseScale = 0.8,
+                EnvironmentSpecularScale = 0.8,
+                ExposureCompensation = 0.15,
+                GeographicLatitude = 0,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(86, 86, 86),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(66, 35, 71),
+                Decay = Color3.fromRGB(144, 59, 59),
+                Density = 0.38,
+                Glare = 2,
+                Haze = 2.2,
+                Offset = 0.2
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 14
+            },
+            ColorCorrection = {
+                Brightness = 0,
+                Contrast = 0.2,
+                Enabled = true,
+                Saturation = 0,
+                TintColor = Color3.fromRGB(255, 249, 248)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
+                Enabled = false,
+                Intensity = 0,
+                Spread = 0
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 5000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
         }
     }
 }
@@ -216,10 +506,6 @@ LightingModule.SkyAnimEnabled = false
 LightingModule.SkyAnimSpeed = 10
 LightingModule.SunHidden = false
 
--- Volumetric clouds: objek Clouds hidup di Workspace.Terrain (bukan di Lighting). Hanya satu objek
--- yang dipakai dan itu SELALU buatan hub (Mugiwara_Clouds, default Enabled = false). Clouds milik game
--- (yang bisa membawa attribute/skrip lokal yang menimpa nilainya) dibuang begitu ketemu, termasuk yang
--- muncul belakangan; objeknya disimpan (clone) dan dikembalikan saat hub di-unload.
 local function GetTerrain()
     return workspace:FindFirstChildOfClass("Terrain")
 end
@@ -228,7 +514,7 @@ local function IsOurs(instance)
     return string.sub(instance.Name, 1, #PREFIX) == PREFIX
 end
 
-LightingModule.RemovedClouds = nil -- clone Clouds milik game pertama yang dibuang
+LightingModule.RemovedClouds = nil
 
 local function RemoveForeignClouds(child)
     if not LightingModule.RemovedClouds then
@@ -242,8 +528,6 @@ local function RemoveForeignClouds(child)
     child:Destroy()
 end
 
--- Membuat Clouds hub. Kalau user sudah mengatur nilainya (TargetValues), nilai itu dipasang lagi
--- supaya pengaturan tidak hilang saat objeknya dibuat ulang.
 local function CreateOurClouds(terrain)
     local clouds = Instance.new("Clouds")
     clouds.Name = PREFIX .. "Clouds"
@@ -334,10 +618,6 @@ function LightingModule.ToggleEffect(category, isEnabled)
     LightingModule.UpdateValue(category, "Enabled", isEnabled)
 end
 
--- Hide Sun: Sky.CelestialBodiesShown = false (matahari dan bulan tidak digambar) ditambah
--- SunAngularSize = 0 dan SunTextureId kosong. Nilainya dijaga tiap frame di loop render (skybox
--- lain, preset, Lock Lighting, atau game bisa menimpanya). Sun Rays adalah efek terpisah dan tidak
--- ikut disembunyikan.
 local DEFAULT_SUN_SIZE = 21
 local DEFAULT_SUN_TEXTURE = "rbxasset://sky/sun.jpg"
 
@@ -351,8 +631,6 @@ local function GetOrCreateSky()
     return sky
 end
 
--- Nilai matahari yang SEHARUSNYA (tanpa efek Hide Sun): dari skybox aktif, atau default Roblox.
--- Mengembalikan: ukuran, tekstur, CelestialBodiesShown.
 local function UnhiddenSunValues()
     local source = LightingModule.ActiveSkybox or LightingModule.DefaultSkybox
     local bodies = true
@@ -381,10 +659,6 @@ function LightingModule.SetSunHidden(state)
     end)
 end
 
--- ---------- Sinkron nilai milik game ----------
--- TargetValues / Defaults / ActiveSkybox adalah snapshot. Snapshot yang basi lalu dipaksakan oleh
--- Lock Lighting membuat langit atau efek berubah sendiri, jadi snapshot diambil ulang saat perlu.
-
 local function SnapshotSky(sky)
     local snapshot = {
         SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt,
@@ -392,15 +666,12 @@ local function SnapshotSky(sky)
         SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount,
         CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize
     }
-    -- Matahari yang sedang disembunyikan tidak boleh ikut tersimpan sebagai nilai aslinya.
     if LightingModule.SunHidden then
         snapshot.SunAngularSize, snapshot.SunTextureId, snapshot.CelestialBodiesShown = UnhiddenSunValues()
     end
     return snapshot
 end
 
--- Ambil nilai objek yang sekarang untuk satu kategori. updateDefaults = true juga memperbarui nilai
--- default (dipakai preset "Default" dan pemulihan saat hub di-unload). UI diberi tahu lewat OnPropertyChanged.
 local function ResyncCategory(category, updateDefaults, notify)
     local obj = LightingModule.Objects[category]
     local properties = LightingModule.TrackedProperties[category]
@@ -421,9 +692,6 @@ local function ResyncCategory(category, updateDefaults, notify)
     end
 end
 
--- Objek untuk satu kategori diganti. Kalau yang lama buatan hub (prefix Mugiwara_) dan yang baru milik
--- game, nilai milik game yang dipakai; snapshot lama dari objek buatan hub tidak boleh ditimpakan
--- ke objek game (itu yang membuat awan/efek game berubah sendiri saat Lock Lighting menyala).
 local function AdoptObject(category, newObj)
     local previous = LightingModule.Objects[category]
     if previous == newObj then return end
@@ -434,8 +702,6 @@ local function AdoptObject(category, newObj)
     end
 end
 
--- Lock Lighting. Saat dinyalakan, kondisi yang sedang terlihat diambil dulu supaya yang dikunci adalah
--- tampilan sekarang, bukan snapshot lama dari saat hub di-execute.
 function LightingModule.SetLock(state)
     state = state == true
     if state and not LightingModule.LockEnabled then
@@ -450,7 +716,7 @@ function LightingModule.SetLock(state)
 end
 
 function LightingModule.LoadSkybox(id)
-    id = tostring(id or ""):match("^%s*(%d+)%s*$") -- hanya angka; buang input aneh
+    id = tostring(id or ""):match("^%s*(%d+)%s*$")
     if not id then return end
     local success, result = pcall(function() return game:GetObjects("rbxassetid://" .. id) end)
     if success and result and result[1] then
@@ -481,9 +747,6 @@ function LightingModule.LoadSkybox(id)
     end
 end
 
--- Daftar preset untuk dropdown: "Default" (peta asli), preset bawaan, lalu preset tersimpan.
--- Tiap item { Title, Desc, Icon }; dropdown mengembalikan Title-nya. Dropdown Mugiwara UI tidak
--- punya pemisah antar kelompok, jadi urutan saja yang membedakan.
 function LightingModule.GetPresetsList()
     local list = { { Title = "Default", Desc = "Restore the map's original lighting.", Icon = "lucide:sun" } }
 
@@ -511,8 +774,6 @@ function LightingModule.GetPresetsList()
     return list
 end
 
--- Nama preset dipakai sebagai nama file. Buang karakter path ("../", "\", dll) supaya
--- user nggak bisa nulis/baca file di luar folder MugiwaraHub/Presets.
 local function SanitizePresetName(name)
     name = tostring(name or ""):gsub("[^%w _%-%.]", ""):gsub("%.%.+", "."):match("^%s*(.-)%s*$")
     return string.sub(name, 1, 40)
@@ -546,7 +807,6 @@ function LightingModule.SavePreset(presetName)
         }
     end
 
-    -- Preset tidak boleh menyimpan matahari yang sedang disembunyikan (Hide Sun adalah toggle sendiri).
     if LightingModule.SunHidden and dataToSave.CustomSkybox then
         dataToSave.CustomSkybox.SunAngularSize, dataToSave.CustomSkybox.SunTextureId, dataToSave.CustomSkybox.CelestialBodiesShown = UnhiddenSunValues()
     end
@@ -706,8 +966,6 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
     for _, child in ipairs(Lighting:GetChildren()) do
         local cls = child.ClassName
         if cls == "Sky" or cls == "Atmosphere" or cls == "BloomEffect" or cls == "BlurEffect" or cls == "ColorCorrectionEffect" or cls == "DepthOfFieldEffect" or cls == "SunRaysEffect" then
-            -- Hanya objek buatan hub (prefix Mugiwara_) yang boleh dihapus saat duplikat.
-            -- Efek milik game dibiarkan; kalau ada dua, versi game yang dipakai.
             local isOurs = string.sub(child.Name, 1, #PREFIX) == PREFIX
             local current = counts[cls]
             if not current then
@@ -737,9 +995,6 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
-    -- Clouds ada di Terrain: hanya satu, dan harus buatan hub. Clouds asing (milik game, termasuk yang
-    -- baru muncul atau menggantikan yang lama) langsung dibuang; kalau punya hub hilang, dibuat lagi
-    -- dengan nilai yang sudah diatur user.
     local terrain = GetTerrain()
     if terrain then
         local ours = nil
@@ -810,7 +1065,6 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
         end
     end
 
-    -- Hide Sun dijaga tiap frame, setelah Lock Lighting / skybox menimpa nilai matahari.
     if LightingModule.SunHidden then
         currentSky = currentSky or GetOrCreateSky()
         pcall(function()
@@ -826,8 +1080,6 @@ renderConnection = RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
--- Full teardown on re-execute: stop the loop, then put the map's original lighting back.
--- Restoring matters because the next session snapshots the current lighting as its default.
 getgenv().MugiwaraRegisterCleanup(function()
     if renderConnection then renderConnection:Disconnect() renderConnection = nil end
     LightingModule.LockEnabled = false
@@ -837,7 +1089,6 @@ getgenv().MugiwaraRegisterCleanup(function()
     LightingModule.OnPropertyChanged = nil
     pcall(LightingModule.LoadPreset, "Default")
 
-    -- Hapus objek yang dibuat hub sendiri (prefix Mugiwara_); milik game tidak disentuh.
     for _, child in ipairs(Lighting:GetChildren()) do
         if string.sub(child.Name, 1, #PREFIX) == PREFIX then child:Destroy() end
     end
@@ -847,7 +1098,6 @@ getgenv().MugiwaraRegisterCleanup(function()
             if child.ClassName == "Clouds" and string.sub(child.Name, 1, #PREFIX) == PREFIX then child:Destroy() end
         end
 
-        -- Kembalikan Clouds milik game yang tadi dibuang (kalau belum ada Clouds lain di Terrain).
         local removed = LightingModule.RemovedClouds
         LightingModule.RemovedClouds = nil
         if removed and not terrain:FindFirstChildOfClass("Clouds") then
