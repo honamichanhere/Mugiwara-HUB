@@ -149,7 +149,12 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
         if side.Grid:Get() ~= wanted then side.Grid:Set(wanted, true) end
     end
 
-    -- Merender model diam untuk emote yang tampil dan belum punya, satu per satu di latar belakang.
+    -- Merender model diam untuk emote yang tampil dan belum punya. Beberapa emote dirender serentak (animasi
+    -- dimuat dari server, jadi menunggu satu-satu lama) dan grid diperbarui bertahap: tile yang sudah jadi
+    -- langsung muncul, urutannya sesuai tampilan (kiri atas dulu).
+    local WORKERS = 4
+    local REFRESH_AFTER = { [6] = true, [14] = true, [24] = true } -- jumlah emote selesai yang memicu pembaruan grid
+
     local function Bake(side)
         if not PreviewsOn() then return end
         side.Token = side.Token + 1
@@ -159,12 +164,21 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
         for _, entry in ipairs(side.Entries or {}) do
             if not Preview.Get(entry) and not failedPreview[entry] then table.insert(pending, entry) end
         end
-        if #pending == 0 then return end
+        if #pending == 0 then
+            Refresh() -- semua sudah ada di cache: cukup tampilkan
+            return
+        end
 
-        task.spawn(function()
-            if #pending > 6 then Notify("Visual Emotes", "Rendering " .. #pending .. " previews...", 2) end
-            for _, entry in ipairs(pending) do
-                if mine ~= side.Token then return end
+        if #pending > 6 then Notify("Visual Emotes", "Rendering " .. #pending .. " previews...", 2) end
+        Preview.Preload(pending)
+
+        local nextIndex, done, active = 1, 0, 0
+
+        local function Worker()
+            while mine == side.Token and nextIndex <= #pending do
+                local entry = pending[nextIndex]
+                nextIndex = nextIndex + 1
+
                 local model, reason = Preview.Bake(entry)
                 if not model then
                     failedPreview[entry] = true
@@ -176,10 +190,19 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
                         end
                     end
                 end
+
+                done = done + 1
+                if mine == side.Token and REFRESH_AFTER[done] then Refresh() end
             end
-            if mine ~= side.Token then return end
-            Refresh()
-        end)
+
+            active = active - 1
+            if active == 0 and mine == side.Token then Refresh() end
+        end
+
+        for _ = 1, math.min(WORKERS, #pending) do
+            active = active + 1
+            task.spawn(Worker)
+        end
     end
 
     local function UpdateButton()
@@ -286,6 +309,19 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
 
     BuildSide("Base", "Base Emote", "Category of the emote you will change.", "lucide:music", true)
     BuildSide("Target", "Target Emote", "Category of the emote it will look like.", "lucide:drama", false)
+
+    -- Mulai merender begitu section Visual Emotes dibuka (kebanyakan orang membuka grid sesudahnya), tanpa
+    -- menunggu grid dibuka.
+    local warmed = false
+    local header = Section.Frame and Section.Frame:FindFirstChild("Header", true)
+    if header then
+        header.MouseButton1Click:Connect(function()
+            if not warmed then
+                warmed = true
+                Bake(sides.Base)
+            end
+        end)
+    end
 
     SwapButton = Section:Button({
         Title = "Swap",

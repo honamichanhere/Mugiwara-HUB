@@ -14,11 +14,13 @@ local Preview = {}
 local TRACK_TIMEOUT = 3  -- detik menunggu panjang animasi diketahui (sama seperti game: maksimal 5)
 local SETTLE_FRAMES = 2  -- frame tambahan supaya pose benar-benar terpasang di part
 local POSE_TIME = 0.5    -- detik animasi yang dibekukan, sama dengan game
+local MAX_HOSTS = 4      -- render yang boleh berjalan bersamaan (animasi dimuat dari server, jadi lama)
 
 local alive = true
-local hostGui, host = nil, nil
+local hostGui = nil
+local hosts = {}         -- { Frame, InUse }: ViewportFrame tersembunyi
 local cache = {}         -- [modul emote] = model diam hasil render
-local busy = false       -- satu render dalam satu waktu (host dipakai bersama)
+local inflight = {}      -- [modul emote] = true selama sedang dirender
 
 local function HeartbeatWait(frames)
     for _ = 1, frames or 1 do RunService.Heartbeat:Wait() end
@@ -42,8 +44,8 @@ function Preview.Available()
 end
 
 -- ViewportFrame kecil hampir tidak terlihat; namanya berawalan "Mugiwara" supaya Hide GUI tidak menyentuhnya.
-local function GetHost()
-    if host and host.Parent then return host end
+local function EnsureGui()
+    if hostGui and hostGui.Parent then return hostGui end
 
     local parent
     pcall(function() parent = (gethui and gethui()) or game:GetService("CoreGui") end)
@@ -55,15 +57,35 @@ local function GetHost()
     hostGui.DisplayOrder = -10
     hostGui.IgnoreGuiInset = true
     hostGui.Parent = parent
+    table.clear(hosts)
+    return hostGui
+end
 
-    host = Instance.new("ViewportFrame")
-    host.Name = "Host"
-    host.Size = UDim2.fromOffset(8, 8)
-    host.Position = UDim2.fromOffset(0, 0)
-    host.BackgroundTransparency = 1
-    host.ImageTransparency = 0.98
-    host.Parent = hostGui
-    return host
+-- Mengambil host yang bebas (membuat baru sampai MAX_HOSTS, kalau tidak menunggu).
+local function AcquireHost()
+    while alive do
+        local gui = EnsureGui()
+        for _, entry in ipairs(hosts) do
+            if not entry.InUse and entry.Frame.Parent then
+                entry.InUse = true
+                return entry
+            end
+        end
+        if #hosts < MAX_HOSTS then
+            local frame = Instance.new("ViewportFrame")
+            frame.Name = "Host" .. (#hosts + 1)
+            frame.Size = UDim2.fromOffset(8, 8)
+            frame.Position = UDim2.fromOffset(0, 0)
+            frame.BackgroundTransparency = 1
+            frame.ImageTransparency = 0.98
+            frame.Parent = gui
+            local entry = { Frame = frame, InUse = true }
+            table.insert(hosts, entry)
+            return entry
+        end
+        task.wait(0.03)
+    end
+    return nil
 end
 
 -- ------------------------------------------
@@ -188,7 +210,21 @@ local function SolveJoints(rig)
     return true
 end
 
--- Salinan diam dari rig: tanpa Animator / controller / script, semua part Anchored.
+-- Putar seluruh model supaya part utamanya sejajar sumbu dunia (rotasi identitas), posisi akarnya tetap.
+-- Kamera game diletakkan relatif ke PrimaryPart rig (di depan karakter), tetapi rig di host bisa menghadap arah
+-- lain; tanpa ini sisi yang terlihat di grid bisa dari samping.
+local function Orient(model)
+    local primary = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart", true)
+    if not primary then return end
+
+    local inverse = primary.CFrame:Inverse()
+    local base = CFrame.new(primary.Position)
+    for _, descendant in ipairs(model:GetDescendants()) do
+        if descendant:IsA("BasePart") then descendant.CFrame = base * (inverse * descendant.CFrame) end
+    end
+end
+
+-- Salinan diam dari rig: tanpa Animator / controller / script, semua part Anchored, menghadap depan.
 local function Freeze(rig, name)
     local copy = rig:Clone()
     copy.Name = name
@@ -199,6 +235,7 @@ local function Freeze(rig, name)
             pcall(function() descendant:Destroy() end)
         end
     end
+    Orient(copy)
     return copy
 end
 
@@ -216,7 +253,24 @@ function Preview.Invalidate(entry)
     end
 end
 
+-- Memuat animasi semua emote ini lebih dulu, serentak, di latar belakang (mempercepat render berikutnya).
+function Preview.Preload(entries)
+    local r15 = IsR15()
+    local list = {}
+    for _, entry in ipairs(entries) do
+        if not cache[entry.Instance] then
+            local animation = FindAnimation(entry.Instance, r15)
+            if animation then table.insert(list, animation) end
+        end
+    end
+    if #list == 0 then return end
+    task.spawn(function()
+        pcall(function() game:GetService("ContentProvider"):PreloadAsync(list) end)
+    end)
+end
+
 -- Merender satu emote (menunggu sampai selesai; boleh yield). Mengembalikan model atau nil, alasan.
+-- Beberapa emote boleh dirender bersamaan (sampai MAX_HOSTS).
 function Preview.Bake(entry)
     if not alive then return nil, "unloaded" end
     local cached = cache[entry.Instance]
@@ -226,20 +280,26 @@ function Preview.Bake(entry)
     local template = RigTemplate(r15)
     if not template then return nil, "the game's preview rig was not found" end
 
-    while busy do
-        task.wait(0.05)
+    -- emote yang sama sedang dirender (mis. oleh sisi grid lain): tunggu hasilnya
+    while inflight[entry.Instance] do
+        task.wait(0.03)
         if not alive then return nil, "unloaded" end
     end
     cached = cache[entry.Instance]
     if cached then return cached end
-    busy = true
+    inflight[entry.Instance] = true
 
-    local model, failure
+    local hostEntry = AcquireHost()
+    if not hostEntry then
+        inflight[entry.Instance] = nil
+        return nil, "unloaded"
+    end
+
+    local model
     local world
     local ok, err = pcall(function()
-        local frame = GetHost()
         world = Instance.new("WorldModel")
-        world.Parent = frame
+        world.Parent = hostEntry.Frame
 
         local rig = template:Clone()
         rig.Parent = world
@@ -264,10 +324,11 @@ function Preview.Bake(entry)
     end)
 
     if world then pcall(function() world:Destroy() end) end
-    busy = false
+    hostEntry.InUse = false
+    inflight[entry.Instance] = nil
 
     if not ok then return nil, tostring(err) end
-    if not model then return nil, failure or "preview failed" end
+    if not model then return nil, "preview failed" end
     if not alive then
         model:Destroy()
         return nil, "unloaded"
@@ -280,7 +341,8 @@ end
 getgenv().MugiwaraRegisterCleanup(function()
     alive = false
     for instance, model in pairs(cache) do pcall(function() model:Destroy() end) cache[instance] = nil end
-    if hostGui then pcall(function() hostGui:Destroy() end) hostGui, host = nil, nil end
+    if hostGui then pcall(function() hostGui:Destroy() end) hostGui = nil end
+    table.clear(hosts)
 end)
 
 return Preview
