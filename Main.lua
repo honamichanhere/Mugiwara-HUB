@@ -1,4 +1,4 @@
-local VERSION = "1.3.0"
+local VERSION = "1.4.0"
 
 -- ==========================================================
 -- RE-EXECUTION SAFETY
