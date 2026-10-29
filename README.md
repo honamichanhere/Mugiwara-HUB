@@ -19,9 +19,12 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 builder, `Tabs/VisualAvatarUI.lua`. Only the list of rigs differs: Universal changes `LocalPlayer.Character`, Evade changes
 every rig named after you in `Workspace.Rigs` (`Games/Evade/VisualAccessories.lua` plugs in `Games/Evade/Rigs.lua`). Each UI part
 is built once per session (a second attempt is skipped with a warning), and Main.lua loads either a game module or
-Universal, never both. Korblox on R15 swaps the mesh and texture of the leg parts in place (no part or joint is replaced,
-the same approach as the Korless-Visual script) and puts back the look the leg had before; R6 swaps the leg part. The
-avatar cache Korblox needs is built the first time a Korblox toggle is used, so free users never trigger it.
+Universal, never both. Korblox on R15 swaps the mesh and texture of the leg parts in place (no part or joint is replaced) with the official
+Korblox leg meshes (the right-leg set, used for whichever leg you pick) and puts back the look the leg had before; it needs
+no avatar data. (The HumanoidDescription route is not used for R15: asset 139607718 is the Korblox *Right* Leg, so the
+description builds a broken left leg and a plain right leg.) R6 swaps the leg part from a cache of your avatar, built the
+first time Korblox is used on an R6 rig, so free users never trigger it. Each Korblox swap prints its mesh change in the
+console (`[Mugiwara HUB] Korblox ...`).
 
 **Lighting presets** (Lighting tab, premium): the Load Presets list shows your own saved presets first, then Default and the
 built-in ones; loading a preset also selects its skybox in the Sky Box picker, and **Delete Preset** removes a saved one (after a
