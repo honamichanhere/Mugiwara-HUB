@@ -33,6 +33,62 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
+    PremiumSection:Divider({ Title = "Free Camera Look" })
+
+    PremiumSection:Toggle({
+        Title = "Match Roblox Sensitivity",
+        Icon = "lucide:mouse-pointer-2",
+        Desc = "Turn the free camera with the Camera Sensitivity from your Roblox settings. Turn off to use the slider below.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Value = true,
+        Callback = function(Value)
+            CameraModule.UseRobloxSensitivity = Value
+        end
+    })
+
+    PremiumSection:Slider({
+        Title = "Mouse Sensitivity",
+        Icon = "lucide:mouse",
+        Desc = "Right-Click turning speed when Match Roblox Sensitivity is off. 1 = Roblox default.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Step = 0.05,
+        Suffix = "x",
+        Value = { Min = 0.1, Max = 5, Default = 1 },
+        Callback = function(Value)
+            CameraModule.MouseSensitivity = Value
+        end
+    })
+
+    PremiumSection:Slider({
+        Title = "Horizontal Speed (Left / Right)",
+        Icon = "lucide:move-horizontal",
+        Desc = "How fast the camera turns left and right. Applies to Right-Click and the Left / Right Arrow Keys.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Step = 0.05,
+        Suffix = "x",
+        Value = { Min = 0.1, Max = 5, Default = 1 },
+        Callback = function(Value)
+            CameraModule.HorizontalSpeed = Value
+        end
+    })
+
+    PremiumSection:Slider({
+        Title = "Vertical Speed (Up / Down)",
+        Icon = "lucide:move-vertical",
+        Desc = "How fast the camera turns up and down. Applies to Right-Click and the Up / Down Arrow Keys.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Step = 0.05,
+        Suffix = "x",
+        Value = { Min = 0.1, Max = 5, Default = 1 },
+        Callback = function(Value)
+            CameraModule.VerticalSpeed = Value
+        end
+    })
+
     PremiumSection:Divider({ Title = "Observation Mode" })
 
     local DropdownSpectate

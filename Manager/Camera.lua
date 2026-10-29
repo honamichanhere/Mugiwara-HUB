@@ -10,6 +10,28 @@ local Camera = Workspace.CurrentCamera
 
 CameraModule.FreecamEnabled = false
 CameraModule.FreecamSpeed = 16
+
+-- Putar kamera bebas. Dasarnya sama dengan kamera bawaan Roblox: mouse 0.5 derajat per pixel (vertikal sedikit lebih
+-- pelan, 0.77x) dikali Camera Sensitivity dari setting Roblox, panah 120 derajat per detik. Kecepatan arah kiri/kanan
+-- dan atas/bawah adalah pengali tambahan yang berlaku untuk mouse (klik kanan) maupun panah.
+CameraModule.UseRobloxSensitivity = true -- true: ikut setting Roblox, false: pakai MouseSensitivity di bawah
+CameraModule.MouseSensitivity = 1        -- 1 = sensitivitas Roblox bawaan
+CameraModule.HorizontalSpeed = 1         -- pengali putar kiri/kanan
+CameraModule.VerticalSpeed = 1           -- pengali putar atas/bawah
+
+local MOUSE_DEGREES_PER_PIXEL = 0.5
+local MOUSE_VERTICAL_RATIO = 0.77
+local ARROW_DEGREES_PER_SECOND = 120
+
+local GameSettings
+pcall(function() GameSettings = UserSettings():GetService("UserGameSettings") end)
+
+-- Camera Sensitivity dari setting Roblox (dibaca tiap frame, jadi perubahan di menu Roblox langsung ikut).
+function CameraModule.GetRobloxSensitivity()
+    local ok, value = pcall(function() return GameSettings.MouseSensitivity end)
+    if ok and type(value) == "number" and value > 0 then return value end
+    return 1
+end
 CameraModule.FOVLocked = false
 CameraModule.FOVValue = Camera and Camera.FieldOfView or 70
 CameraModule.GameIntendedFOV = Camera and Camera.FieldOfView or 70
@@ -221,15 +243,20 @@ RunService:BindToRenderStep("MugiwaraCameraMaster", Enum.RenderPriority.Last.Val
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
             local mouseDelta = UserInputService:GetMouseDelta()
-            rotationX = rotationX - (mouseDelta.Y * 0.5)
-            rotationY = rotationY - (mouseDelta.X * 0.5)
+            local sensitivity, vertical = CameraModule.MouseSensitivity, 1
+            if CameraModule.UseRobloxSensitivity then
+                sensitivity, vertical = CameraModule.GetRobloxSensitivity(), MOUSE_VERTICAL_RATIO
+            end
+            rotationX = rotationX - (mouseDelta.Y * MOUSE_DEGREES_PER_PIXEL * sensitivity * vertical * CameraModule.VerticalSpeed)
+            rotationY = rotationY - (mouseDelta.X * MOUSE_DEGREES_PER_PIXEL * sensitivity * CameraModule.HorizontalSpeed)
         else
             UserInputService.MouseBehavior = originalMouseBehavior
-            local rotSpeed = 120 * deltaTime 
-            if UserInputService:IsKeyDown(Enum.KeyCode.Up) then rotationX = rotationX + rotSpeed end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Down) then rotationX = rotationX - rotSpeed end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Left) then rotationY = rotationY + rotSpeed end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Right) then rotationY = rotationY - rotSpeed end
+            local turn = ARROW_DEGREES_PER_SECOND * deltaTime
+            local rotSpeedX, rotSpeedY = turn * CameraModule.VerticalSpeed, turn * CameraModule.HorizontalSpeed
+            if UserInputService:IsKeyDown(Enum.KeyCode.Up) then rotationX = rotationX + rotSpeedX end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Down) then rotationX = rotationX - rotSpeedX end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Left) then rotationY = rotationY + rotSpeedY end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Right) then rotationY = rotationY - rotSpeedY end
         end
 
         rotationX = math.clamp(rotationX, -89, 89)

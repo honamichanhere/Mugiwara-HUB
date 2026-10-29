@@ -15,6 +15,13 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 | Chat | Live chat with everyone running the hub (needs the chat server address in `Main.lua`) |
 | UI Config (Appearance) | Theme picker, theme creator, wallpaper, UI scale, background blur. Saved in `MugiwaraHubConfig/UISettings.json`; nothing to do with the game |
 
+**Free camera look** (Camera tab, premium): turn with the mouse (hold Right-Click) or the Arrow Keys. Mouse turning uses the same
+base as Roblox's own camera (0.5 degrees per pixel, vertical 0.77x) times the Camera Sensitivity from your Roblox settings, read
+live (**Match Roblox Sensitivity**, on by default); switch it off to use the **Mouse Sensitivity** slider instead (1 = Roblox
+default). The Arrow Keys turn 120 degrees per second like Roblox's camera and ignore the mouse sensitivity. **Horizontal Speed
+(Left / Right)** and **Vertical Speed (Up / Down)** are separate multipliers (0.1x to 5x) that apply to both the mouse and the
+Arrow Keys.
+
 Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm with NextBot avoidance). Every other game gets the **Universal** movement module.
 
 ## Folder structure
