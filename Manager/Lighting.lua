@@ -63,7 +63,7 @@ LightingModule.BuiltInPresets = {
     },
     ["Golden Sunset"] = {
         Desc = "Golden hour warm, thin fog of skybox colors.",
-        Skybox = "2573514779",
+        Skybox = "5186800496",
         Values = {
             Lighting = {
                 Ambient = Color3.fromRGB(105, 85, 92),
@@ -120,7 +120,7 @@ LightingModule.BuiltInPresets = {
     },
     ["Toxic Haze"] = {
         Desc = "Poisonous green fog fills the atmosphere.",
-        Skybox = "921882045",
+        Skybox = "83611956387764",
         Values = {
             Lighting = {
                 Ambient = Color3.fromRGB(100, 97, 96),
@@ -189,7 +189,7 @@ LightingModule.BuiltInPresets = {
     },
     ["Arcane Mist"] = {
         Desc = "Mystical green mist infused with ancient magic.",
-        Skybox = "144933338",
+        Skybox = "106789459824445",
         Values = {
             Lighting = {
                 Ambient = Color3.fromRGB(131, 126, 121),
@@ -258,7 +258,7 @@ LightingModule.BuiltInPresets = {
     },
     ["Arctic Daylight"] = {
         Desc = "Crisp blue daylight illuminates a frozen landscape.",
-        Skybox = "124785747583653",
+        Skybox = "106789459824445",
         Values = {
             Lighting = {
                 Ambient = Color3.fromRGB(92, 99, 107),
@@ -327,7 +327,7 @@ LightingModule.BuiltInPresets = {
     },
     ["Glacial Nebula"] = {
         Desc = "A nebula glows over the frozen night.",
-        Skybox = "9831762777",
+        Skybox = "90061645917520",
         Values = {
             Lighting = {
                 Ambient = Color3.fromRGB(92, 99, 107),
@@ -396,7 +396,7 @@ LightingModule.BuiltInPresets = {
     },
     ["Crimson Hell"] = {
         Desc = "Burning red fog under a meteor-filled sky.",
-        Skybox = "98835519443062",
+        Skybox = "138481177761557",
         Values = {
             Lighting = {
                 Ambient = Color3.fromRGB(135, 103, 154),
@@ -784,8 +784,20 @@ local function SkyDataFromAsset(id)
     return data
 end
 
-local function ApplySkyData(skyData)
+-- Nama skybox di daftar dropdown untuk satu asset id (nil kalau id itu tidak ada di daftar).
+local function SkyNameForId(id)
+    id = tostring(id or "")
+    if id == "" then return nil end
+    for _, name in ipairs(LightingModule.SkyboxOrder) do
+        if LightingModule.SkyboxDatabase[name] == id then return name end
+    end
+    return nil
+end
+
+-- skyName = nama di daftar skybox (supaya UI bisa menunjukkan yang aktif); nil kalau langitnya dari tempat lain.
+local function ApplySkyData(skyData, skyName)
     LightingModule.ActiveSkybox = skyData
+    LightingModule.ActiveSkyName = skyName
     local sky = GetOrCreateSky()
     for k, v in pairs(skyData) do pcall(function() sky[k] = v end) end
 end
@@ -793,9 +805,10 @@ end
 -- Kembali ke langit asli peta (atau tanpa langit kalau petanya memang tidak punya).
 local function RestoreDefaultSky()
     if LightingModule.DefaultSkybox then
-        ApplySkyData(LightingModule.DefaultSkybox)
+        ApplySkyData(LightingModule.DefaultSkybox, "Default Sky")
     else
         LightingModule.ActiveSkybox = nil
+        LightingModule.ActiveSkyName = "Default Sky"
         local currentSky = Lighting:FindFirstChildOfClass("Sky")
         if currentSky then currentSky:Destroy() end
     end
@@ -803,7 +816,7 @@ end
 
 function LightingModule.LoadSkybox(id)
     local data = SkyDataFromAsset(id)
-    if data then ApplySkyData(data) end
+    if data then ApplySkyData(data, SkyNameForId(id)) end
 end
 
 -- Gambar pratinjau skybox (thumbnail toko Roblox) untuk dropdown. Satu request untuk semua id.
@@ -891,7 +904,7 @@ function LightingModule.GetPresetData(presetName)
     end
 
     if presetName == "Default" then
-        return { Values = CopyValues(LightingModule.Defaults), Sky = LightingModule.DefaultSkybox }
+        return { Values = CopyValues(LightingModule.Defaults), Sky = LightingModule.DefaultSkybox, SkyName = "Default Sky" }
     end
 
     local builtIn = LightingModule.BuiltInPresets[presetName]
@@ -899,6 +912,7 @@ function LightingModule.GetPresetData(presetName)
         local data = { Values = CopyValues(builtIn.Values) }
         if builtIn.Skybox and builtIn.Skybox ~= "" then
             data.Sky = SkyDataFromAsset(builtIn.Skybox)
+            data.SkyName = SkyNameForId(builtIn.Skybox)
             data.KeepSky = data.Sky == nil
         end
         return data
@@ -913,6 +927,10 @@ function LightingModule.GetPresetData(presetName)
 
     local data = { Values = {}, Sky = decoded.CustomSkybox }
     decoded.CustomSkybox = nil
+    -- nama skybox yang dicatat saat preset disimpan (hanya dipakai kalau masih ada di daftar)
+    if type(decoded.SkyboxName) == "string" and LightingModule.SkyboxDatabase[decoded.SkyboxName] then
+        data.SkyName = decoded.SkyboxName
+    end
     for cat, props in pairs(decoded) do
         if type(props) == "table" then
             data.Values[cat] = {}
@@ -927,7 +945,7 @@ end
 
 function LightingModule.ApplyPresetData(data)
     if data.Sky then
-        ApplySkyData(data.Sky)
+        ApplySkyData(data.Sky, data.SkyName)
     elseif not data.KeepSky then
         RestoreDefaultSky()
     end
@@ -944,9 +962,11 @@ function LightingModule.ApplyPresetData(data)
     if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end
 end
 
+-- Mengembalikan nama skybox (di daftar dropdown) yang sekarang aktif, atau nil kalau tidak diketahui.
 function LightingModule.LoadPreset(presetName)
     local data = LightingModule.GetPresetData(presetName)
     if data then LightingModule.ApplyPresetData(data) end
+    return LightingModule.ActiveSkyName
 end
 
 -- Bentuk file preset: Color3 ditulis { isColor3, R, G, B }, langit di CustomSkybox.
@@ -966,6 +986,20 @@ local function ToFileTable(values, skyData)
     return out
 end
 
+-- Hapus preset tersimpan milik user. Default dan preset bawaan tidak bisa dihapus. Mengembalikan: berhasil, nama (atau pesan gagal).
+function LightingModule.DeletePreset(presetName)
+    if presetName == "Default" or LightingModule.BuiltInPresets[presetName] then
+        return false, "Default and built-in presets cannot be deleted."
+    end
+    presetName = SanitizePresetName(presetName)
+    local path = PresetPath(presetName)
+    if presetName == "" or not (isfile and isfile(path)) then return false, "Preset not found." end
+    if not delfile then return false, "Your executor does not support delfile." end
+    pcall(delfile, path)
+    if isfile(path) then return false, "Could not delete the preset file." end
+    return true, presetName
+end
+
 -- Mengembalikan: berhasil, "New" | "Overwrite" (atau pesan gagal), nama akhir.
 function LightingModule.SavePreset(presetName)
     presetName = SanitizePresetName(presetName)
@@ -975,7 +1009,13 @@ function LightingModule.SavePreset(presetName)
 
     -- SnapshotSky tidak menyimpan matahari yang sedang disembunyikan (Hide Sun adalah toggle sendiri).
     local sky = Lighting:FindFirstChildOfClass("Sky")
-    local data = HttpService:JSONEncode(ToFileTable(LightingModule.TargetValues, sky and SnapshotSky(sky) or nil))
+    local fileTable = ToFileTable(LightingModule.TargetValues, sky and SnapshotSky(sky) or nil)
+    -- nama skybox dari daftar ikut disimpan, tapi hanya kalau langit yang terlihat masih yang itu
+    local active = LightingModule.ActiveSkybox
+    if sky and active and LightingModule.ActiveSkyName and sky.SkyboxBk == active.SkyboxBk then
+        fileTable.SkyboxName = LightingModule.ActiveSkyName
+    end
+    local data = HttpService:JSONEncode(fileTable)
     if writefile then
         writefile(path, data)
         return true, isOverwrite and "Overwrite" or "New", presetName
@@ -1229,6 +1269,7 @@ function LightingModule.PasteSkybox()
     local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if success and decoded then
         LightingModule.ActiveSkybox = decoded
+        LightingModule.ActiveSkyName = nil
         local sky = Lighting:FindFirstChildOfClass("Sky")
         if not sky then
             sky = Instance.new("Sky", Lighting)

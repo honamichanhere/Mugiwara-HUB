@@ -38,6 +38,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         Box = true
     })
 
+    local VipSkyBox -- dibuat di bawah; preset yang dimuat memilih skybox-nya di sini
     local VipLoadPreset = PremiumSection:Dropdown({
         Title = "Load Presets",
         Icon = "lucide:folder-open",
@@ -48,7 +49,9 @@ return function(Window, isPremiumUser, MugiwaraUI)
         Value = "Default",
         Callback = function(Option)
             if type(Option) == "string" and Option ~= "" then
-                LightingModule.LoadPreset(Option)
+                local skyName = LightingModule.LoadPreset(Option)
+                -- kolom Sky Box ikut menunjukkan skybox milik preset (tanpa memuat ulang skybox-nya)
+                if skyName and VipSkyBox then pcall(function() VipSkyBox:Set(skyName, true) end) end
             end
         end
     })
@@ -110,6 +113,43 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
+    PremiumSection:Button({
+        Title = "Delete Preset",
+        Icon = "lucide:trash-2",
+        Desc = "Delete the saved preset selected in Load Presets. Default and built-in presets stay.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Callback = function()
+            local name = VipLoadPreset and VipLoadPreset:Get()
+            if type(name) ~= "string" or name == "" then
+                MugiwaraUI:Notify({ Title = "Delete Preset", Content = "Pick a preset in Load Presets first.", Duration = 3 })
+                return
+            end
+            Window:Dialog({
+                Title = "Delete Preset?",
+                Content = "'" .. name .. "' will be deleted from your saved presets. This cannot be undone.",
+                Buttons = {
+                    { Title = "Cancel" },
+                    {
+                        Title = "Delete",
+                        Callback = function()
+                            local success, result = LightingModule.DeletePreset(name)
+                            if success then
+                                MugiwaraUI:Notify({ Title = "Preset Deleted", Content = "'" .. result .. "' was deleted.", Duration = 3 })
+                                if VipLoadPreset and VipLoadPreset.Refresh then
+                                    VipLoadPreset:Refresh(LightingModule.GetPresetsList())
+                                    pcall(function() VipLoadPreset:Set("Default", true) end)
+                                end
+                            else
+                                MugiwaraUI:Notify({ Title = "Delete Preset", Content = result, Duration = 4 })
+                            end
+                        end
+                    }
+                }
+            })
+        end
+    })
+
     local VipImportPreset
     VipImportPreset = PremiumSection:Input({
         Title = "Load Preset via Code",
@@ -138,7 +178,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
-    local VipSkyBox = PremiumSection:GridDropdown({
+    VipSkyBox = PremiumSection:GridDropdown({
         Title = "Sky Box",
         Desc = "Change Sky Box.",
         Icon = "lucide:cloudy",

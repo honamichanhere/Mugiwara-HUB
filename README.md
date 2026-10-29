@@ -16,7 +16,8 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 | UI Config (Appearance) | Theme picker, theme creator, wallpaper, UI scale, background blur. Saved in `MugiwaraHubConfig/UISettings.json`; nothing to do with the game |
 
 **Lighting presets** (Lighting tab, premium): the Load Presets list shows your own saved presets first, then Default and the
-built-in ones. **Share Preset** copies a code (`MWL1:...`, a few hundred characters) of the preset picked in Load Presets;
+built-in ones; loading a preset also selects its skybox in the Sky Box picker, and **Delete Preset** removes a saved one (after a
+confirmation; Default and built-in presets cannot be deleted). **Share Preset** copies a code (`MWL1:...`, a few hundred characters) of the preset picked in Load Presets;
 **Load Preset via Code** applies a code from someone else and saves it to your list under a free name (never over one of
 yours). Codes carry the lighting values and the sky (texture ids); everything in a code is checked before use (types,
 slider ranges, only asset ids or Roblox's own rbxasset:// textures). The Sky Box picker is a grid with the Roblox store
