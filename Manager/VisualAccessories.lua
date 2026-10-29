@@ -27,21 +27,9 @@ VisualAccessories.State = {
 
 local Cache = { LoadedAccessories = {} }
 
--- Aset Korblox resmi untuk R6; dipasang lewat HumanoidDescription jadi tidak butuh akun donor. Catatan: aset
--- 139607718 adalah "Korblox Deathspeaker Right Leg" dan 139607673 adalah "Left Leg"; pemetaan slot di bawah
--- sengaja dipertahankan karena itulah yang menghasilkan CharacterMesh Korblox di kaki kanan R6.
+-- Aset Korblox resmi; dipasang lewat HumanoidDescription jadi tidak butuh akun donor.
 local KORBLOX_LEFT_LEG = 139607718
 local KORBLOX_RIGHT_LEG = 139607673
-
--- Korblox R15: mesh dan texture resmi kaki Korblox (kaki kanan), dipakai untuk kaki yang dipilih. Tidak lewat
--- HumanoidDescription: slot HumanoidDescription membuat kaki kiri dari mesh yang tidak cocok (kaki rusak /
--- pecahan hitam), dan kaki kanan jadi polos. Sumber: skrip Korless-Visual.
-local KORBLOX_R15_MESHES = {
-    UpperLeg = "rbxassetid://902942093",
-    LowerLeg = "rbxassetid://902942096",
-    Foot = "rbxassetid://902942089",
-}
-local KORBLOX_R15_TEXTURE = "rbxassetid://902843398"
 
 local alive = true -- diset false oleh cleanup supaya loop di bawah berhenti
 
@@ -198,7 +186,12 @@ local function ReplaceLegs(side, useKorblox, rig, hum)
     if not useKorblox and not (sides and sides[side]) then return true end
 
     local isR15 = hum.RigType == Enum.HumanoidRigType.R15
-    local sourceRig = useKorblox and Cache.KorbloxR6 or Cache.OriR6 -- hanya dipakai R6
+    local sourceRig
+    if useKorblox then
+        sourceRig = isR15 and Cache.KorbloxR15 or Cache.KorbloxR6
+    else
+        sourceRig = isR15 and Cache.OriR15 or Cache.OriR6
+    end
 
     local replaced = false
 
@@ -208,18 +201,17 @@ local function ReplaceLegs(side, useKorblox, rig, hum)
             local dst = rig:FindFirstChild(side .. suffix)
             if dst and dst:IsA("MeshPart") then
                 if useKorblox then
-                    local before = dst.MeshId
-                    if not originalLooks[dst] then originalLooks[dst] = ReadLook(dst) end
-                    -- Material dan Transparency tetap milik kaki ini; warna putih supaya texture tampil apa adanya.
-                    local look = {
-                        MeshId = KORBLOX_R15_MESHES[suffix], TextureID = KORBLOX_R15_TEXTURE, Color = Color3.new(1, 1, 1),
-                        Material = dst.Material, Transparency = dst.Transparency, Appearance = {},
-                    }
-                    local applied = ApplyLook(dst, look)
-                    if applied then count = count + 1 end
-                    print("[Mugiwara HUB] Korblox " .. dst.Name .. ": " .. tostring(before) .. " -> " .. tostring(dst.MeshId) .. " (" .. (applied and "ok" or "FAILED") .. ")")
+                    local src = sourceRig and sourceRig:FindFirstChild(side .. suffix)
+                    if src then
+                        if not originalLooks[dst] then originalLooks[dst] = ReadLook(dst) end
+                        if ApplyLook(dst, ReadLook(src)) then count = count + 1 end
+                    end
                 else
                     local look = originalLooks[dst]
+                    if not look then
+                        local src = sourceRig and sourceRig:FindFirstChild(side .. suffix)
+                        look = src and ReadLook(src)
+                    end
                     if look and ApplyLook(dst, look) then
                         originalLooks[dst] = nil
                         count = count + 1
@@ -280,8 +272,8 @@ local function ReplaceLegs(side, useKorblox, rig, hum)
 end
 
 -- ---------- Cache model avatar sendiri ----------
--- Hanya dipakai oleh R6 (R15 memakai mesh Korblox resmi, lihat KORBLOX_R15_MESHES). Dibangun sekali, hanya saat
--- Korblox pertama kali dipakai di rig R6 (pengguna gratis tidak memicunya). Modelnya tidak punya parent di Workspace. Menunggu game dan karakter siap dulu: membuat model terlalu cepat setelah join
+-- Dibangun sekali, hanya saat Korblox pertama kali dipakai (pengguna gratis tidak memicunya). Modelnya tidak
+-- punya parent di Workspace. Menunggu game dan karakter siap dulu: membuat model terlalu cepat setelah join
 -- membuat Evade menendang pemain ("character not loaded").
 local cacheState = "idle" -- idle | building | ready | failed
 
@@ -315,7 +307,9 @@ local function BuildCache()
     end
 
     local ok, err = pcall(function()
+        Make("OriR15", desc, Enum.HumanoidRigType.R15)
         Make("OriR6", desc, Enum.HumanoidRigType.R6)
+        Make("KorbloxR15", korbloxDesc, Enum.HumanoidRigType.R15)
         Make("KorbloxR6", korbloxDesc, Enum.HumanoidRigType.R6)
     end)
     if ok then
@@ -344,14 +338,6 @@ local function WaitForCache(timeout)
     return cacheState == "ready"
 end
 
--- true kalau salah satu rig adalah R6 (hanya R6 yang butuh cache avatar).
-local function AnyR6(rigs)
-    for _, entry in ipairs(rigs) do
-        if entry.Humanoid and entry.Humanoid.RigType == Enum.HumanoidRigType.R6 then return true end
-    end
-    return false
-end
-
 -- ---------- Rig baru ----------
 -- Rig yang sudah diproses. Setiap rig BARU (respawn, atau rig yang dibuat ulang game) otomatis dapat
 -- semua visual aktif. Weak table: rig yang dihapus game ikut hilang dari sini.
@@ -364,7 +350,7 @@ local function ApplyActiveStates(rig)
 
     if VisualAccessories.State.Headless then SetHeadHidden(rig, true) end
     if VisualAccessories.State.LeftKorblox or VisualAccessories.State.RightKorblox then
-        if hum.RigType ~= Enum.HumanoidRigType.R6 or WaitForCache(20) then
+        if WaitForCache(20) then
             if VisualAccessories.State.LeftKorblox then ReplaceLegs("Left", true, rig, hum) end
             if VisualAccessories.State.RightKorblox then ReplaceLegs("Right", true, rig, hum) end
         end
@@ -394,20 +380,19 @@ function VisualAccessories.ToggleHeadless(state)
     end
 end
 
--- true kalau Korblox perlu menyiapkan data avatar dulu (hanya rig R6, hanya sebelum cache siap); toggle itu butuh beberapa detik.
-function VisualAccessories.NeedsKorbloxPrep()
-    return cacheState ~= "ready" and AnyR6(GetAllRigs())
+-- true kalau cache avatar untuk Korblox sudah siap (toggle pertama perlu beberapa detik untuk menyiapkannya).
+function VisualAccessories.IsKorbloxReady()
+    return cacheState == "ready"
 end
 
 -- side = "Left" / "Right". Mengembalikan false kalau Korblox tidak bisa dipasang (cache gagal atau rig tidak cocok).
 -- State tetap tersimpan, jadi rig baru tetap dapat Korblox otomatis.
 function VisualAccessories.ToggleKorblox(state, side)
     VisualAccessories.State[side .. "Korblox"] = state
-    local rigs = GetAllRigs()
-    if state and AnyR6(rigs) and not WaitForCache(20) then return false end
+    if state and not WaitForCache(20) then return false end
 
     local any = false
-    for _, entry in ipairs(rigs) do
+    for _, entry in ipairs(GetAllRigs()) do
         if ReplaceLegs(side, state, entry.Rig, entry.Humanoid) then any = true end
     end
     return any or not state

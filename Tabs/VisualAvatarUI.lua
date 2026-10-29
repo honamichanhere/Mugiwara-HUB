@@ -118,7 +118,7 @@ function UI.BuildKorless(Section, VisualAcc, isPremiumUser, MugiwaraUI)
             Callback = function(Value)
                 task.spawn(function()
                     if not VisualAcc then return end
-                    if Value and VisualAcc.NeedsKorbloxPrep and VisualAcc.NeedsKorbloxPrep() then
+                    if Value and VisualAcc.IsKorbloxReady and not VisualAcc.IsKorbloxReady() then
                         MugiwaraUI:Notify({ Title = "Korblox", Content = "Preparing your avatar data. Korblox is applied in a few seconds.", Duration = 4 })
                     end
                     local ok = VisualAcc.ToggleKorblox(Value, side)
