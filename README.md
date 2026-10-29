@@ -133,9 +133,10 @@ and **Visual Emotes**.
   button turns into **Revert** when the same pair is picked again, and **Revert All** restores everything.
   The emote list comes from the game's own item Registry (category "Emotes", with a built-in path list as a
   fallback). Each side is a category dropdown (the game's own headers, split in pages of 30) plus a grid of
-  pictures. Evade has no emote images: its menu tiles are ViewportFrames, so `EmotePreview` asks the game's
-  `ClientItemService:CreateViewport` to render each emote in a hidden frame, bakes the pose (joint
-  transforms) into a still model and hands that to Mugiwara UI's grid (`Viewport` items). Nothing animates,
+  pictures. Evade has no emote images: its menu tiles are ViewportFrames, so `EmotePreview` rebuilds the same thing itself in a hidden frame (the game's own rig from `Assets.Items`,
+  the emote's animation frozen at 0.5 s, its prop model attached; it never `require`s the game's service modules, which
+  can hang from an executor), bakes the pose (joint transforms) into a still model and hands that to Mugiwara UI's grid
+  (`Viewport` items). Nothing animates,
   and previews are rendered lazily (when a grid is opened) and cached; a swapped emote is rendered again
   so its picture follows the swap. The Base list hides the Target and vice versa; Rockin Stride <> Kickback
   and Zombie Stride <> Classic Dance can only be swapped with each other (whatever the category); an emote

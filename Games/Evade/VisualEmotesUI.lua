@@ -78,8 +78,12 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
     -- Fungsi render game baru dicari saat grid pertama dibuka (bukan saat hub memuat): require modul game
     -- bisa lambat atau gagal, dan itu tidak boleh menahan pembuatan tab Main.
     local previewState = nil
+    local previewWarned = false
     local function PreviewsOn()
-        if previewState == nil then previewState = (Preview and Preview.Available()) and true or false end
+        if previewState == nil then
+            previewState = (Preview and Preview.Available()) and true or false
+            if not previewState then Notify("Visual Emotes", "Previews are not available in this game version, showing icons instead.", 4) end
+        end
         return previewState
     end
     local failedPreview = {} -- emote yang gagal dirender: tidak dicoba lagi sampai ditukar / dikembalikan
@@ -164,7 +168,13 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
                 local model, reason = Preview.Bake(entry)
                 if not model then
                     failedPreview[entry] = true
-                    if reason ~= "unloaded" then warn("[Mugiwara HUB] Emote preview failed for " .. entry.Name .. ": " .. tostring(reason)) end
+                    if reason ~= "unloaded" then
+                        warn("[Mugiwara HUB] Emote preview failed for " .. entry.Name .. ": " .. tostring(reason))
+                        if not previewWarned then
+                            previewWarned = true
+                            Notify("Visual Emotes", "Could not render a preview: " .. tostring(reason), 5)
+                        end
+                    end
                 end
             end
             if mine ~= side.Token then return end
