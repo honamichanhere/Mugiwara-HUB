@@ -75,7 +75,13 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
     local byName = {}
     for _, entry in ipairs(emotes) do byName[entry.Name] = entry end
 
-    local previews = Preview and Preview.Available()
+    -- Fungsi render game baru dicari saat grid pertama dibuka (bukan saat hub memuat): require modul game
+    -- bisa lambat atau gagal, dan itu tidak boleh menahan pembuatan tab Main.
+    local previewState = nil
+    local function PreviewsOn()
+        if previewState == nil then previewState = (Preview and Preview.Available()) and true or false end
+        return previewState
+    end
     local failedPreview = {} -- emote yang gagal dirender: tidak dicoba lagi sampai ditukar / dikembalikan
 
     local base, target = nil, nil -- entry yang dipilih
@@ -92,7 +98,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
     -- Item grid: model diam kalau sudah dirender, kalau belum ikon biasa.
     local function ItemFor(entry)
         local item = { Title = TitleOf(entry) }
-        local model = previews and Preview.Get(entry) or nil
+        local model = Preview and Preview.Get(entry) or nil
         if model then
             item.Viewport = model
         else
@@ -141,7 +147,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
 
     -- Merender model diam untuk emote yang tampil dan belum punya, satu per satu di latar belakang.
     local function Bake(side)
-        if not previews then return end
+        if not PreviewsOn() then return end
         side.Token = side.Token + 1
         local mine = side.Token
 
@@ -295,7 +301,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
             end
 
             -- Gambarnya ikut berubah seperti di game: render ulang kedua emote.
-            if ok and previews then
+            if ok and Preview then
                 for _, entry in ipairs(pair) do
                     Preview.Invalidate(entry)
                     failedPreview[entry] = nil
@@ -318,7 +324,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
         Callback = function()
             local restored, touched = VisualEmotes.RevertAll()
             Notify("Visual Emotes", restored > 0 and ("Restored " .. restored .. " swapped pair(s).") or "Nothing is swapped.", 3)
-            if previews then
+            if Preview then
                 for _, entry in ipairs(touched) do
                     Preview.Invalidate(entry)
                     failedPreview[entry] = nil

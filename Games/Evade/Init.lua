@@ -177,8 +177,11 @@ return function(Window, isPremiumUser, MugiwaraUI)
     -- Visual Emotes (premium): tukar tampilan dua emote.
     if VisualEmotesUI then
         local EmotesSection = PremiumSection:Section({ Title = "Visual Emotes", Icon = "lucide:drama", Opened = false })
-        local ok, err = pcall(VisualEmotesUI.Build, EmotesSection, isPremiumUser, MugiwaraUI)
-        if not ok then warn("[Mugiwara HUB] Visual Emotes UI error: " .. tostring(err)) end
+        -- Di thread sendiri: memuat daftar emote (Registry game) bisa lama, dan sisa tab Main tidak boleh menunggu.
+        task.spawn(function()
+            local ok, err = pcall(VisualEmotesUI.Build, EmotesSection, isPremiumUser, MugiwaraUI)
+            if not ok then warn("[Mugiwara HUB] Visual Emotes UI error: " .. tostring(err)) end
+        end)
     end
 
     -- ==========================================
