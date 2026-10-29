@@ -9,20 +9,23 @@
 --     nama anggota badan (Head, UpperTorso, LeftFoot, HumanoidRootPart, ...). Isi tiap part pengganti (attachment,
 --     partikel, beam, part, weld, cahaya) dipindah ke anggota badan yang namanya sama di rig, jadi satu Unusual bisa
 --     berupa "paket": sebagian di kepala, sebagian di kaki, dan seterusnya.
---   * Yang terlihat adalah rig di Workspace.Rigs[NamaPlayer], bukan Player.Character. Bagian HumanoidRootPart
---     ditempel ke HumanoidRootPart karakter (rig tidak punya).
+--   * Yang terlihat adalah rig di Workspace.Rigs, bukan Player.Character. Ada DUA rig dengan nama pemain yang sama
+--     (rig inventory dan rig dalam game; lihat Rigs.lua), jadi efek dipasang ke keduanya. Bagian HumanoidRootPart
+--     ditempel sekali ke HumanoidRootPart karakter (rig tidak punya).
 -- Isi tiap Unusual disalin dulu ke memori (Capture) lalu ditempel dari salinan itu, jadi folder game tidak disentuh.
--- Rig bisa dibuat ulang game (ronde baru, ganti avatar): efek yang terpasang dipasang ulang otomatis.
+-- Pemeriksa latar belakang (Watch) mengecek semua efek di semua rig tiap 0.3 detik: efek yang dihapus game dipasang
+-- lagi, dan rig baru (ronde baru, ganti avatar, inventory dibuka lagi) langsung dipasangi.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
+local Rigs = getgenv().MugiwaraImport("Games/Evade/Rigs.lua")
 
 local Unusual = {}
 
 local entries = {}      -- { { Name, Display, Header, Rarity, Image, Id, Instance, Limbs, Data } } terurut menurut nama
 local byInstance = {}   -- [instance] = entry
-local applied = {}      -- [entry] = record { Entry, Rig, Roots = { { Instance, Host } }, Missing, PendingRoot }
+local applied = {}      -- [entry] = record { Entry, Subs = { [rig] = sub }, RootSub }; sub = { Host, Roots = { { Instance, Host } }, Missing }
 local loaded = false
 local source = "none"
 local watching = false
@@ -69,6 +72,7 @@ local function AddEntry(module, id, info)
         Id = id,
         Instance = module,
         Limbs = limbs,
+        HasRoot = table.find(limbs, "HumanoidRootPart") ~= nil,
     }
     table.insert(entries, entry)
     byInstance[module] = entry
@@ -182,31 +186,41 @@ end
 
 --// rig dan penempelan ----------------------------------------------------------------
 
--- Rig yang terlihat (Workspace.Rigs[NamaPlayer]); kalau game tidak punya, karakter biasa.
-local function FindRig()
-    local rigs = workspace:FindFirstChild("Rigs")
-    local rig = rigs and rigs:FindFirstChild(LocalPlayer.Name)
-    if rig and rig:FindFirstChild("Head") then return rig end
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("Head") then return character end
-    return nil
-end
-Unusual.FindRig = FindRig
-
 local function RigIsR6(rig)
     local humanoid = rig:FindFirstChildOfClass("Humanoid")
     return humanoid ~= nil and humanoid.RigType == Enum.HumanoidRigType.R6
 end
 
--- Anggota badan bernama `name` di rig. Rig game tidak punya HumanoidRootPart: dipakai milik karakter.
-local function FindLimb(rig, name)
-    local limb = rig:FindFirstChild(name)
-    if limb and limb:IsA("BasePart") then return limb end
-    if name == "HumanoidRootPart" then
-        local character = LocalPlayer.Character
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        if root and root:IsA("BasePart") then return root, true end
+-- Semua rig yang terlihat milik pemain lokal: Evade punya DUA dengan nama yang sama di Workspace.Rigs (rig
+-- inventory/menu dan rig dalam game), keduanya dipasangi. Rigs.lua yang menentukan; tanpanya dipakai pencarian
+-- sederhana dengan aturan yang sama (karakter biasa kalau tidak ada rig sama sekali).
+local function Targets()
+    local list = {}
+    local entries = Rigs and Rigs.GetAll() or nil
+    if entries then
+        for _, entry in ipairs(entries) do
+            if entry.Rig:FindFirstChild("Head") then table.insert(list, entry.Rig) end
+        end
+        return list
     end
+
+    local container = workspace:FindFirstChild("Rigs")
+    if container then
+        for _, child in ipairs(container:GetChildren()) do
+            if child:IsA("Model") and child.Name == LocalPlayer.Name and child:FindFirstChild("Head") then
+                table.insert(list, child)
+            end
+        end
+    end
+    local character = LocalPlayer.Character
+    if #list == 0 and character and character:FindFirstChild("Head") then table.insert(list, character) end
+    return list
+end
+Unusual.GetTargets = Targets
+
+local function LimbOf(host, name)
+    local limb = host:FindFirstChild(name)
+    if limb and limb:IsA("BasePart") then return limb end
     return nil
 end
 
@@ -220,14 +234,17 @@ local function Tame(instance)
     end
 end
 
--- Menempelkan satu Unusual ke rig (meniru applyCosmeticRig milik game, tanpa merusak isi rig). Mengembalikan record.
-local function Attach(entry, rig)
+-- Menempelkan satu Unusual ke `host` (meniru applyCosmeticRig milik game, tanpa merusak isi rig). Mengembalikan sub:
+-- { Host, Roots = { { Instance, Host } }, Missing }.
+-- Rig game tidak punya HumanoidRootPart, jadi bagian untuk HumanoidRootPart dilewati di rig dan ditempel sekali ke
+-- karakter (onlyRoot = true, host = karakter). Rig yang punya HumanoidRootPart (karakter biasa) memasangnya sendiri.
+local function Attach(entry, host, onlyRoot)
     local data = Unusual.Capture(entry)
-    local model = (RigIsR6(rig) and data.R6 or data.R15) or nil
-    local record = { Entry = entry, Rig = rig, Roots = {}, Missing = 0, PendingRoot = false }
+    local model = RigIsR6(host) and data.R6 or data.R15
+    local sub = { Host = host, Roots = {}, Missing = 0 }
     if not model then
-        record.Missing = #entry.Limbs
-        return record
+        sub.Missing = #entry.Limbs
+        return sub
     end
 
     local clone = model:Clone()
@@ -237,89 +254,161 @@ local function Attach(entry, rig)
 
     for _, stand in ipairs(clone:GetChildren()) do
         if stand:IsA("BasePart") then
-            local limb, isRoot = FindLimb(rig, stand.Name)
-            if limb then
-                if stand.Name == "Head" then
-                    -- mesh/tekstur kepala pengganti tidak dipakai, kepala asli tetap
-                    for _, child in ipairs(stand:GetChildren()) do
-                        if child:IsA("DataModelMesh") or child:IsA("Decal") or child:IsA("Texture") or child:IsA("SurfaceAppearance") then
-                            child:Destroy()
+            local isRootStand = stand.Name == "HumanoidRootPart"
+            local wanted
+            if onlyRoot then
+                wanted = isRootStand
+            else
+                wanted = not isRootStand or host:FindFirstChild("HumanoidRootPart") ~= nil
+            end
+
+            if wanted then
+                local limb = LimbOf(host, stand.Name)
+                if limb then
+                    if stand.Name == "Head" then
+                        -- mesh/tekstur kepala pengganti tidak dipakai, kepala asli tetap
+                        for _, child in ipairs(stand:GetChildren()) do
+                            if child:IsA("DataModelMesh") or child:IsA("Decal") or child:IsA("Texture") or child:IsA("SurfaceAppearance") then
+                                child:Destroy()
+                            end
                         end
                     end
-                end
-                for _, child in ipairs(stand:GetChildren()) do
-                    if child:IsA("Attachment") then
-                        -- attachment bernama sama dengan milik rig ikut posisinya (rig asli tidak diubah)
-                        local own = limb:FindFirstChild(child.Name)
-                        if own and own:IsA("Attachment") then child.CFrame = own.CFrame end
+                    for _, child in ipairs(stand:GetChildren()) do
+                        if child:IsA("Attachment") then
+                            -- attachment bernama sama dengan milik rig ikut posisinya (rig asli tidak diubah)
+                            local own = limb:FindFirstChild(child.Name)
+                            if own and own:IsA("Attachment") then child.CFrame = own.CFrame end
+                        end
+                        if not (child:IsA("Motor6D") and BODY_JOINTS[child.Name]) then
+                            child.Parent = limb
+                            table.insert(sub.Roots, { Instance = child, Host = limb })
+                        end
                     end
-                    if not (child:IsA("Motor6D") and BODY_JOINTS[child.Name]) then
-                        child.Parent = limb
-                        table.insert(record.Roots, { Instance = child, Host = limb })
-                    end
+                else
+                    sub.Missing = sub.Missing + 1
                 end
-            else
-                record.Missing = record.Missing + 1
-                if stand.Name == "HumanoidRootPart" then record.PendingRoot = true end
             end
         end
     end
 
-    -- joint yang menunjuk part pengganti diarahkan ke anggota badan rig yang namanya sama
-    for _, root in ipairs(record.Roots) do
+    -- joint yang menunjuk part pengganti diarahkan ke anggota badan yang namanya sama
+    for _, root in ipairs(sub.Roots) do
         local instance = root.Instance
         local list = instance:GetDescendants()
         table.insert(list, instance)
         for _, item in ipairs(list) do
             if (item:IsA("Weld") or item:IsA("Motor6D")) and not BODY_JOINTS[item.Name] then
-                if item.Part0 and item.Part0.Parent == clone then item.Part0 = FindLimb(rig, item.Part0.Name) end
-                if item.Part1 and item.Part1.Parent == clone then item.Part1 = FindLimb(rig, item.Part1.Name) end
+                if item.Part0 and item.Part0.Parent == clone then item.Part0 = LimbOf(host, item.Part0.Name) end
+                if item.Part1 and item.Part1.Parent == clone then item.Part1 = LimbOf(host, item.Part1.Name) end
             end
             Tame(item)
         end
     end
 
     clone:Destroy()
-    return record
+    return sub
 end
 
-local function Detach(record)
-    for _, root in ipairs(record.Roots) do
+local function Detach(sub)
+    for _, root in ipairs(sub.Roots) do
         pcall(root.Instance.Destroy, root.Instance)
     end
-    record.Roots = {}
+    sub.Roots = {}
 end
 
--- Masih utuh: rig yang sama, semua akar masih menempel di tempatnya, dan bagian HumanoidRootPart yang tertunda
--- sudah bisa dipasang kalau karakternya sudah ada.
-local function Intact(record, rig)
-    if record.Rig ~= rig or not rig:IsDescendantOf(workspace) then return false end
-    for _, root in ipairs(record.Roots) do
+-- Masih utuh: host-nya masih ada di game dan semua akar masih menempel di tempatnya (kalau game menghapus atau
+-- memindahkan salah satu, sub ini dipasang ulang).
+local function Intact(sub)
+    if not sub.Host:IsDescendantOf(workspace) then return false end
+    for _, root in ipairs(sub.Roots) do
         if root.Instance.Parent ~= root.Host or not root.Host:IsDescendantOf(workspace) then return false end
     end
-    if record.PendingRoot and FindLimb(rig, "HumanoidRootPart") then return false end
     return true
 end
 
--- Pemeriksa latar belakang: hidup hanya selama ada yang terpasang.
+local function SafeAttach(entry, host, onlyRoot)
+    local ok, sub = pcall(Attach, entry, host, onlyRoot)
+    if ok then return sub end
+    warn("[Mugiwara HUB] Visual Unusual: " .. entry.Display .. ": " .. tostring(sub))
+    return { Host = host, Roots = {}, Missing = 0 }
+end
+
+-- Menyamakan satu record dengan keadaan sekarang: rig yang hilang dilepas, rig baru dipasangi, dan yang efeknya
+-- terhapus oleh game dipasang ulang. Mengembalikan true kalau ada yang berubah.
+local function Sync(record, rigs)
+    local changed = false
+
+    local present = {}
+    for _, rig in ipairs(rigs) do present[rig] = true end
+    for host, sub in pairs(table.clone(record.Subs)) do
+        if not present[host] then
+            Detach(sub)
+            record.Subs[host] = nil
+            changed = true
+        end
+    end
+
+    local rootCovered = false
+    for _, rig in ipairs(rigs) do
+        if rig:FindFirstChild("HumanoidRootPart") then rootCovered = true end
+        local sub = record.Subs[rig]
+        if not sub or not Intact(sub) then
+            if sub then Detach(sub) end
+            record.Subs[rig] = SafeAttach(record.Entry, rig, false)
+            changed = true
+        end
+    end
+
+    -- bagian HumanoidRootPart: satu kali di karakter, kalau tidak ada rig yang punya HumanoidRootPart sendiri
+    local character = LocalPlayer.Character
+    local wantRoot = record.Entry.HasRoot and not rootCovered and character ~= nil and character:FindFirstChild("HumanoidRootPart") ~= nil
+    if wantRoot then
+        local sub = record.RootSub
+        if not sub or sub.Host ~= character or not Intact(sub) then
+            if sub then Detach(sub) end
+            record.RootSub = SafeAttach(record.Entry, character, true)
+            changed = true
+        end
+    elseif record.RootSub and not (record.Entry.HasRoot and not rootCovered) then
+        Detach(record.RootSub)
+        record.RootSub = nil
+        changed = true
+    end
+
+    return changed
+end
+
+local function DetachAll(record)
+    for _, sub in pairs(record.Subs) do Detach(sub) end
+    record.Subs = {}
+    if record.RootSub then
+        Detach(record.RootSub)
+        record.RootSub = nil
+    end
+end
+
+local function RootCount(record)
+    local count = record.RootSub and #record.RootSub.Roots or 0
+    for _, sub in pairs(record.Subs) do count = count + #sub.Roots end
+    return count
+end
+
+-- Pemeriksa latar belakang: hidup hanya selama ada yang terpasang. Tiap 0.3 detik semua efek dicek di semua rig.
 local function Watch()
     if watching then return end
     watching = true
     task.spawn(function()
         while next(applied) ~= nil do
-            task.wait(0.5)
-            local rig = FindRig()
-            if rig then
-                local redone = false
-                for entry, record in pairs(table.clone(applied)) do
-                    if applied[entry] == record and not Intact(record, rig) then
-                        Detach(record)
-                        applied[entry] = Attach(entry, rig)
-                        redone = true
-                    end
+            task.wait(0.3)
+            local rigs = Targets()
+            local redone = false
+            for entry, record in pairs(table.clone(applied)) do
+                if applied[entry] == record then
+                    local ok, changed = pcall(Sync, record, rigs)
+                    if ok and changed then redone = true end
                 end
-                if redone then Changed() end
             end
+            if redone then Changed() end
         end
         watching = false
     end)
@@ -348,12 +437,17 @@ end
 -- Mengembalikan true, pesan atau false, alasan. Item yang sama dua kali tidak ditumpuk.
 function Unusual.Apply(entry)
     if applied[entry] then return true, entry.Display .. " is already applied." end
-    local rig = FindRig()
-    if not rig then return false, "No character found. Spawn into a round first." end
+    local rigs = Targets()
+    if #rigs == 0 then return false, "No character found. Spawn into a round first." end
 
-    local ok, record = pcall(Attach, entry, rig)
-    if not ok then return false, "Could not apply " .. entry.Display .. ": " .. tostring(record) end
-    if #record.Roots == 0 and not record.PendingRoot then
+    local record = { Entry = entry, Subs = {}, RootSub = nil }
+    local ok, err = pcall(Sync, record, rigs)
+    if not ok then
+        DetachAll(record)
+        return false, "Could not apply " .. entry.Display .. ": " .. tostring(err)
+    end
+    if RootCount(record) == 0 and not entry.HasRoot then
+        DetachAll(record)
         return false, entry.Display .. " has no effect for this character type."
     end
 
@@ -367,7 +461,7 @@ function Unusual.Remove(entry)
     local record = applied[entry]
     if not record then return false, entry.Display .. " is not applied." end
     applied[entry] = nil
-    Detach(record)
+    DetachAll(record)
     Changed()
     return true, entry.Display .. " removed."
 end
@@ -377,7 +471,7 @@ function Unusual.Clear()
     local count = 0
     for entry, record in pairs(table.clone(applied)) do
         applied[entry] = nil
-        Detach(record)
+        DetachAll(record)
         count = count + 1
     end
     if count > 0 then Changed() end
