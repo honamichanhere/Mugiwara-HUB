@@ -4,6 +4,7 @@ local TicketFarmModule = getgenv().MugiwaraImport("Games/Evade/TicketFarm.lua")
 local AfkFarmUI = getgenv().MugiwaraImport("Games/Evade/AfkFarmUI.lua")
 local VisualEmotesUI = getgenv().MugiwaraImport("Games/Evade/VisualEmotesUI.lua")
 local VisualCarryUI = getgenv().MugiwaraImport("Games/Evade/VisualCarryUI.lua")
+local VisualUnusualUI = getgenv().MugiwaraImport("Games/Evade/VisualUnusualUI.lua")
 local Risk = getgenv().MugiwaraImport("Manager/Risk.lua") or { Desc = function(_, text) return text end, Warn = function() end }
 
 return function(Window, isPremiumUser, MugiwaraUI)
@@ -28,7 +29,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     })
 
     -- Premium Features dibagi per kategori (section di dalam section): Auto Farm, Accessory, Korless,
-    -- Avatar Changer, dan Visual Emotes.
+    -- Avatar Changer, Visual Emotes, dan Visual Unusual.
     if AfkFarmUI then
         local AfkSection = PremiumSection:Section({ Title = "Auto Farm", Icon = "lucide:moon", Opened = false })
         local ok, err = pcall(AfkFarmUI.BuildFarm, AfkSection, isPremiumUser, MugiwaraUI)
@@ -182,6 +183,15 @@ return function(Window, isPremiumUser, MugiwaraUI)
         task.spawn(function()
             local ok, err = pcall(VisualEmotesUI.Build, EmotesSection, isPremiumUser, MugiwaraUI)
             if not ok then warn("[Mugiwara HUB] Visual Emotes UI error: " .. tostring(err)) end
+        end)
+    end
+
+    -- Visual Unusual (premium): pasang efek Unusual milik game ke karakter, bisa ditumpuk.
+    if VisualUnusualUI then
+        local UnusualSection = PremiumSection:Section({ Title = "Visual Unusual", Icon = "lucide:sparkles", Opened = false })
+        task.spawn(function()
+            local ok, err = pcall(VisualUnusualUI.Build, UnusualSection, isPremiumUser, MugiwaraUI)
+            if not ok then warn("[Mugiwara HUB] Visual Unusual UI error: " .. tostring(err)) end
         end)
     end
 

@@ -115,9 +115,9 @@ module.
 ## Evade AFK Farm and Auto Commands
 
 Evade Main tab order: Premium Features, Halloween Ticket Farm, Auto Commands, Visual Carry, Character Movement. All
-sections start collapsed, except Premium Activation. Premium Features is split into five sections of its
-own: **Auto Farm** (AFK Farm), **Accessory**, **Korless** (Headless Head, Korblox legs), **Avatar Changer**
-and **Visual Emotes**.
+sections start collapsed, except Premium Activation. Premium Features is split into six sections of its
+own: **Auto Farm** (AFK Farm), **Accessory**, **Korless** (Headless Head, Korblox legs), **Avatar Changer**,
+**Visual Emotes** and **Visual Unusual**.
 
 - **AFK Farm** (premium, inside Premium Features): builds a small 50x50 studs park (grass, cobblestone
   paths and plaza, fountain, four trees with flowers, street lamps, two benches, hedges plus invisible
@@ -160,6 +160,25 @@ and **Visual Emotes**.
   `CarryPair`: two mannequins (carrier and carried) are placed where the carry's `Character` model puts them, posed
   by the `Carry` / `Carried` animations, with the `CarryModel` props attached. Poses are cached in
   `MugiwaraHub/EmotePoses.json` too. Everything is restored when the hub is unloaded.
+- **Visual Unusual** (premium, `Games/Evade/VisualUnusual.lua` + `VisualUnusualUI.lua`): wears the game's Unusual effects
+  (particles, beams, lights, parts and welds) on your own character, on your screen only. Unlike emotes and carries
+  nothing is swapped: effects are **added**, any number can be stacked, and each can be taken off again. Selecting an
+  effect in the grid applies it at once and selecting it again removes it; **Remove All** clears everything and a status
+  line lists what is applied. How it works (copied from the game's `RigService.AddCosmetics`):
+  - an Unusual is a cosmetic module with `CosmeticInfo.Unusual = true` (about 240, spread over many ItemPacks and
+    BaseItems; the list comes from the Registry category "Cosmetics", with a scan of `Items` as fallback; the RELICS
+    auras, which hang on a boombox, are left out);
+  - its contents are two models, `Character` (R15) and `CharacterClassic` (R6), whose parts stand in for body parts
+    (Head, UpperTorso, LeftFoot, HumanoidRootPart...). One Unusual can be a single effect on the head or a package spread
+    over head, arms and legs: whatever sits on a stand-in is moved onto the body part of the same name, welds
+    are re-pointed at the real parts, and added parts are made massless, non-colliding and unanchored;
+  - every Unusual is first copied into memory (`Capture`, in the background after the section is built) and applied from
+    that copy, so the game's own folders are never touched;
+  - the visible character is the rig in `Workspace.Rigs[YourName]`, not `Player.Character`; the parts meant for
+    `HumanoidRootPart` go on the character's root (the rig has none). When the game rebuilds the rig (new round, avatar
+    change) the applied effects are put back within half a second. The grid shows each effect's icon from the game
+    (no viewports, so it is cheap), split by the game's headers in pages of 24.
+  Everything is removed when the hub is unloaded.
 - **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
   `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned, Intermission, Round Start,
   Round End, Vote. The round triggers come from `ReplicatedStorage.Events.UpdateServerStateRegistry`, which
