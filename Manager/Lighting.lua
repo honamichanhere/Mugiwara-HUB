@@ -471,50 +471,95 @@ function LightingModule.SetLock(state)
     LightingModule.LockEnabled = state
 end
 
-function LightingModule.LoadSkybox(id)
+-- ---------- Skybox ----------
+local SKY_FIELDS = { "SkyboxBk", "SkyboxDn", "SkyboxFt", "SkyboxLf", "SkyboxRt", "SkyboxUp", "SunTextureId", "MoonTextureId", "StarCount", "CelestialBodiesShown", "SunAngularSize", "MoonAngularSize" }
+
+local function SnapshotFields(source)
+    local snapshot = {}
+    for _, field in ipairs(SKY_FIELDS) do snapshot[field] = source[field] end
+    return snapshot
+end
+
+-- Muat model Sky dari Roblox lewat asset id dan ambil nilainya. nil kalau gagal (id salah, offline, bukan Sky).
+local function SkyDataFromAsset(id)
     id = tostring(id or ""):match("^%s*(%d+)%s*$") -- hanya angka; buang input aneh
-    if not id then return end
+    if not id then return nil end
     local success, result = pcall(function() return game:GetObjects("rbxassetid://" .. id) end)
-    if success and result and result[1] then
-        local asset = result[1]
-        local skyObject = asset:IsA("Sky") and asset or asset:FindFirstChildOfClass("Sky")
-        
-        if skyObject then
-            LightingModule.ActiveSkybox = {
-                SkyboxBk = skyObject.SkyboxBk, SkyboxDn = skyObject.SkyboxDn, SkyboxFt = skyObject.SkyboxFt,
-                SkyboxLf = skyObject.SkyboxLf, SkyboxRt = skyObject.SkyboxRt, SkyboxUp = skyObject.SkyboxUp,
-                SunTextureId = skyObject.SunTextureId, MoonTextureId = skyObject.MoonTextureId, StarCount = skyObject.StarCount,
-                CelestialBodiesShown = skyObject.CelestialBodiesShown, SunAngularSize = skyObject.SunAngularSize, MoonAngularSize = skyObject.MoonAngularSize
-            }
-            
-            local currentSky = Lighting:FindFirstChildOfClass("Sky")
-            if not currentSky then
-                currentSky = Instance.new("Sky")
-                currentSky.Name = PREFIX .. "Sky"
-                currentSky.Parent = Lighting
-            end
-            
-            for k, v in pairs(LightingModule.ActiveSkybox) do
-                pcall(function() currentSky[k] = v end)
-            end
-            
-            pcall(function() asset:Destroy() end) 
-        end
+    if not (success and result and result[1]) then return nil end
+
+    local asset = result[1]
+    local skyObject = asset:IsA("Sky") and asset or asset:FindFirstChildOfClass("Sky")
+    local data = skyObject and SnapshotFields(skyObject) or nil
+    pcall(function() asset:Destroy() end)
+    return data
+end
+
+local function ApplySkyData(skyData)
+    LightingModule.ActiveSkybox = skyData
+    local sky = GetOrCreateSky()
+    for k, v in pairs(skyData) do pcall(function() sky[k] = v end) end
+end
+
+-- Kembali ke langit asli peta (atau tanpa langit kalau petanya memang tidak punya).
+local function RestoreDefaultSky()
+    if LightingModule.DefaultSkybox then
+        ApplySkyData(LightingModule.DefaultSkybox)
+    else
+        LightingModule.ActiveSkybox = nil
+        local currentSky = Lighting:FindFirstChildOfClass("Sky")
+        if currentSky then currentSky:Destroy() end
     end
 end
 
--- Daftar preset untuk dropdown: "Default" (peta asli), preset bawaan, lalu preset tersimpan.
--- Tiap item { Title, Desc, Icon }; dropdown mengembalikan Title-nya. Dropdown Mugiwara UI tidak
--- punya pemisah antar kelompok, jadi urutan saja yang membedakan.
-function LightingModule.GetPresetsList()
-    local list = { { Title = "Default", Desc = "Restore the map's original lighting.", Icon = "lucide:sun" } }
+function LightingModule.LoadSkybox(id)
+    local data = SkyDataFromAsset(id)
+    if data then ApplySkyData(data) end
+end
 
-    local builtIn = {}
-    for name in pairs(LightingModule.BuiltInPresets) do table.insert(builtIn, name) end
-    table.sort(builtIn)
-    for _, name in ipairs(builtIn) do
-        table.insert(list, { Title = name, Desc = LightingModule.BuiltInPresets[name].Desc, Icon = "lucide:cloudy" })
+-- Gambar pratinjau skybox (thumbnail toko Roblox) untuk dropdown. Satu request untuk semua id.
+-- Mengembalikan { [id teks] = url gambar }; kosong kalau gagal. Bisa yield (jalankan di task.spawn).
+function LightingModule.FetchSkyboxThumbnails()
+    local ids = {}
+    for _, name in ipairs(LightingModule.SkyboxOrder) do
+        local id = LightingModule.SkyboxDatabase[name]
+        if id and id ~= "" then table.insert(ids, id) end
     end
+    local thumbnails = {}
+    if #ids == 0 then return thumbnails end
+
+    local url = "https://thumbnails.roblox.com/v1/assets?assetIds=" .. table.concat(ids, ",") .. "&size=150x150&format=Png&isCircular=false"
+    local ok, body = pcall(function() return game:HttpGet(url) end)
+    if not ok or type(body) ~= "string" then return thumbnails end
+    local decodedOk, decoded = pcall(function() return HttpService:JSONDecode(body) end)
+    if not (decodedOk and type(decoded) == "table" and type(decoded.data) == "table") then return thumbnails end
+
+    for _, item in ipairs(decoded.data) do
+        -- targetId adalah angka: string.format menjaga id panjang (tostring memotong di 14 digit)
+        if type(item) == "table" and item.state == "Completed" and type(item.targetId) == "number"
+            and type(item.imageUrl) == "string" and item.imageUrl:match("^https://[%w%.]*rbxcdn%.com/") then
+            thumbnails[string.format("%.0f", item.targetId)] = item.imageUrl
+        end
+    end
+    return thumbnails
+end
+
+-- ---------- Preset ----------
+-- Nama preset dipakai sebagai nama file. Buang karakter path ("../", "\", dll) supaya
+-- user nggak bisa nulis/baca file di luar folder MugiwaraHub/Presets.
+local function SanitizePresetName(name)
+    name = tostring(name or ""):gsub("[^%w _%-%.]", ""):gsub("%.%.+", "."):match("^%s*(.-)%s*$")
+    return string.sub(name, 1, 40)
+end
+
+local function PresetPath(name)
+    return ROOT .. "/Presets/" .. name .. ".json"
+end
+
+-- Daftar preset untuk dropdown: preset milik user dulu (kalau ada), lalu "Default" (peta asli) dan
+-- preset bawaan. Tiap item { Title, Desc, Icon }; dropdown mengembalikan Title-nya. Dropdown Mugiwara UI
+-- tidak punya pemisah antar kelompok, jadi urutan saja yang membedakan.
+function LightingModule.GetPresetsList()
+    local list = {}
 
     if listfiles then
         local ok, files = pcall(listfiles, ROOT .. "/Presets")
@@ -530,165 +575,348 @@ function LightingModule.GetPresetsList()
             end
         end
     end
+
+    table.insert(list, { Title = "Default", Desc = "Restore the map's original lighting.", Icon = "lucide:sun" })
+
+    local builtIn = {}
+    for name in pairs(LightingModule.BuiltInPresets) do table.insert(builtIn, name) end
+    table.sort(builtIn)
+    for _, name in ipairs(builtIn) do
+        table.insert(list, { Title = name, Desc = LightingModule.BuiltInPresets[name].Desc, Icon = "lucide:cloudy" })
+    end
     return list
 end
 
--- Nama preset dipakai sebagai nama file. Buang karakter path ("../", "\", dll) supaya
--- user nggak bisa nulis/baca file di luar folder MugiwaraHub/Presets.
-local function SanitizePresetName(name)
-    name = tostring(name or ""):gsub("[^%w _%-%.]", ""):gsub("%.%.+", "."):match("^%s*(.-)%s*$")
-    return string.sub(name, 1, 40)
-end
+-- Data preset dalam bentuk seragam: { Values = { kategori = { properti = nilai } }, Sky = tabel langit | nil, KeepSky = bool }.
+-- Sky nil berarti "langit asli peta"; KeepSky berarti langit dibiarkan apa adanya (skybox bawaan gagal dimuat).
+-- Bisa yield untuk preset bawaan (memuat model Sky). Gagal: nil, pesan.
+function LightingModule.GetPresetData(presetName)
+    local function CopyValues(source)
+        local copy = {}
+        for cat, props in pairs(source) do
+            copy[cat] = {}
+            for k, v in pairs(props) do copy[cat][k] = v end
+        end
+        return copy
+    end
 
-function LightingModule.SavePreset(presetName)
+    if presetName == "Default" then
+        return { Values = CopyValues(LightingModule.Defaults), Sky = LightingModule.DefaultSkybox }
+    end
+
+    local builtIn = LightingModule.BuiltInPresets[presetName]
+    if builtIn then
+        local data = { Values = CopyValues(builtIn.Values) }
+        if builtIn.Skybox and builtIn.Skybox ~= "" then
+            data.Sky = SkyDataFromAsset(builtIn.Skybox)
+            data.KeepSky = data.Sky == nil
+        end
+        return data
+    end
+
     presetName = SanitizePresetName(presetName)
-    if presetName == "" then return false, "Invalid preset name." end
-    local path = ROOT .. "/Presets/" .. presetName .. ".json"
-    local isOverwrite = (isfile and isfile(path))
-    
-    local dataToSave = {}
-    for cat, props in pairs(LightingModule.TargetValues) do 
-        dataToSave[cat] = {}
-        for k, v in pairs(props) do
-            if typeof(v) == "Color3" then
-                dataToSave[cat][k] = { isColor3 = true, R = v.R, G = v.G, B = v.B }
-            else
-                dataToSave[cat][k] = v
+    if presetName == "" then return nil, "Invalid preset name." end
+    local path = PresetPath(presetName)
+    if not (readfile and isfile and isfile(path)) then return nil, "Preset not found." end
+    local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
+    if not (success and type(decoded) == "table") then return nil, "The preset file is corrupted." end
+
+    local data = { Values = {}, Sky = decoded.CustomSkybox }
+    decoded.CustomSkybox = nil
+    for cat, props in pairs(decoded) do
+        if type(props) == "table" then
+            data.Values[cat] = {}
+            for k, v in pairs(props) do
+                if type(v) == "table" and v.isColor3 then v = Color3.new(v.R, v.G, v.B) end
+                data.Values[cat][k] = v
             end
         end
     end
-    
+    return data
+end
+
+function LightingModule.ApplyPresetData(data)
+    if data.Sky then
+        ApplySkyData(data.Sky)
+    elseif not data.KeepSky then
+        RestoreDefaultSky()
+    end
+
+    for cat, props in pairs(data.Values) do
+        if LightingModule.TargetValues[cat] then
+            local obj = LightingModule.Objects[cat]
+            for k, v in pairs(props) do
+                LightingModule.TargetValues[cat][k] = v
+                if obj then pcall(function() obj[k] = v end) end
+            end
+        end
+    end
+    if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end
+end
+
+function LightingModule.LoadPreset(presetName)
+    local data = LightingModule.GetPresetData(presetName)
+    if data then LightingModule.ApplyPresetData(data) end
+end
+
+-- Bentuk file preset: Color3 ditulis { isColor3, R, G, B }, langit di CustomSkybox.
+local function ToFileTable(values, skyData)
+    local out = {}
+    for cat, props in pairs(values) do
+        out[cat] = {}
+        for k, v in pairs(props) do
+            if typeof(v) == "Color3" then
+                out[cat][k] = { isColor3 = true, R = v.R, G = v.G, B = v.B }
+            else
+                out[cat][k] = v
+            end
+        end
+    end
+    if skyData then out.CustomSkybox = skyData end
+    return out
+end
+
+-- Mengembalikan: berhasil, "New" | "Overwrite" (atau pesan gagal), nama akhir.
+function LightingModule.SavePreset(presetName)
+    presetName = SanitizePresetName(presetName)
+    if presetName == "" then return false, "Invalid preset name." end
+    local path = PresetPath(presetName)
+    local isOverwrite = (isfile and isfile(path))
+
+    -- SnapshotSky tidak menyimpan matahari yang sedang disembunyikan (Hide Sun adalah toggle sendiri).
     local sky = Lighting:FindFirstChildOfClass("Sky")
-    if sky then
-        dataToSave.CustomSkybox = {
-            SkyboxBk = sky.SkyboxBk, SkyboxDn = sky.SkyboxDn, SkyboxFt = sky.SkyboxFt,
-            SkyboxLf = sky.SkyboxLf, SkyboxRt = sky.SkyboxRt, SkyboxUp = sky.SkyboxUp,
-            SunTextureId = sky.SunTextureId, MoonTextureId = sky.MoonTextureId, StarCount = sky.StarCount,
-            CelestialBodiesShown = sky.CelestialBodiesShown, SunAngularSize = sky.SunAngularSize, MoonAngularSize = sky.MoonAngularSize
-        }
-    end
-
-    -- Preset tidak boleh menyimpan matahari yang sedang disembunyikan (Hide Sun adalah toggle sendiri).
-    if LightingModule.SunHidden and dataToSave.CustomSkybox then
-        dataToSave.CustomSkybox.SunAngularSize, dataToSave.CustomSkybox.SunTextureId, dataToSave.CustomSkybox.CelestialBodiesShown = UnhiddenSunValues()
-    end
-
-    local data = HttpService:JSONEncode(dataToSave)
+    local data = HttpService:JSONEncode(ToFileTable(LightingModule.TargetValues, sky and SnapshotSky(sky) or nil))
     if writefile then
         writefile(path, data)
-        return true, isOverwrite and "Overwrite" or "New"
+        return true, isOverwrite and "Overwrite" or "New", presetName
     end
     return false, "Your executor does not support writefile."
 end
 
-function LightingModule.LoadPreset(presetName)
-    if presetName == "Default" then
-        local currentSky = Lighting:FindFirstChildOfClass("Sky")
-        if LightingModule.DefaultSkybox then
-            LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
-            if not currentSky then
-                currentSky = Instance.new("Sky", Lighting)
-                currentSky.Name = PREFIX .. "Sky"
-            end
-            for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
-        else
-            LightingModule.ActiveSkybox = nil
-            if currentSky then currentSky:Destroy() end
-        end
+-- ---------- Kode preset (share) ----------
+-- Kode = "MWL1:" + base64 (URL-safe, tanpa padding) dari JSON [nama, [nilai...], [langit...] | 0].
+-- Nilai disusun menurut posisi di WIRE_LAYOUT / WIRE_SKY, jadi urutan dua daftar ini TIDAK BOLEH diubah:
+-- properti baru berarti versi baru (MWL2). Nilai kosong "" = tidak diatur. Kode dari orang lain tidak dipercaya:
+-- tiap nilai dicek tipenya, dibatasi rentangnya, dan texture hanya boleh asset id angka atau rbxasset:// bawaan Roblox.
+local WIRE_PREFIX = "MWL1:"
+local WIRE_LAYOUT = {
+    { "Lighting", "Ambient", "c" }, { "Lighting", "Brightness", "n" }, { "Lighting", "ColorShift_Top", "c" },
+    { "Lighting", "ColorShift_Bottom", "c" }, { "Lighting", "EnvironmentDiffuseScale", "n" },
+    { "Lighting", "EnvironmentSpecularScale", "n" }, { "Lighting", "GlobalShadows", "b" }, { "Lighting", "OutdoorAmbient", "c" },
+    { "Lighting", "ShadowSoftness", "n" }, { "Lighting", "ClockTime", "n" }, { "Lighting", "GeographicLatitude", "n" },
+    { "Lighting", "ExposureCompensation", "n" },
+    { "Atmosphere", "Density", "n" }, { "Atmosphere", "Offset", "n" }, { "Atmosphere", "Color", "c" },
+    { "Atmosphere", "Decay", "c" }, { "Atmosphere", "Glare", "n" }, { "Atmosphere", "Haze", "n" },
+    { "Bloom", "Enabled", "b" }, { "Bloom", "Intensity", "n" }, { "Bloom", "Size", "n" }, { "Bloom", "Threshold", "n" },
+    { "Blur", "Enabled", "b" }, { "Blur", "Size", "n" },
+    { "ColorCorrection", "Enabled", "b" }, { "ColorCorrection", "Brightness", "n" }, { "ColorCorrection", "Contrast", "n" },
+    { "ColorCorrection", "Saturation", "n" }, { "ColorCorrection", "TintColor", "c" },
+    { "DepthOfField", "Enabled", "b" }, { "DepthOfField", "FarIntensity", "n" }, { "DepthOfField", "FocusDistance", "n" },
+    { "DepthOfField", "InFocusRadius", "n" }, { "DepthOfField", "NearIntensity", "n" },
+    { "SunRays", "Enabled", "b" }, { "SunRays", "Intensity", "n" }, { "SunRays", "Spread", "n" },
+    { "Clouds", "Enabled", "b" }, { "Clouds", "Cover", "n" }, { "Clouds", "Density", "n" }, { "Clouds", "Color", "c" },
+}
+-- { properti Sky, jenis, min, max }; jenis: t = texture, n = angka, b = boolean
+local WIRE_SKY = {
+    { "SkyboxBk", "t" }, { "SkyboxDn", "t" }, { "SkyboxFt", "t" }, { "SkyboxLf", "t" }, { "SkyboxRt", "t" }, { "SkyboxUp", "t" },
+    { "SunTextureId", "t" }, { "MoonTextureId", "t" }, { "StarCount", "n", 0, 5000 }, { "CelestialBodiesShown", "b" },
+    { "SunAngularSize", "n", 0, 120 }, { "MoonAngularSize", "n", 0, 120 },
+}
+LightingModule.PresetCodePrefix = WIRE_PREFIX
+LightingModule.PresetCodeLayout = WIRE_LAYOUT
 
-        for cat, props in pairs(LightingModule.Defaults) do
-            if LightingModule.TargetValues[cat] then
-                local obj = LightingModule.Objects[cat]
-                for k, v in pairs(props) do 
-                    LightingModule.TargetValues[cat][k] = v 
-                    if obj then pcall(function() obj[k] = v end) end 
-                end
-            end
+local B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+local B64_INDEX = {}
+for i = 1, #B64_CHARS do B64_INDEX[string.sub(B64_CHARS, i, i)] = i - 1 end
+
+local function Base64Encode(text)
+    local out = {}
+    for i = 1, #text, 3 do
+        local a, b, c = string.byte(text, i, i + 2)
+        local n = a * 65536 + (b or 0) * 256 + (c or 0)
+        local sextets = { math.floor(n / 262144) % 64, math.floor(n / 4096) % 64, math.floor(n / 64) % 64, n % 64 }
+        for k = 1, (c and 4) or (b and 3) or 2 do
+            out[#out + 1] = string.sub(B64_CHARS, sextets[k] + 1, sextets[k] + 1)
         end
-        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end
-        return
     end
+    return table.concat(out)
+end
 
-    if LightingModule.BuiltInPresets[presetName] then
-        local presetData = LightingModule.BuiltInPresets[presetName]
-        if presetData.Skybox and presetData.Skybox ~= "" then 
-            LightingModule.LoadSkybox(presetData.Skybox) 
-        else
-            local currentSky = Lighting:FindFirstChildOfClass("Sky")
-            if LightingModule.DefaultSkybox then
-                LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
-                if not currentSky then
-                    currentSky = Instance.new("Sky", Lighting)
-                    currentSky.Name = PREFIX .. "Sky"
-                end
-                for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
+local function Base64Decode(text)
+    if #text % 4 == 1 then return nil end
+    local out = {}
+    for i = 1, #text, 4 do
+        local n, count = 0, 0
+        for k = 0, 3 do
+            local char = string.sub(text, i + k, i + k)
+            if char ~= "" then
+                local value = B64_INDEX[char]
+                if not value then return nil end
+                n = n * 64 + value
+                count = count + 1
             else
-                LightingModule.ActiveSkybox = nil
-                if currentSky then currentSky:Destroy() end
+                n = n * 64
             end
         end
-        
-        for cat, props in pairs(presetData.Values) do
-            if LightingModule.TargetValues[cat] then
-                local obj = LightingModule.Objects[cat]
-                for k, v in pairs(props) do 
-                    LightingModule.TargetValues[cat][k] = v 
-                    if obj then pcall(function() obj[k] = v end) end 
-                end
-            end
+        local b1, b2, b3 = math.floor(n / 65536) % 256, math.floor(n / 256) % 256, n % 256
+        out[#out + 1] = count == 4 and string.char(b1, b2, b3) or (count == 3 and string.char(b1, b2) or string.char(b1))
+    end
+    return table.concat(out)
+end
+
+local function RoundNumber(value)
+    return math.floor(value * 10000 + 0.5) / 10000
+end
+
+local function ColorToHex(color)
+    return string.format("#%02X%02X%02X", math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5))
+end
+
+local function HexToColor(text)
+    local r, g, b = text:match("^#(%x%x)(%x%x)(%x%x)$")
+    if not r then return nil end
+    return Color3.fromRGB(tonumber(r, 16), tonumber(g, 16), tonumber(b, 16))
+end
+
+local function IsBuiltInContent(text)
+    return text:match("^rbxasset://[%w_/%.%-]+$") ~= nil and not text:find("..", 1, true)
+end
+
+local function TextureToWire(value)
+    if type(value) ~= "string" then return "" end
+    local id = value:match("^rbxassetid://(%d+)$") or value:match("[%?&]id=(%d+)") or value:match("^(%d+)$")
+    if id then return id end
+    return IsBuiltInContent(value) and value or ""
+end
+
+local function TextureFromWire(value)
+    if type(value) ~= "string" then return "" end
+    if value:match("^%d+$") and #value <= 20 then return "rbxassetid://" .. value end
+    return IsBuiltInContent(value) and value or ""
+end
+
+-- Angka dari kode: harus angka biasa (bukan NaN / tak hingga), lalu dibatasi ke rentang slider-nya.
+local function CleanNumber(value, minimum, maximum)
+    if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then return nil end
+    if minimum then value = math.max(minimum, math.min(maximum, value)) end
+    return value
+end
+
+-- Kode untuk satu preset (nama yang ada di dropdown Load Presets). Gagal: nil, pesan. Bisa yield.
+function LightingModule.ExportPreset(presetName)
+    local data, message = LightingModule.GetPresetData(presetName)
+    if not data then return nil, message or "Preset not found." end
+
+    local values = {}
+    for index, spec in ipairs(WIRE_LAYOUT) do
+        local value = data.Values[spec[1]] and data.Values[spec[1]][spec[2]]
+        local encoded = ""
+        if spec[3] == "c" and typeof(value) == "Color3" then
+            encoded = ColorToHex(value)
+        elseif spec[3] == "n" and type(value) == "number" and value == value then
+            encoded = RoundNumber(value)
+        elseif spec[3] == "b" and type(value) == "boolean" then
+            encoded = value
         end
-        if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end 
-        return
+        values[index] = encoded
     end
 
-    presetName = SanitizePresetName(presetName)
-    if presetName == "" then return end
-    local path = ROOT .. "/Presets/" .. presetName .. ".json"
-    if readfile and isfile and isfile(path) then
-        local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
-        if success and decoded then
-            
-            if decoded.CustomSkybox then
-                LightingModule.ActiveSkybox = decoded.CustomSkybox
-                local sky = Lighting:FindFirstChildOfClass("Sky")
-                if not sky then
-                    sky = Instance.new("Sky", Lighting)
-                    sky.Name = PREFIX .. "Sky"
-                end
-                for key, value in pairs(decoded.CustomSkybox) do pcall(function() sky[key] = value end) end
-                decoded.CustomSkybox = nil 
-            else
-                local currentSky = Lighting:FindFirstChildOfClass("Sky")
-                if LightingModule.DefaultSkybox then
-                    LightingModule.ActiveSkybox = LightingModule.DefaultSkybox
-                    if not currentSky then
-                        currentSky = Instance.new("Sky", Lighting)
-                        currentSky.Name = PREFIX .. "Sky"
-                    end
-                    for k, v in pairs(LightingModule.DefaultSkybox) do pcall(function() currentSky[k] = v end) end
-                else
-                    LightingModule.ActiveSkybox = nil
-                    if currentSky then currentSky:Destroy() end
-                end
+    local sky = 0
+    if data.Sky then
+        sky = {}
+        for index, spec in ipairs(WIRE_SKY) do
+            local value = data.Sky[spec[1]]
+            local encoded = ""
+            if spec[2] == "t" then
+                encoded = TextureToWire(value)
+            elseif spec[2] == "n" and type(value) == "number" and value == value then
+                encoded = RoundNumber(value)
+            elseif spec[2] == "b" and type(value) == "boolean" then
+                encoded = value
             end
-
-            for cat, props in pairs(decoded) do
-                if LightingModule.TargetValues[cat] then
-                    local obj = LightingModule.Objects[cat]
-                    for k, v in pairs(props) do 
-                        local finalValue = v
-                        if type(v) == "table" and v.isColor3 then
-                            finalValue = Color3.new(v.R, v.G, v.B)
-                        end
-                        
-                        LightingModule.TargetValues[cat][k] = finalValue 
-                        if obj then pcall(function() obj[k] = finalValue end) end 
-                    end
-                end
-            end
-            if LightingModule.OnPresetLoaded then pcall(LightingModule.OnPresetLoaded) end
+            sky[index] = encoded
         end
     end
+
+    return WIRE_PREFIX .. Base64Encode(HttpService:JSONEncode({ SanitizePresetName(presetName), values, sky }))
+end
+
+-- Baca kode preset menjadi data (bentuk yang sama dengan GetPresetData, plus Name). Gagal: nil, pesan.
+function LightingModule.DecodePresetCode(code)
+    code = tostring(code or ""):gsub("%s+", "") -- kode yang disalin dari chat sering terpotong baris
+    if code:sub(1, #WIRE_PREFIX) ~= WIRE_PREFIX then return nil, "That is not a Mugiwara preset code." end
+
+    local damaged = "The code is damaged. Copy it again."
+    local json = Base64Decode(code:sub(#WIRE_PREFIX + 1))
+    if not json then return nil, damaged end
+    local ok, wire = pcall(function() return HttpService:JSONDecode(json) end)
+    if not (ok and type(wire) == "table" and type(wire[2]) == "table") then return nil, damaged end
+
+    local data = { Name = SanitizePresetName(type(wire[1]) == "string" and wire[1] or ""), Values = {} }
+    for index, spec in ipairs(WIRE_LAYOUT) do
+        local raw, value = wire[2][index], nil
+        if spec[3] == "c" then
+            if type(raw) == "string" then value = HexToColor(raw) end
+        elseif spec[3] == "n" then
+            local limits = LightingModule.Limits[spec[1]] and LightingModule.Limits[spec[1]][spec[2]]
+            value = CleanNumber(raw, limits and limits.Min, limits and limits.Max)
+        elseif type(raw) == "boolean" then
+            value = raw
+        end
+        if value ~= nil then
+            data.Values[spec[1]] = data.Values[spec[1]] or {}
+            data.Values[spec[1]][spec[2]] = value
+        end
+    end
+
+    if type(wire[3]) == "table" then
+        data.Sky = {}
+        for index, spec in ipairs(WIRE_SKY) do
+            local raw, value = wire[3][index], nil
+            if spec[2] == "t" then
+                value = TextureFromWire(raw)
+            elseif spec[2] == "n" then
+                value = CleanNumber(raw, spec[3], spec[4])
+            elseif type(raw) == "boolean" then
+                value = raw
+            end
+            if value ~= nil then data.Sky[spec[1]] = value end
+        end
+    end
+    return data
+end
+
+local function PresetNameTaken(name)
+    return name == "Default" or LightingModule.BuiltInPresets[name] ~= nil or (isfile ~= nil and isfile(PresetPath(name)) == true)
+end
+
+-- Nama yang belum dipakai (preset sendiri tidak pernah ditimpa oleh preset dari orang lain).
+local function UniquePresetName(name)
+    if name == "" then name = "Shared Preset" end
+    if not PresetNameTaken(name) then return name end
+    for number = 2, 99 do
+        local suffix = " " .. number
+        local candidate = string.sub(name, 1, 40 - #suffix) .. suffix
+        if not PresetNameTaken(candidate) then return candidate end
+    end
+    return string.sub(name, 1, 25) .. " " .. os.time()
+end
+
+-- Pasang preset dari kode, lalu simpan ke daftar preset user dengan nama unik (kalau executor bisa menulis file).
+-- Mengembalikan: berhasil, nama preset (atau pesan gagal), tersimpan.
+function LightingModule.ImportPreset(code)
+    local data, message = LightingModule.DecodePresetCode(code)
+    if not data then return false, message end
+
+    LightingModule.ApplyPresetData(data)
+
+    local name = data.Name ~= "" and data.Name or "Shared Preset"
+    if writefile then
+        local savedName = UniquePresetName(data.Name)
+        local saved = pcall(writefile, PresetPath(savedName), HttpService:JSONEncode(ToFileTable(data.Values, data.Sky)))
+        if saved then return true, savedName, true end
+    end
+    return true, name, false
 end
 
 function LightingModule.CopySkybox()

@@ -15,6 +15,21 @@ return function(Window, isPremiumUser, MugiwaraUI)
         table.sort(skyboxNames2)
     end
 
+    -- Kotak skybox: gambar pratinjau toko Roblox kalau sudah ada (thumbnails), kalau belum ikon kecil.
+    local function SkyboxItems(thumbnails)
+        local items = {}
+        for _, name in ipairs(skyboxNames2) do
+            local id = LightingModule.SkyboxDatabase[name]
+            local image = thumbnails and id and thumbnails[id] or nil
+            table.insert(items, {
+                Title = name,
+                Image = image,
+                Icon = image == nil and (id == "" and "lucide:cloud-off" or "lucide:cloudy") or nil
+            })
+        end
+        return items
+    end
+
     local PremiumSection = TabLighting:Section({
         Title = '<font color="#ffff82">Premium Features</font>',
         Icon = "rbxassetid://74594159374416",
@@ -48,7 +63,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         LockedTitle = "Premium Only",
         Callback = function(Text)
             if Text == "" then return end
-            local success, status = LightingModule.SavePreset(Text) 
+            local success, status, savedName = LightingModule.SavePreset(Text)
             if success then
                 if status == "Overwrite" then
                     MugiwaraUI:Notify({ Title = "Preset Overwritten!", Content = "Preset '" .. Text .. "' successfully updated!", Duration = 3 })
@@ -60,24 +75,97 @@ return function(Window, isPremiumUser, MugiwaraUI)
                 
                 if VipLoadPreset and VipLoadPreset.Refresh then
                     VipLoadPreset:Refresh(LightingModule.GetPresetsList())
+                    -- preset yang baru disimpan langsung terpilih (tanpa memuat ulang), jadi Share Preset siap dipakai
+                    if savedName then pcall(function() VipLoadPreset:Set(savedName, true) end) end
                 end
             end
         end
     })
 
-    local VipSkyBox = PremiumSection:Dropdown({
+    PremiumSection:Button({
+        Title = "Share Preset",
+        Icon = "lucide:share-2",
+        Desc = "Copy a code of the preset selected in Load Presets. Send it to anyone.",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Callback = function()
+            local name = VipLoadPreset and VipLoadPreset:Get()
+            if type(name) ~= "string" or name == "" then
+                MugiwaraUI:Notify({ Title = "Share Preset", Content = "Pick a preset in Load Presets first.", Duration = 3 })
+                return
+            end
+            if not setclipboard then
+                MugiwaraUI:Notify({ Title = "Share Preset", Content = "Your executor does not support setclipboard.", Duration = 4 })
+                return
+            end
+            task.spawn(function()
+                local code, message = LightingModule.ExportPreset(name)
+                if code then
+                    setclipboard(code)
+                    MugiwaraUI:Notify({ Title = "Preset Code Copied!", Content = "The code of '" .. name .. "' is in your clipboard. Paste it anywhere to share.", Duration = 4 })
+                else
+                    MugiwaraUI:Notify({ Title = "Share Preset", Content = message or "Could not make a code for this preset.", Duration = 4 })
+                end
+            end)
+        end
+    })
+
+    local VipImportPreset
+    VipImportPreset = PremiumSection:Input({
+        Title = "Load Preset via Code",
+        Icon = "lucide:import",
+        Desc = "Paste a preset code from someone else. It is applied and saved to your presets.",
+        Placeholder = "Preset Code",
+        Locked = not isPremiumUser,
+        LockedTitle = "Premium Only",
+        Callback = function(Text)
+            if Text == "" then return end
+            local success, result, saved = LightingModule.ImportPreset(Text)
+            if success then
+                MugiwaraUI:Notify({
+                    Title = "Preset Loaded!",
+                    Content = saved and ("Applied and saved as '" .. result .. "'.") or ("Applied '" .. result .. "' (not saved: your executor cannot write files)."),
+                    Duration = 4
+                })
+                pcall(function() VipImportPreset:Set("") end)
+                if saved and VipLoadPreset and VipLoadPreset.Refresh then
+                    VipLoadPreset:Refresh(LightingModule.GetPresetsList())
+                    pcall(function() VipLoadPreset:Set(result, true) end)
+                end
+            else
+                MugiwaraUI:Notify({ Title = "Load Preset Failed", Content = result or "Invalid preset code.", Duration = 4 })
+            end
+        end
+    })
+
+    local VipSkyBox = PremiumSection:GridDropdown({
         Title = "Sky Box",
         Desc = "Change Sky Box.",
         Icon = "lucide:cloudy",
         Locked = not isPremiumUser,
         LockedTitle = "Premium Only",
-        Values = skyboxNames2,
+        Values = SkyboxItems(nil),
         Value = "Default Sky",
+        Searchable = true,
+        Placeholder = "Select a sky box...",
+        Columns = 3,
+        CellHeight = 96,
+        MaxHeight = 300,
         Callback = function(Option)
-            local assetId = LightingModule.SkyboxDatabase[Option]
+            local assetId = type(Option) == "string" and LightingModule.SkyboxDatabase[Option]
             if assetId and assetId ~= "" then LightingModule.LoadSkybox(assetId) end
         end
     })
+
+    -- Gambar pratinjau diambil di latar belakang (satu request) supaya tab tidak menunggu jaringan;
+    -- begitu datang, kotak-kotaknya diganti dengan gambar. Pilihan sekarang dipertahankan.
+    task.spawn(function()
+        task.wait() -- HttpGet blocks: let the rest of the tab finish building first
+        local ok, thumbnails = pcall(LightingModule.FetchSkyboxThumbnails)
+        if ok and type(thumbnails) == "table" and next(thumbnails) ~= nil then
+            pcall(function() VipSkyBox:Refresh(SkyboxItems(thumbnails), true) end)
+        end
+    end)
 
     local VipLoadSkyBox
     VipLoadSkyBox = PremiumSection:Input({

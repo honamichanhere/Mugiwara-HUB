@@ -8,12 +8,20 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 | --- | --- |
 | Premium Access | Key activation and premium purchase info |
 | Home | Player and server info, links, credits |
-| Lighting | Presets, skybox, atmosphere, bloom, blur, color correction, depth of field, sun rays, volumetric clouds, hide sun |
+| Lighting | Presets (share them with a code), skybox picker with preview pictures, atmosphere, bloom, blur, color correction, depth of field, sun rays, volumetric clouds, hide sun |
 | Camera | Free camera, spectate, FOV and zoom lock, stabilizers |
 | Main (per game) | Character movement (speed, jump, fly, noclip), plus game-specific modules |
 | Misc | Global utilities: Anti-AFK, Auto Rejoin, Rejoin, Server Hop, Join by Job ID, rebindable keyboard shortcuts, Hide GUI, Unload Hub |
 | Chat | Live chat with everyone running the hub (needs the chat server address in `Main.lua`) |
 | UI Config (Appearance) | Theme picker, theme creator, wallpaper, UI scale, background blur. Saved in `MugiwaraHubConfig/UISettings.json`; nothing to do with the game |
+
+**Lighting presets** (Lighting tab, premium): the Load Presets list shows your own saved presets first, then Default and the
+built-in ones. **Share Preset** copies a code (`MWL1:...`, a few hundred characters) of the preset picked in Load Presets;
+**Load Preset via Code** applies a code from someone else and saves it to your list under a free name (never over one of
+yours). Codes carry the lighting values and the sky (texture ids); everything in a code is checked before use (types,
+slider ranges, only asset ids or Roblox's own rbxasset:// textures). The Sky Box picker is a grid with the Roblox store
+thumbnail of each sky, fetched in the background (needs `request`, `writefile` and `getcustomasset`; without them the
+tiles show an icon).
 
 **Free camera look** (Camera tab, premium): turn with the mouse (hold Right-Click) or the Arrow Keys. Mouse turning uses the same
 base as Roblox's own camera (0.5 degrees per pixel, vertical 0.77x) times the Camera Sensitivity from your Roblox settings, read
