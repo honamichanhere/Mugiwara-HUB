@@ -19,12 +19,13 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 builder, `Tabs/VisualAvatarUI.lua`. Only the list of rigs differs: Universal changes `LocalPlayer.Character`, Evade changes
 every rig named after you in `Workspace.Rigs` (`Games/Evade/VisualAccessories.lua` plugs in `Games/Evade/Rigs.lua`). Each UI part
 is built once per session (a second attempt is skipped with a warning), and Main.lua loads either a game module or
-Universal, never both. Korblox is the right leg only (the official "Korblox Deathspeaker Right Leg"), the same as in the Korless-Visual script, so
-there is a Korblox Right Leg toggle and no left one (a left Korblox leg built from the cache came out broken on R15).
-On R15 it swaps the mesh and texture of the leg parts in place (no part or joint is replaced), copying them from a cache
-model built from your avatar, and puts back the look the leg had before; R6 swaps the leg part. The cache is built in the
-background after the section is created for premium users (like the Korless-Visual script does at start) and, if needed,
-the first time a Korblox toggle is used, so free users never trigger it.
+Universal, never both. Korblox Right Leg works like the Korless-Visual script: on R15 it swaps the mesh and texture of the leg parts in place (no
+part or joint is replaced), copying them from a cache model built from your avatar, and puts back the look the leg had
+before; R6 swaps the leg part. Korblox Left Leg uses the same code with its own cache model whose left leg is the
+"Korblox Deathspeaker Left Leg" asset (139607673) in the left slot; the cache that serves the right leg is never used for
+the left one (it made the left leg come out as black shards on R15). The caches are built in the background after the
+section is created for premium users (like the Korless-Visual script does at start) and, if needed, the first time a
+Korblox toggle is used, so free users never trigger it.
 
 **Lighting presets** (Lighting tab, premium): the Load Presets list shows your own saved presets first, then Default and the
 built-in ones; loading a preset also selects its skybox in the Sky Box picker, and **Delete Preset** removes a saved one (after a

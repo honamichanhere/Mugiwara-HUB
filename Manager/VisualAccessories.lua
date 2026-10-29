@@ -30,6 +30,9 @@ local Cache = { LoadedAccessories = {} }
 -- Aset Korblox resmi; dipasang lewat HumanoidDescription jadi tidak butuh akun donor.
 local KORBLOX_LEFT_LEG = 139607718
 local KORBLOX_RIGHT_LEG = 139607673
+-- Kaki kiri memakai cache sendiri dengan aset yang sesuai slotnya: "Korblox Deathspeaker Left Leg" di slot LeftLeg.
+-- (Memakai cache di atas untuk kaki kiri membuat kaki kiri R15 pecah.)
+local KORBLOX_LEFT_SLOT_ASSET = 139607673
 
 local alive = true -- diset false oleh cleanup supaya loop di bawah berhenti
 
@@ -188,7 +191,11 @@ local function ReplaceLegs(side, useKorblox, rig, hum)
     local isR15 = hum.RigType == Enum.HumanoidRigType.R15
     local sourceRig
     if useKorblox then
-        sourceRig = isR15 and Cache.KorbloxR15 or Cache.KorbloxR6
+        if side == "Left" then
+            sourceRig = isR15 and Cache.KorbloxLeftR15 or Cache.KorbloxLeftR6
+        else
+            sourceRig = isR15 and Cache.KorbloxR15 or Cache.KorbloxR6
+        end
     else
         sourceRig = isR15 and Cache.OriR15 or Cache.OriR6
     end
@@ -300,6 +307,9 @@ local function BuildCache()
     korbloxDesc.LeftLeg = KORBLOX_LEFT_LEG
     korbloxDesc.RightLeg = KORBLOX_RIGHT_LEG
 
+    local leftDesc = desc:Clone()
+    leftDesc.LeftLeg = KORBLOX_LEFT_SLOT_ASSET
+
     local function Make(key, description, rigType)
         local model = Players:CreateHumanoidModelFromDescription(description, rigType)
         model.Name = "Cache_" .. key
@@ -311,6 +321,8 @@ local function BuildCache()
         Make("OriR6", desc, Enum.HumanoidRigType.R6)
         Make("KorbloxR15", korbloxDesc, Enum.HumanoidRigType.R15)
         Make("KorbloxR6", korbloxDesc, Enum.HumanoidRigType.R6)
+        Make("KorbloxLeftR15", leftDesc, Enum.HumanoidRigType.R15)
+        Make("KorbloxLeftR6", leftDesc, Enum.HumanoidRigType.R6)
     end)
     if ok then
         cacheState = "ready"
