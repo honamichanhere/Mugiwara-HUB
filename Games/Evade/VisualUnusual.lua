@@ -273,12 +273,11 @@ local function Attach(entry, host, onlyRoot)
                             end
                         end
                     end
+                    -- Game memberi attachment yang bernama sama dengan milik rig posisi milik rig. Di sini TIDAK
+                    -- ditiru: tidak ada Unusual yang bentrok dengan nama attachment rig, sedangkan nama umum seperti
+                    -- "Attachment" atau "ParticleAttachment" dipakai belasan Unusual di kepala yang sama, jadi
+                    -- kalau ditumpuk yang kedua ikut posisi yang pertama (halo Angelic Redemption jatuh ke tengah kepala).
                     for _, child in ipairs(stand:GetChildren()) do
-                        if child:IsA("Attachment") then
-                            -- attachment bernama sama dengan milik rig ikut posisinya (rig asli tidak diubah)
-                            local own = limb:FindFirstChild(child.Name)
-                            if own and own:IsA("Attachment") then child.CFrame = own.CFrame end
-                        end
                         if not (child:IsA("Motor6D") and BODY_JOINTS[child.Name]) then
                             child.Parent = limb
                             table.insert(sub.Roots, { Instance = child, Host = limb })
@@ -298,6 +297,9 @@ local function Attach(entry, host, onlyRoot)
         table.insert(list, instance)
         for _, item in ipairs(list) do
             if (item:IsA("Weld") or item:IsA("Motor6D")) and not BODY_JOINTS[item.Name] then
+                if item.Part0 and item.Part0.Parent == clone then item.Part0 = LimbOf(host, item.Part0.Name) end
+                if item.Part1 and item.Part1.Parent == clone then item.Part1 = LimbOf(host, item.Part1.Name) end
+            elseif item:IsA("WeldConstraint") then
                 if item.Part0 and item.Part0.Parent == clone then item.Part0 = LimbOf(host, item.Part0.Name) end
                 if item.Part1 and item.Part1.Parent == clone then item.Part1 = LimbOf(host, item.Part1.Name) end
             end
