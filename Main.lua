@@ -162,7 +162,7 @@ if makefolder and isfolder and not isfolder(FOLDER) then makefolder(FOLDER) end
 -- Dimuat lebih dulu karena loading screen dan layar key adalah bagian dari library. Versinya
 -- dipatok ke satu tag (tag tidak pernah berubah, jadi push baru ke library tidak merusak hub).
 -- Untuk memakai versi library yang lebih baru, ganti tag-nya di sini.
-local UI_VERSION = "v0.8.0"
+local UI_VERSION = "v0.10.0"
 local UI_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-UI/" .. UI_VERSION .. "/dist/main.lua"
 
 local uiOk, uiResult = pcall(function() return loadstring(game:HttpGet(UI_URL))() end)

@@ -333,8 +333,51 @@ local function ResolvePath(path)
     return current
 end
 
--- Daftar emote ditemukan sekali. Menunggu folder Items sebentar kalau game belum selesai memuat.
+-- Daftar emote ditemukan sekali. Sumber utama adalah Registry milik game (kategori "Emotes"): daftarnya
+-- selalu mengikuti update game, nama tampilannya sama dengan di menu, dan tiap emote punya Header
+-- ("Normal", "Halloween", ...). Kalau Registry tidak bisa dipakai (executor tanpa require, game
+-- berubah), dipakai daftar PATHS di atas.
 local loaded = false
+local source = "none"
+
+local function AddEntry(instance, display, header, id)
+    if byInstance[instance] then return end
+    local entry = { Name = instance.Name, Display = display or SpacedName(instance.Name), Header = header or "Other", Id = id, Instance = instance }
+    table.insert(emotes, entry)
+    byInstance[instance] = entry
+end
+
+local function LoadFromRegistry()
+    local items = ReplicatedStorage:FindFirstChild("Items")
+    local registryModule = items and items:FindFirstChild("Registry")
+    if not registryModule then return false end
+
+    local ok, Registry = pcall(require, registryModule)
+    if not ok or type(Registry) ~= "table" or type(Registry.GetByCategory) ~= "function" then return false end
+
+    local okList, list = pcall(Registry.GetByCategory, "Emotes")
+    if not okList or type(list) ~= "table" then return false end
+
+    for id, record in pairs(list) do
+        local module = type(record) == "table" and record.Module
+        if typeof(module) == "Instance" then
+            local info
+            local okInfo, result = pcall(require, module)
+            if okInfo and type(result) == "table" then info = result end
+            local display = info and info.AppearanceInfo and info.AppearanceInfo.Name
+            local header = info and info.UIInfo and info.UIInfo.Header
+            AddEntry(module, type(display) == "string" and display or nil, type(header) == "string" and header or nil, id)
+        end
+    end
+    return #emotes > 0
+end
+
+local function LoadFromPaths()
+    for _, path in ipairs(PATHS) do
+        local instance = ResolvePath(path)
+        if instance then AddEntry(instance) end
+    end
+end
 
 function VisualEmotes.Load()
     if loaded then return #emotes end
@@ -344,23 +387,24 @@ function VisualEmotes.Load()
         pcall(function() ReplicatedStorage:WaitForChild("Items", 8) end)
     end
 
-    local seen = {}
-    for _, path in ipairs(PATHS) do
-        local instance = ResolvePath(path)
-        if instance and not seen[instance] then
-            seen[instance] = true
-            local parts = string.split(path, ".")
-            local name = parts[#parts]
-            local entry = { Name = name, Display = SpacedName(name), Instance = instance }
-            table.insert(emotes, entry)
-            byInstance[instance] = entry
-        end
+    if LoadFromRegistry() then
+        source = "registry"
+    else
+        table.clear(emotes)
+        table.clear(byInstance)
+        LoadFromPaths()
+        source = "paths"
     end
 
     table.sort(emotes, function(a, b)
-        return string.lower(a.Name) < string.lower(b.Name)
+        return string.lower(a.Display) < string.lower(b.Display)
     end)
     return #emotes
+end
+
+-- "registry" (daftar dari game), "paths" (daftar bawaan hub) atau "none"
+function VisualEmotes.GetSource()
+    return source
 end
 
 function VisualEmotes.GetEmotes()
@@ -442,16 +486,20 @@ function VisualEmotes.Revert(base, target)
     return true, base.Display .. " and " .. target.Display .. " were restored."
 end
 
--- Mengembalikan semua emote yang tertukar; hasilnya jumlah pasangan yang dipulihkan.
+-- Mengembalikan semua emote yang tertukar. Hasil: jumlah pasangan yang dipulihkan, dan daftar emote-nya.
 function VisualEmotes.RevertAll()
-    local restored = 0
+    local restored, touched = 0, {}
     for instance, partner in pairs(table.clone(swapped)) do
         if swapped[instance] == partner then
             local entry, other = byInstance[instance], byInstance[partner]
-            if entry and other and VisualEmotes.Revert(entry, other) then restored = restored + 1 end
+            if entry and other and VisualEmotes.Revert(entry, other) then
+                restored = restored + 1
+                table.insert(touched, entry)
+                table.insert(touched, other)
+            end
         end
     end
-    return restored
+    return restored, touched
 end
 
 function VisualEmotes.SwappedCount()
