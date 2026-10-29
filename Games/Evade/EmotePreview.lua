@@ -22,7 +22,7 @@ local HttpService = game:GetService("HttpService")
 
 local Preview = {}
 
-local TRACK_TIMEOUT = 3   -- detik menunggu panjang animasi diketahui (sama seperti game: maksimal 5)
+local TRACK_TIMEOUT = 5   -- detik menunggu animasi dimuat (sama seperti game: maksimal 5)
 local SETTLE_FRAMES = 2   -- frame tambahan supaya pose benar-benar terpasang di sendi
 local POSE_TIME = 0.5     -- detik animasi emote yang dibekukan, sama dengan game (carry: awal animasi)
 local MAX_HOSTS = 3       -- pengambilan pose yang boleh berjalan bersamaan (animasi dimuat dari server)
@@ -136,6 +136,14 @@ local function CapturePose(rig)
         end
     end
     return pose
+end
+
+-- true kalau ada sendi yang sudah bergerak dari posisi diamnya (animasi sudah dimuat dan terpasang).
+local function HasMotion(rig)
+    for _, descendant in ipairs(rig:GetDescendants()) do
+        if descendant:IsA("Motor6D") and not IsIdentity({ descendant.Transform:GetComponents() }) then return true end
+    end
+    return false
 end
 
 local function ApplyPose(rig, pose)
@@ -579,10 +587,12 @@ local function EnsurePose(job)
         track:Play(0)
         track:AdjustSpeed(0)
 
+        -- Animasi dianggap sudah dimuat kalau panjangnya diketahui ATAU sendinya sudah bergerak. Animasi pose
+        -- satu keyframe (banyak carry berupa pose tahan) panjangnya tetap 0 walau sudah dimuat.
         local limit = os.clock() + TRACK_TIMEOUT
-        while track.Length <= 0 and alive and os.clock() < limit do HeartbeatWait(1) end
-        if track.Length <= 0 then
-            failure = "the animation did not load"
+        while alive and os.clock() < limit and track.Length <= 0 and not HasMotion(rig) do HeartbeatWait(1) end
+        if track.Length <= 0 and not HasMotion(rig) then
+            failure = "the animation did not load (" .. tostring(job.Animation.AnimationId) .. ")"
             return
         end
 

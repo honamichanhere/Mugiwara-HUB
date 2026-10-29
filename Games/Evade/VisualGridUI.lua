@@ -312,7 +312,14 @@ function UI.Build(Section, config, MugiwaraUI)
         side.Grid.Top.MouseButton1Click:Connect(function()
             if side.Grid.Locked then return end
             side.IsOpen = not side.IsOpen
-            if side.IsOpen then Bake(side) else Refresh() end
+            if side.IsOpen then
+                -- yang gagal dirender sebelumnya (misalnya animasinya lambat dimuat) dicoba lagi sekali saat dibuka
+                for _, entry in ipairs(side.Entries) do failedPreview[entry] = nil end
+                previewWarned = false
+                Bake(side)
+            else
+                Refresh()
+            end
         end)
         return side
     end
