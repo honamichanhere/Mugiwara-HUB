@@ -15,6 +15,14 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 | Chat | Live chat with everyone running the hub (needs the chat server address in `Main.lua`) |
 | UI Config (Appearance) | Theme picker, theme creator, wallpaper, UI scale, background blur. Saved in `MugiwaraHubConfig/UISettings.json`; nothing to do with the game |
 
+**Accessory + Korless** (premium; Universal and Evade): one shared module, `Manager/VisualAccessories.lua`, with one shared UI
+builder, `Tabs/VisualAvatarUI.lua`. Only the list of rigs differs: Universal changes `LocalPlayer.Character`, Evade changes
+every rig named after you in `Workspace.Rigs` (`Games/Evade/VisualAccessories.lua` plugs in `Games/Evade/Rigs.lua`). Each UI part
+is built once per session (a second attempt is skipped with a warning), and Main.lua loads either a game module or
+Universal, never both. Korblox on R15 swaps the mesh and texture of the leg parts in place (no part or joint is replaced,
+the same approach as the Korless-Visual script) and puts back the look the leg had before; R6 swaps the leg part. The
+avatar cache Korblox needs is built the first time a Korblox toggle is used, so free users never trigger it.
+
 **Lighting presets** (Lighting tab, premium): the Load Presets list shows your own saved presets first, then Default and the
 built-in ones; loading a preset also selects its skybox in the Sky Box picker, and **Delete Preset** removes a saved one (after a
 confirmation; Default and built-in presets cannot be deleted). **Share Preset** copies a code (`MWL1:...`, a few hundred characters) of the preset picked in Load Presets;
@@ -31,15 +39,15 @@ default). The Arrow Keys turn 40 degrees per second (deliberately slower than Ro
 (Left / Right)** and **Vertical Speed (Up / Down)** are separate multipliers (0.1x to 5x) that apply to both the mouse and the
 Arrow Keys.
 
-Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm with NextBot avoidance). Every other game gets the **Universal** movement module.
+Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm with NextBot avoidance). Every other game gets the **Universal** module: character movement plus the premium **Accessory** and **Korless** sections (the same ones Evade has, applied to your normal R6 / R15 character).
 
 ## Folder structure
 
 ```
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
-Tabs/                    UI tabs (Home, Lighting, Camera, Misc, Chat, UIConfig, MovementInjector)
-Manager/                 Logic behind the tabs (Movement, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk, HideGui, UIExtras, UISettings)
+Tabs/                    UI tabs (Home, Lighting, Camera, Misc, Chat, UIConfig, MovementInjector, VisualAvatarUI)
+Manager/                 Logic behind the tabs (Movement, VisualAccessories, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk, HideGui, UIExtras, UISettings)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 

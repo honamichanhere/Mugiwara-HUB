@@ -1,4 +1,5 @@
 local VisualAccModule = getgenv().MugiwaraImport("Games/Evade/VisualAccessories.lua")
+local VisualAvatarUI = getgenv().MugiwaraImport("Tabs/VisualAvatarUI.lua")
 local AvatarChangerModule = getgenv().MugiwaraImport("Games/Evade/AvatarChanger.lua")
 local TicketFarmModule = getgenv().MugiwaraImport("Games/Evade/TicketFarm.lua")
 local AfkFarmUI = getgenv().MugiwaraImport("Games/Evade/AfkFarmUI.lua")
@@ -36,114 +37,12 @@ return function(Window, isPremiumUser, MugiwaraUI)
         if not ok then warn("[Mugiwara HUB] AFK Farm UI error: " .. tostring(err)) end
     end
 
+    -- Accessory dan Korless dibangun oleh Tabs/VisualAvatarUI.lua (dipakai juga oleh Universal).
     local AccessorySection = PremiumSection:Section({ Title = "Accessory", Icon = "lucide:shirt", Opened = false })
-
-    local templateNames = {}
-    if VisualAccModule and VisualAccModule.Templates then
-        for i, item in ipairs(VisualAccModule.Templates) do 
-            table.insert(templateNames, item.Name) 
-        end
-    end
-
-    AccessorySection:Dropdown({
-        Title = "Accessory Templates",
-        Icon = "lucide:shirt",
-        Desc = "Choose from popular pre-defined accessories.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Values = templateNames,
-        Value = "",
-        Callback = function(Option)
-            if Option and Option ~= "" and VisualAccModule then
-                local selectedId = nil
-                for i, item in ipairs(VisualAccModule.Templates) do
-                    if item.Name == Option then
-                        selectedId = item.ID
-                        break
-                    end
-                end
-                if selectedId then
-                    task.spawn(function()
-                        VisualAccModule.Apply(selectedId, MugiwaraUI)
-                    end)
-                end
-            end
-        end
-    })
-
-    local CustomAccInput
-    CustomAccInput = AccessorySection:Input({
-        Title = "Load Custom Asset ID",
-        Icon = "lucide:hash",
-        Desc = "Enter a valid Marketplace Accessory ID.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Placeholder = "e.g., 10159600649",
-        Callback = function(Text)
-            if not Text or Text == "" then return end 
-            local assetId = tonumber(Text)
-            if assetId then
-                task.spawn(function()
-                    if VisualAccModule then VisualAccModule.Apply(assetId, MugiwaraUI) end
-                end)
-                pcall(function() CustomAccInput:Set("") end)
-            else
-                MugiwaraUI:Notify({ Title = "Invalid Input", Content = "Please enter a valid numeric ID.", Duration = 3 })
-            end
-        end
-    })
-
-    AccessorySection:Button({
-        Title = "Clear All Custom Accessories",
-        Icon = "lucide:trash-2",
-        Desc = "Remove all spawned accessories from your character.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function()
-            if VisualAccModule then VisualAccModule.Clear(MugiwaraUI) end
-        end
-    })
+    if VisualAvatarUI then VisualAvatarUI.BuildAccessory(AccessorySection, VisualAccModule, isPremiumUser, MugiwaraUI) end
 
     local KorlessSection = PremiumSection:Section({ Title = "Korless", Icon = "lucide:skull", Opened = false })
-
-    KorlessSection:Toggle({
-        Title = "Headless Head",
-        Icon = "lucide:skull",
-        Desc = "Visually removes your character's head.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function(Value)
-            task.spawn(function()
-                if VisualAccModule then VisualAccModule.ToggleHeadless(Value) end
-            end)
-        end
-    })
-
-    KorlessSection:Toggle({
-        Title = "Korblox Left Leg",
-        Icon = "lucide:footprints",
-        Desc = "Applies Korblox visual mesh to the left leg.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function(Value)
-            task.spawn(function()
-                if VisualAccModule then VisualAccModule.ToggleKorblox(Value, "Left") end
-            end)
-        end
-    })
-
-    KorlessSection:Toggle({
-        Title = "Korblox Right Leg",
-        Icon = "lucide:footprints",
-        Desc = "Applies Korblox visual mesh to the right leg.",
-        Locked = not isPremiumUser,
-        LockedTitle = "Premium Only",
-        Callback = function(Value)
-            task.spawn(function()
-                if VisualAccModule then VisualAccModule.ToggleKorblox(Value, "Right") end
-            end)
-        end
-    })
+    if VisualAvatarUI then VisualAvatarUI.BuildKorless(KorlessSection, VisualAccModule, isPremiumUser, MugiwaraUI) end
 
     local AvatarSection = PremiumSection:Section({ Title = "Avatar Changer", Icon = "lucide:user-round", Opened = false })
 
