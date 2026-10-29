@@ -89,9 +89,9 @@ LightingModule.BuiltInPresets = {
             },
             Bloom = {
                 Enabled = true,
-                Intensity = 0.5,
-                Size = 24,
-                Threshold = 2.2
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
             },
             Blur = {
                 Enabled = false,
@@ -106,10 +106,10 @@ LightingModule.BuiltInPresets = {
             },
             DepthOfField = {
                 Enabled = true,
-                FarIntensity = 0.08,
-                FocusDistance = 120,
-                InFocusRadius = 60,
-                NearIntensity = 0.1
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
             },
             SunRays = {
                 Enabled = true,
@@ -118,59 +118,349 @@ LightingModule.BuiltInPresets = {
             }
         }
     },
-    ["Sunset"] = {
-        Desc = "Warm golden hour glow with long dramatic silhouettes.",
-        Skybox = "323391309",
+    ["Toxic Haze"] = {
+        Desc = "Poisonous green fog fills the atmosphere.",
+        Skybox = "921882045",
         Values = {
             Lighting = {
-                Ambient = Color3.fromRGB(66, 72, 81),
-                Brightness = 2,
-                ClockTime = 7.24,
-                ColorShift_Bottom = Color3.fromRGB(199, 144, 104),
-                ColorShift_Top = Color3.fromRGB(250, 151, 46),
-                EnvironmentDiffuseScale = 0.007,
-                EnvironmentSpecularScale = 0.93,
-                ExposureCompensation = 1.7,
+                Ambient = Color3.fromRGB(100, 97, 96),
+                Brightness = 2.6,
+                ClockTime = 12,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(0, 0, 0),
+                EnvironmentDiffuseScale = 0.9,
+                EnvironmentSpecularScale = 0.6,
+                ExposureCompensation = 0.1,
+                GeographicLatitude = 0,
                 GlobalShadows = true,
-                OutdoorAmbient = Color3.fromRGB(84, 67, 32),
+                OutdoorAmbient = Color3.fromRGB(107, 103, 102),
+                ShadowSoftness = 0.2,
             },
             Atmosphere = {
-                Color = Color3.fromRGB(203, 203, 203),
-                Decay = Color3.fromRGB(98, 115, 134),
-                Density = 0.35,
-                Glare = 0.56,
-                Haze = 1.2,
-                Offset = 0.19
+                Color = Color3.fromRGB(109, 139, 93),
+                Decay = Color3.fromRGB(117, 125, 65),
+                Density = 0.45,
+                Glare = 0.1,
+                Haze = 2.4,
+                Offset = 0.3
             },
             Bloom = {
                 Enabled = true,
-                Intensity = 0.65,
+                Intensity = 2,
                 Size = 56,
-                Threshold = 2.71
+                Threshold = 3
             },
             Blur = {
                 Enabled = false,
-                Size = 1.5
+                Size = 14
             },
             ColorCorrection = {
-                Brightness = 0.05,
-                Contrast = 0.19,
+                Brightness = 0.01,
+                Contrast = 0.07,
                 Enabled = true,
-                Saturation = 0,
-                TintColor = Color3.fromRGB(255, 191, 161)
+                Saturation = 0.05,
+                TintColor = Color3.fromRGB(255, 255, 255)
             },
             DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
                 Enabled = false,
-                FarIntensity = 0,
-                FocusDistance = 0,
+                Intensity = 0,
+                Spread = 0
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 3000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Arcane Mist"] = {
+        Desc = "Mystical green mist infused with ancient magic.",
+        Skybox = "144933338",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(131, 126, 121),
+                Brightness = 4,
+                ClockTime = 21,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(203, 190, 255),
+                EnvironmentDiffuseScale = 0.9,
+                EnvironmentSpecularScale = 0.6,
+                ExposureCompensation = 0.15,
+                GeographicLatitude = -13,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(126, 123, 122),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(82, 216, 104),
+                Decay = Color3.fromRGB(8, 18, 212),
+                Density = 0.39,
+                Glare = 0.25,
+                Haze = 2.1,
+                Offset = 0.3
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 14
+            },
+            ColorCorrection = {
+                Brightness = 0.03,
+                Contrast = 0.13,
+                Enabled = true,
+                Saturation = 0.1,
+                TintColor = Color3.fromRGB(243, 249, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
+                Enabled = false,
+                Intensity = 0.02,
+                Spread = 0.4
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 20,
+                StarCount = 1500,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Arctic Daylight"] = {
+        Desc = "Crisp blue daylight illuminates a frozen landscape.",
+        Skybox = "124785747583653",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(92, 99, 107),
+                Brightness = 2,
+                ClockTime = 15.77,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(0, 0, 0),
+                EnvironmentDiffuseScale = 0.7,
+                EnvironmentSpecularScale = 0.7,
+                ExposureCompensation = 0.05,
+                GeographicLatitude = -19.18,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(99, 105, 112),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(207, 225, 255),
+                Decay = Color3.fromRGB(215, 230, 247),
+                Density = 0.36,
+                Glare = 0.1,
+                Haze = 2.1,
+                Offset = 0.25
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 0
+            },
+            ColorCorrection = {
+                Brightness = 0,
+                Contrast = 0.08,
+                Enabled = true,
+                Saturation = 0.1,
+                TintColor = Color3.fromRGB(216, 234, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
                 InFocusRadius = 0,
                 NearIntensity = 0
             },
             SunRays = {
                 Enabled = true,
-                Intensity = 0.015,
-                Spread = 0.26
+                Intensity = 0.05,
+                Spread = 0.6
             },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 5000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Glacial Nebula"] = {
+        Desc = "A nebula glows over the frozen night.",
+        Skybox = "9831762777",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(92, 99, 107),
+                Brightness = 2,
+                ClockTime = 7,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(0, 0, 0),
+                EnvironmentDiffuseScale = 0.7,
+                EnvironmentSpecularScale = 0.7,
+                ExposureCompensation = 0.2,
+                GeographicLatitude = 0,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(99, 105, 112),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(207, 207, 255),
+                Decay = Color3.fromRGB(217, 215, 247),
+                Density = 0.4,
+                Glare = 0.1,
+                Haze = 2.1,
+                Offset = 0
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 0
+            },
+            ColorCorrection = {
+                Brightness = 0,
+                Contrast = 0.08,
+                Enabled = true,
+                Saturation = 0.1,
+                TintColor = Color3.fromRGB(216, 216, 255)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
+                Enabled = true,
+                Intensity = 0.1,
+                Spread = 1
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 3000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
+        }
+    },
+    ["Crimson Hell"] = {
+        Desc = "Burning red fog under a meteor-filled sky.",
+        Skybox = "98835519443062",
+        Values = {
+            Lighting = {
+                Ambient = Color3.fromRGB(135, 103, 154),
+                Brightness = 2,
+                ClockTime = 12,
+                ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
+                ColorShift_Top = Color3.fromRGB(209, 159, 255),
+                EnvironmentDiffuseScale = 0.8,
+                EnvironmentSpecularScale = 0.8,
+                ExposureCompensation = 0.15,
+                GeographicLatitude = 0,
+                GlobalShadows = true,
+                OutdoorAmbient = Color3.fromRGB(86, 86, 86),
+                ShadowSoftness = 0.2,
+            },
+            Atmosphere = {
+                Color = Color3.fromRGB(66, 35, 71),
+                Decay = Color3.fromRGB(144, 59, 59),
+                Density = 0.38,
+                Glare = 2,
+                Haze = 2.2,
+                Offset = 0.2
+            },
+            Bloom = {
+                Enabled = true,
+                Intensity = 2,
+                Size = 56,
+                Threshold = 3
+            },
+            Blur = {
+                Enabled = false,
+                Size = 14
+            },
+            ColorCorrection = {
+                Brightness = 0,
+                Contrast = 0.2,
+                Enabled = true,
+                Saturation = 0,
+                TintColor = Color3.fromRGB(255, 249, 248)
+            },
+            DepthOfField = {
+                Enabled = true,
+                FarIntensity = 0.15,
+                FocusDistance = 50,
+                InFocusRadius = 0,
+                NearIntensity = 0
+            },
+            SunRays = {
+                Enabled = false,
+                Intensity = 0,
+                Spread = 0
+            },
+            Sky = {
+                CelestialBodiesShown = false,
+                MoonAngularSize = 11,
+                StarCount = 5000,
+                SunAngularSize = 0,
+            },
+            Clouds = {
+                Color = Color3.fromRGB(255, 255, 255),
+                Cover = 0.5,
+                Density = 0.7,
+                Enabled = false
+            }
         }
     }
 }
