@@ -18,7 +18,7 @@ Roblox script hub by Honami, built on [Mugiwara UI](https://github.com/honamicha
 **Free camera look** (Camera tab, premium): turn with the mouse (hold Right-Click) or the Arrow Keys. Mouse turning uses the same
 base as Roblox's own camera (0.5 degrees per pixel, vertical 0.77x) times the Camera Sensitivity from your Roblox settings, read
 live (**Match Roblox Sensitivity**, on by default); switch it off to use the **Mouse Sensitivity** slider instead (1 = Roblox
-default). The Arrow Keys turn 120 degrees per second like Roblox's camera and ignore the mouse sensitivity. **Horizontal Speed
+default). The Arrow Keys turn 40 degrees per second (deliberately slower than Roblox's 120, which was too fast even at the lowest multiplier) and ignore the mouse sensitivity. **Horizontal Speed
 (Left / Right)** and **Vertical Speed (Up / Down)** are separate multipliers (0.1x to 5x) that apply to both the mouse and the
 Arrow Keys.
 

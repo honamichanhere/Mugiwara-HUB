@@ -12,7 +12,7 @@ CameraModule.FreecamEnabled = false
 CameraModule.FreecamSpeed = 16
 
 -- Putar kamera bebas. Dasarnya sama dengan kamera bawaan Roblox: mouse 0.5 derajat per pixel (vertikal sedikit lebih
--- pelan, 0.77x) dikali Camera Sensitivity dari setting Roblox, panah 120 derajat per detik. Kecepatan arah kiri/kanan
+-- pelan, 0.77x) dikali Camera Sensitivity dari setting Roblox, panah 40 derajat per detik (sengaja jauh lebih pelan dari Roblox, 120). Kecepatan arah kiri/kanan
 -- dan atas/bawah adalah pengali tambahan yang berlaku untuk mouse (klik kanan) maupun panah.
 CameraModule.UseRobloxSensitivity = true -- true: ikut setting Roblox, false: pakai MouseSensitivity di bawah
 CameraModule.MouseSensitivity = 1        -- 1 = sensitivitas Roblox bawaan
@@ -21,7 +21,7 @@ CameraModule.VerticalSpeed = 1           -- pengali putar atas/bawah
 
 local MOUSE_DEGREES_PER_PIXEL = 0.5
 local MOUSE_VERTICAL_RATIO = 0.77
-local ARROW_DEGREES_PER_SECOND = 120
+local ARROW_DEGREES_PER_SECOND = 40
 
 local GameSettings
 pcall(function() GameSettings = UserSettings():GetService("UserGameSettings") end)
