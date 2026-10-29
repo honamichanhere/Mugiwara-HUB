@@ -272,8 +272,8 @@ local function ReplaceLegs(side, useKorblox, rig, hum)
 end
 
 -- ---------- Cache model avatar sendiri ----------
--- Dibangun sekali, hanya saat Korblox pertama kali dipakai (pengguna gratis tidak memicunya). Modelnya tidak
--- punya parent di Workspace. Menunggu game dan karakter siap dulu: membuat model terlalu cepat setelah join
+-- Dibangun sekali di latar belakang untuk pengguna premium (PrepareKorblox), atau saat Korblox pertama kali dipakai.
+-- Pengguna gratis tidak memicunya. Modelnya tidak punya parent di Workspace. Menunggu game dan karakter siap dulu: membuat model terlalu cepat setelah join
 -- membuat Evade menendang pemain ("character not loaded").
 local cacheState = "idle" -- idle | building | ready | failed
 
@@ -325,6 +325,12 @@ local function PrepareCache()
         cacheState = "building"
         task.spawn(BuildCache)
     end
+end
+
+-- Menyiapkan cache avatar di latar belakang (dipanggil UI untuk pengguna premium, seperti skrip Korless-Visual yang
+-- membangunnya saat dijalankan), jadi toggle Korblox langsung bisa dipakai. Aman dipanggil berkali-kali.
+function VisualAccessories.PrepareKorblox()
+    PrepareCache()
 end
 
 -- Menunggu cache siap (dan memulainya kalau belum). true kalau siap.

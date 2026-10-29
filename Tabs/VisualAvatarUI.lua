@@ -130,8 +130,12 @@ function UI.BuildKorless(Section, VisualAcc, isPremiumUser, MugiwaraUI)
         })
     end
 
-    KorbloxToggle("Left")
+    -- Korblox hanya ada di kaki kanan (aset resmi "Korblox Deathspeaker Right Leg"), seperti di skrip Korless-Visual.
+    -- Kaki kiri sengaja tidak ditawarkan: di R15 kaki kiri dari cache Korblox rusak (pecahan hitam).
     KorbloxToggle("Right")
+
+    -- Cache avatar disiapkan sekarang (premium saja), jadi toggle Korblox pertama tidak perlu menunggu.
+    if isPremiumUser and VisualAcc and VisualAcc.PrepareKorblox then VisualAcc.PrepareKorblox() end
 end
 
 return UI
