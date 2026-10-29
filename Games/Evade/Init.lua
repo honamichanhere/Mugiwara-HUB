@@ -2,6 +2,7 @@ local VisualAccModule = getgenv().MugiwaraImport("Games/Evade/VisualAccessories.
 local AvatarChangerModule = getgenv().MugiwaraImport("Games/Evade/AvatarChanger.lua")
 local TicketFarmModule = getgenv().MugiwaraImport("Games/Evade/TicketFarm.lua")
 local AfkFarmUI = getgenv().MugiwaraImport("Games/Evade/AfkFarmUI.lua")
+local VisualEmotesUI = getgenv().MugiwaraImport("Games/Evade/VisualEmotesUI.lua")
 local Risk = getgenv().MugiwaraImport("Manager/Risk.lua") or { Desc = function(_, text) return text end, Warn = function() end }
 
 return function(Window, isPremiumUser, MugiwaraUI)
@@ -17,7 +18,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         ImageSize = 75
     })
 
-    local AccSection = TabMain:Section({ 
+    local PremiumSection = TabMain:Section({ 
         Title = '<font color="#ffff82">Premium Features</font>', 
         Icon = "rbxassetid://74594159374416", 
         IconColor = Color3.fromRGB(255, 255, 130), 
@@ -25,12 +26,15 @@ return function(Window, isPremiumUser, MugiwaraUI)
         Box = true 
     })
 
-    -- AFK Farm (premium) ada di urutan paling atas section ini, lalu fitur tampilan.
+    -- Premium Features dibagi per kategori (section di dalam section): Auto Farm, Accessory, Korless,
+    -- Avatar Changer, dan Visual Emotes.
     if AfkFarmUI then
-        local ok, err = pcall(AfkFarmUI.BuildFarm, AccSection, isPremiumUser, MugiwaraUI)
+        local AfkSection = PremiumSection:Section({ Title = "Auto Farm", Icon = "lucide:moon", Opened = false })
+        local ok, err = pcall(AfkFarmUI.BuildFarm, AfkSection, isPremiumUser, MugiwaraUI)
         if not ok then warn("[Mugiwara HUB] AFK Farm UI error: " .. tostring(err)) end
-        AccSection:Divider({ Title = "Visuals" })
     end
+
+    local AccessorySection = PremiumSection:Section({ Title = "Accessory", Icon = "lucide:shirt", Opened = false })
 
     local templateNames = {}
     if VisualAccModule and VisualAccModule.Templates then
@@ -39,7 +43,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     end
 
-    AccSection:Dropdown({
+    AccessorySection:Dropdown({
         Title = "Accessory Templates",
         Icon = "lucide:shirt",
         Desc = "Choose from popular pre-defined accessories.",
@@ -66,7 +70,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
     })
 
     local CustomAccInput
-    CustomAccInput = AccSection:Input({
+    CustomAccInput = AccessorySection:Input({
         Title = "Load Custom Asset ID",
         Icon = "lucide:hash",
         Desc = "Enter a valid Marketplace Accessory ID.",
@@ -87,7 +91,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
-    AccSection:Button({
+    AccessorySection:Button({
         Title = "Clear All Custom Accessories",
         Icon = "lucide:trash-2",
         Desc = "Remove all spawned accessories from your character.",
@@ -98,7 +102,9 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
-    AccSection:Toggle({
+    local KorlessSection = PremiumSection:Section({ Title = "Korless", Icon = "lucide:skull", Opened = false })
+
+    KorlessSection:Toggle({
         Title = "Headless Head",
         Icon = "lucide:skull",
         Desc = "Visually removes your character's head.",
@@ -111,7 +117,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
-    AccSection:Toggle({
+    KorlessSection:Toggle({
         Title = "Korblox Left Leg",
         Icon = "lucide:footprints",
         Desc = "Applies Korblox visual mesh to the left leg.",
@@ -124,7 +130,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
-    AccSection:Toggle({
+    KorlessSection:Toggle({
         Title = "Korblox Right Leg",
         Icon = "lucide:footprints",
         Desc = "Applies Korblox visual mesh to the right leg.",
@@ -137,8 +143,10 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
+    local AvatarSection = PremiumSection:Section({ Title = "Avatar Changer", Icon = "lucide:user-round", Opened = false })
+
     local AvatarInput
-    AvatarInput = AccSection:Input({
+    AvatarInput = AvatarSection:Input({
         Title = "Morph By Username",
         Icon = "lucide:user-round",
         Desc = "Copy any player's avatar exactly 1:1.",
@@ -155,7 +163,7 @@ return function(Window, isPremiumUser, MugiwaraUI)
         end
     })
 
-    AccSection:Button({
+    AvatarSection:Button({
         Title = "Revert to Original",
         Icon = "lucide:undo-2",
         Desc = "Back to original avatar.",
@@ -165,6 +173,13 @@ return function(Window, isPremiumUser, MugiwaraUI)
             if AvatarChangerModule then AvatarChangerModule.Clear(true, MugiwaraUI) end
         end
     })
+
+    -- Visual Emotes (premium): tukar tampilan dua emote.
+    if VisualEmotesUI then
+        local EmotesSection = PremiumSection:Section({ Title = "Visual Emotes", Icon = "lucide:drama", Opened = false })
+        local ok, err = pcall(VisualEmotesUI.Build, EmotesSection, isPremiumUser, MugiwaraUI)
+        if not ok then warn("[Mugiwara HUB] Visual Emotes UI error: " .. tostring(err)) end
+    end
 
     -- ==========================================
     -- HALLOWEEN TICKET FARM (free)

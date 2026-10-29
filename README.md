@@ -114,8 +114,10 @@ module.
 
 ## Evade AFK Farm and Auto Commands
 
-Evade Main tab order: Premium Features (AFK Farm on top, then the visual features), Halloween Ticket
-Farm, Auto Commands, Character Movement. All sections start collapsed, except Premium Activation.
+Evade Main tab order: Premium Features, Halloween Ticket Farm, Auto Commands, Character Movement. All
+sections start collapsed, except Premium Activation. Premium Features is split into five sections of its
+own: **Auto Farm** (AFK Farm), **Accessory**, **Korless** (Headless Head, Korblox legs), **Avatar Changer**
+and **Visual Emotes**.
 
 - **AFK Farm** (premium, inside Premium Features): builds a small 50x50 studs park (grass, cobblestone
   paths and plaza, fountain, four trees with flowers, street lamps, two benches, hedges plus invisible
@@ -125,6 +127,14 @@ Farm, Auto Commands, Character Movement. All sections start collapsed, except Pr
   their own. If the game deletes or refreshes the park it is rebuilt at once while the farm is on;
   turning the farm off removes it. With no coordinates saved it uses the spot where it was turned on.
   No Fly needed (Fly is only a fallback if the park cannot be built).
+- **Visual Emotes** (premium, `Games/Evade/VisualEmotes.lua` + `VisualEmotesUI.lua`): swaps how two emotes
+  look and play, on your screen only. The logic is the one from the Visual-Emotes repo: the contents of
+  each emote in `ReplicatedStorage.Items` are cached, then exchanged between a **Base Emote** and a
+  **Target Emote** (two searchable dropdowns); after a swap the button turns into **Revert** when the same
+  pair is picked again, and **Revert All** restores everything. The Base list hides the Target and vice
+  versa; Rockin Stride <> Kickback and Zombie Stride <> Classic Dance can only be swapped with each other;
+  an emote that is already swapped must be reverted before it can be swapped again. Everything is restored
+  when the hub is unloaded.
 - **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
   `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned, Intermission, Round Start,
   Round End, Vote. The round triggers come from `ReplicatedStorage.Events.UpdateServerStateRegistry`, which
