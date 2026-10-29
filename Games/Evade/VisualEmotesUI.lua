@@ -11,7 +11,7 @@ local Preview = getgenv().MugiwaraImport("Games/Evade/EmotePreview.lua")
 -- halaman supaya yang tampil sekaligus tidak lebih dari CHUNK.
 local UI = {}
 
-local CHUNK = 30
+local CHUNK = 24
 local HEADER_ORDER = { "Normal", "Gamepasses", "Halloween", "Winter Holidays", "Summer", "Spring", "Valentines", "Event", "Special" }
 
 -- Sudut kamera seperti menu game: dari depan, sedikit ke kanan dan di atas, FOV 30. Ubah di sini kalau perlu.
@@ -99,10 +99,12 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
         return partner and (entry.Display .. " (" .. partner.Display .. ")") or entry.Display
     end
 
-    -- Item grid: model diam kalau sudah dirender, kalau belum ikon biasa.
-    local function ItemFor(entry)
+    -- Item grid: model diam hanya untuk grid yang sedang DIBUKA dan kalau modelnya sudah ada; selain itu ikon
+    -- biasa. Tiap viewport menggambar ulang modelnya setiap frame, jadi grid yang tertutup tidak boleh
+    -- menyimpan viewport sama sekali.
+    local function ItemFor(entry, withView)
         local item = { Title = TitleOf(entry) }
-        local model = Preview and Preview.Get(entry) or nil
+        local model = withView and Preview and Preview.Get(entry) or nil
         if model then
             item.Viewport = model
         else
@@ -126,7 +128,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
     local function Present(side, entries)
         local items, lookup, signature = {}, {}, {}
         for _, entry in ipairs(entries) do
-            local item = ItemFor(entry)
+            local item = ItemFor(entry, side.IsOpen)
             table.insert(items, item)
             lookup[item.Title] = entry
             table.insert(signature, item.Title .. (item.Viewport and "+" or "-"))
@@ -152,7 +154,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
     -- Merender model diam untuk emote yang tampil dan belum punya. Beberapa emote dirender serentak (animasi
     -- dimuat dari server, jadi menunggu satu-satu lama) dan grid diperbarui bertahap: tile yang sudah jadi
     -- langsung muncul, urutannya sesuai tampilan (kiri atas dulu).
-    local WORKERS = 4
+    local WORKERS = 3
     local REFRESH_AFTER = { [6] = true, [14] = true, [24] = true } -- jumlah emote selesai yang memicu pembaruan grid
 
     local function Bake(side)
@@ -256,7 +258,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
 
     -- Satu sisi = pilihan kategori + grid. Grid mulai dengan ikon biasa; model dirender saat grid pertama dibuka.
     local function BuildSide(name, titleText, descText, icon, isBase)
-        local side = { Name = name, Group = 1, Token = 0, Signature = nil, Entries = {}, Lookup = {}, Opened = false }
+        local side = { Name = name, Group = 1, Token = 0, Signature = nil, Entries = {}, Lookup = {}, IsOpen = false }
         sides[name] = side
 
         Section:Dropdown({
@@ -291,6 +293,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
             MaxHeight = 300,
             Viewport = LOOK,
             Callback = function(Option)
+                side.IsOpen = false -- memilih satu emote menutup grid (pilihan tunggal)
                 local entry = type(Option) == "string" and side.Lookup[Option] or nil
                 if isBase then base = entry else target = entry end
                 Picked(entry)
@@ -298,11 +301,11 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
             end
         })
 
+        -- Grid dibuka: viewport baru dipasang sekarang (dan dilepas lagi saat ditutup).
         side.Grid.Top.MouseButton1Click:Connect(function()
-            if not side.Opened then
-                side.Opened = true
-                Bake(side)
-            end
+            if side.Grid.Locked then return end
+            side.IsOpen = not side.IsOpen
+            if side.IsOpen then Bake(side) else Refresh() end
         end)
         return side
     end
@@ -310,8 +313,29 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
     BuildSide("Base", "Base Emote", "Category of the emote you will change.", "lucide:music", true)
     BuildSide("Target", "Target Emote", "Category of the emote it will look like.", "lucide:drama", false)
 
-    -- Mulai merender begitu section Visual Emotes dibuka (kebanyakan orang membuka grid sesudahnya), tanpa
-    -- menunggu grid dibuka.
+    -- Pose semua emote dikumpulkan pelan-pelan di latar belakang (sekali saja: hasilnya disimpan di file),
+    -- jadi kategori mana pun yang dibuka nanti langsung instan.
+    local collecting = false
+    local function StartCollector()
+        if collecting or not PreviewsOn() then return end
+        collecting = true
+        task.spawn(function()
+            local all, missing = {}, 0
+            for _, group in ipairs(groups) do
+                for _, entry in ipairs(group.Entries) do
+                    table.insert(all, entry)
+                    if not Preview.PoseKnown(entry) then missing = missing + 1 end
+                end
+            end
+            if missing == 0 then return end
+            if missing > 20 then Notify("Visual Emotes", "Preparing " .. missing .. " emote previews in the background (one time only)...", 4) end
+            local collected = Preview.Collect(all)
+            if missing > 20 and collected > 0 then Notify("Visual Emotes", "Emote previews are ready.", 3) end
+        end)
+    end
+
+    -- Persiapan dimulai begitu section Visual Emotes dibuka (kebanyakan orang membuka grid sesudahnya),
+    -- tanpa menunggu grid dibuka.
     local warmed = false
     local header = Section.Frame and Section.Frame:FindFirstChild("Header", true)
     if header then
@@ -319,6 +343,7 @@ function UI.Build(Section, isPremiumUser, MugiwaraUI)
             if not warmed then
                 warmed = true
                 Bake(sides.Base)
+                StartCollector()
             end
         end)
     end

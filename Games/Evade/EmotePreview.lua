@@ -2,25 +2,39 @@
 -- ViewportFrame berisi rig (ReplicatedStorage.Assets.Items.VisualRigR15Emote / VisualRigClassic) yang
 -- memainkan animasi emote, dibekukan di detik 0.5, ditambah model properti emote. Modul ini membuat hal
 -- yang sama sendiri (mengikuti Emote.lua / ClientItemService milik game, tanpa require modul game: require
--- modul layanan game dari executor bisa menggantung), lalu menyimpan hasilnya sebagai MODEL DIAM: pose
--- dibakukan dari sendi. Model itulah yang dipakai Mugiwara UI (GridDropdown, item Viewport), jadi tidak
--- ada animasi yang berjalan di UI hub: hemat sumber daya.
+-- modul layanan game dari executor bisa menggantung).
+--
+-- Supaya ringan, ada tiga lapis:
+--  1. POSE disimpan ke file (MugiwaraHub/EmotePoses.json), kuncinya animasi (R15/R6 + AnimationId). Hanya
+--     sekali per animasi dihitung dengan benar-benar memainkan animasinya (lambat: animasi dimuat dari server);
+--     sesudah itu model dibangun langsung dari data sendi, tanpa animasi, tanpa menunggu (instan). Karena
+--     kuncinya animasi, emote yang ditukar otomatis memakai pose pasangannya.
+--  2. Model hasilnya DIAM dan dibersihkan (tanpa sendi, attachment, partikel, trail, beam, lampu, dll).
+--  3. Pengumpulan pose untuk semua emote berjalan pelan di latar belakang (Collect), satu per satu.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 
 local Preview = {}
 
-local TRACK_TIMEOUT = 3  -- detik menunggu panjang animasi diketahui (sama seperti game: maksimal 5)
-local SETTLE_FRAMES = 2  -- frame tambahan supaya pose benar-benar terpasang di part
-local POSE_TIME = 0.5    -- detik animasi yang dibekukan, sama dengan game
-local MAX_HOSTS = 4      -- render yang boleh berjalan bersamaan (animasi dimuat dari server, jadi lama)
+local TRACK_TIMEOUT = 3   -- detik menunggu panjang animasi diketahui (sama seperti game: maksimal 5)
+local SETTLE_FRAMES = 2   -- frame tambahan supaya pose benar-benar terpasang di sendi
+local POSE_TIME = 0.5     -- detik animasi yang dibekukan, sama dengan game
+local MAX_HOSTS = 3       -- pengambilan pose yang boleh berjalan bersamaan (animasi dimuat dari server)
+local COLLECT_GAP = 0.12  -- jeda antar emote saat mengumpulkan pose di latar belakang
+
+local POSE_FILE = (getgenv().MugiwaraFolder or "MugiwaraHub") .. "/EmotePoses.json"
+local POSE_VERSION = 1
 
 local alive = true
 local hostGui = nil
-local hosts = {}         -- { Frame, InUse }: ViewportFrame tersembunyi
-local cache = {}         -- [modul emote] = model diam hasil render
-local inflight = {}      -- [modul emote] = true selama sedang dirender
+local hosts = {}          -- { Frame, InUse }: ViewportFrame tersembunyi
+local cache = {}          -- [modul emote] = model diam hasil render
+local inflight = {}       -- [modul emote] = true selama model sedang dibangun
+local inflightPose = {}   -- [kunci pose] = true selama pose sedang diambil
+local poses = nil         -- [kunci pose] = { [jalur sendi] = komponen CFrame }
+local poseToken = 0
 
 local function HeartbeatWait(frames)
     for _ = 1, frames or 1 do RunService.Heartbeat:Wait() end
@@ -43,6 +57,83 @@ function Preview.Available()
     return RigTemplate(IsR15()) ~= nil
 end
 
+-- ------------------------------------------
+-- Penyimpanan pose
+-- ------------------------------------------
+local function LoadPoses()
+    if poses then return poses end
+    poses = {}
+    if readfile and isfile and isfile(POSE_FILE) then
+        local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(POSE_FILE)) end)
+        if ok and type(decoded) == "table" and decoded.Version == POSE_VERSION and type(decoded.Poses) == "table" then
+            poses = decoded.Poses
+        end
+    end
+    return poses
+end
+
+local function FlushPoses()
+    poseToken = poseToken + 1
+    if not (poses and writefile) then return end
+    pcall(function()
+        if makefolder and isfolder and not isfolder(getgenv().MugiwaraFolder or "MugiwaraHub") then makefolder(getgenv().MugiwaraFolder or "MugiwaraHub") end
+        writefile(POSE_FILE, HttpService:JSONEncode({ Version = POSE_VERSION, Poses = poses }))
+    end)
+end
+
+-- Menyimpan sekali setelah pengambilan pose berhenti sebentar (banyak pose datang beruntun).
+local function SavePosesSoon()
+    poseToken = poseToken + 1
+    local mine = poseToken
+    task.delay(3, function()
+        if mine == poseToken then FlushPoses() end
+    end)
+end
+
+-- Jalur sendi relatif ke rig, mis. "R15Visual/UpperTorso/RightShoulder".
+local function JointPath(rig, joint)
+    local names = {}
+    local node = joint
+    while node and node ~= rig do
+        table.insert(names, 1, node.Name)
+        node = node.Parent
+    end
+    return table.concat(names, "/")
+end
+
+local IDENTITY = { 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1 }
+
+local function IsIdentity(components)
+    for index, value in ipairs(IDENTITY) do
+        if math.abs((components[index] or 0) - value) > 0.0001 then return false end
+    end
+    return true
+end
+
+-- Transform semua Motor6D rig (hasil animasi); sendi tanpa gerakan tidak disimpan.
+local function CapturePose(rig)
+    local pose = {}
+    for _, descendant in ipairs(rig:GetDescendants()) do
+        if descendant:IsA("Motor6D") then
+            local components = { descendant.Transform:GetComponents() }
+            if not IsIdentity(components) then pose[JointPath(rig, descendant)] = components end
+        end
+    end
+    return pose
+end
+
+local function ApplyPose(rig, pose)
+    for _, descendant in ipairs(rig:GetDescendants()) do
+        if descendant:IsA("Motor6D") then
+            local components = pose[JointPath(rig, descendant)]
+            descendant.Transform = components and CFrame.new(table.unpack(components)) or CFrame.new()
+        end
+    end
+end
+
+-- ------------------------------------------
+-- Host tersembunyi (hanya dipakai saat animasi benar-benar dimainkan)
+-- ------------------------------------------
 -- ViewportFrame kecil hampir tidak terlihat; namanya berawalan "Mugiwara" supaya Hide GUI tidak menyentuhnya.
 local function EnsureGui()
     if hostGui and hostGui.Parent then return hostGui end
@@ -109,6 +200,10 @@ local function FindAnimation(item, r15)
         return nil
     end
     return item:FindFirstChild(r15 and "Animation" or "AnimationClassic")
+end
+
+local function PoseKey(animation, r15)
+    return (r15 and "R15:" or "R6:") .. tostring(animation.AnimationId)
 end
 
 -- Jarak akar ke kaki terendah (dari getRootOffset milik game): properti emote dipasang relatif ke sini.
@@ -178,10 +273,10 @@ local function GetAnimator(rig)
 end
 
 -- ------------------------------------------
--- Pose diam
+-- Model diam
 -- ------------------------------------------
--- Menghitung ulang posisi tiap part dari sendi (Motor6D memakai Transform hasil animasi, Weld tidak),
--- dimulai dari part akar. Hasilnya tidak bergantung pada simulasi: model bisa ditaruh di ViewportFrame biasa.
+-- Menghitung ulang posisi tiap part dari sendi (Motor6D memakai Transform, Weld tidak), dimulai dari part
+-- akar. Hasilnya tidak bergantung pada simulasi: model bisa ditaruh di ViewportFrame biasa.
 local function SolveJoints(rig)
     local root = rig:FindFirstChild("HumanoidRootPart", true) or rig.PrimaryPart
     if not root then return false end
@@ -211,7 +306,7 @@ local function SolveJoints(rig)
 end
 
 -- Putar seluruh model supaya part utamanya sejajar sumbu dunia (rotasi identitas), posisi akarnya tetap.
--- Kamera game diletakkan relatif ke PrimaryPart rig (di depan karakter), tetapi rig di host bisa menghadap arah
+-- Kamera game diletakkan relatif ke PrimaryPart rig (di depan karakter), tetapi rig bisa menghadap arah
 -- lain; tanpa ini sisi yang terlihat di grid bisa dari samping.
 local function Orient(model)
     local primary = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart", true)
@@ -224,27 +319,141 @@ local function Orient(model)
     end
 end
 
--- Salinan diam dari rig: tanpa Animator / controller / script, semua part Anchored, menghadap depan.
+-- Yang tidak berguna untuk gambar diam dibuang: sendi (posisi sudah dibakukan), attachment, partikel,
+-- trail, beam, lampu, efek, script, suara. Tiap viewport menggambar ulang semuanya setiap frame, jadi
+-- makin sedikit isinya makin ringan.
+local STRIP_CLASSES = {
+    "Motor6D", "Weld", "ManualWeld", "WeldConstraint", "Snap", "Constraint",
+    "ParticleEmitter", "Trail", "Beam", "Fire", "Smoke", "Sparkles", "Explosion", "Highlight", "ForceField",
+    "PointLight", "SpotLight", "SurfaceLight", "WrapTarget", "WrapLayer",
+    "AnimationController", "Humanoid", "Animator", "LuaSourceContainer", "Sound",
+}
+
+local function ShouldStrip(instance)
+    for _, class in ipairs(STRIP_CLASSES) do
+        if instance:IsA(class) then return true end
+    end
+    return instance:IsA("Attachment") and not instance:IsA("Bone")
+end
+
+-- Salinan diam dari rig: bersih, semua part Anchored, menghadap depan.
 local function Freeze(rig, name)
     local copy = rig:Clone()
     copy.Name = name
     for _, descendant in ipairs(copy:GetDescendants()) do
         if descendant:IsA("BasePart") then
             descendant.Anchored = true
-        elseif descendant:IsA("AnimationController") or descendant:IsA("Humanoid") or descendant:IsA("Animator") or descendant:IsA("LuaSourceContainer") or descendant:IsA("Sound") then
-            pcall(function() descendant:Destroy() end)
+            descendant.CastShadow = false
+            descendant.CanCollide = false
+            descendant.CanQuery = false
+            descendant.CanTouch = false
         end
+    end
+    for _, descendant in ipairs(copy:GetDescendants()) do
+        if ShouldStrip(descendant) then pcall(function() descendant:Destroy() end) end
     end
     Orient(copy)
     return copy
 end
 
--- Model diam emote ini dari cache, atau nil kalau belum dirender.
+-- Model dari rig kosong + properti emote + pose (tanpa animasi, tanpa menunggu).
+local function BuildModel(entry, r15, template, pose)
+    local rig = template:Clone()
+    AttachProps(rig, entry.Instance, r15)
+    if pose then ApplyPose(rig, pose) end
+    SolveJoints(rig)
+    local model = Freeze(rig, entry.Display)
+    pcall(function() rig:Destroy() end)
+    return model
+end
+
+-- ------------------------------------------
+-- Pengambilan pose (satu-satunya bagian yang lambat)
+-- ------------------------------------------
+-- Pose animasi emote ini: dari file kalau sudah pernah dihitung, kalau belum dihitung dengan memainkan
+-- animasinya di host tersembunyi (menunggu animasi dimuat dari server) lalu disimpan.
+-- Mengembalikan pose, atau nil (tanpa alasan) kalau emote tidak punya animasi, atau nil + alasan kalau gagal.
+local function EnsurePose(entry, r15, template)
+    local animation = FindAnimation(entry.Instance, r15)
+    if not animation then return nil end
+
+    local key = PoseKey(animation, r15)
+    local store = LoadPoses()
+    if store[key] then return store[key] end
+
+    -- animasi yang sama sedang diambil (mis. oleh emote lain): tunggu hasilnya
+    while inflightPose[key] do
+        task.wait(0.03)
+        if not alive then return nil, "unloaded" end
+    end
+    if store[key] then return store[key] end
+    inflightPose[key] = true
+
+    local hostEntry = AcquireHost()
+    if not hostEntry then
+        inflightPose[key] = nil
+        return nil, "unloaded"
+    end
+
+    local pose, failure
+    local world
+    local ok, err = pcall(function()
+        world = Instance.new("WorldModel")
+        world.Parent = hostEntry.Frame
+
+        local rig = template:Clone()
+        rig.Parent = world
+
+        local animator = GetAnimator(rig)
+        if not animator then
+            failure = "the preview rig has no animator"
+            return
+        end
+
+        local track = animator:LoadAnimation(animation)
+        track.Priority = Enum.AnimationPriority.Action3
+        track:Play(0)
+        track:AdjustSpeed(0)
+
+        local limit = os.clock() + TRACK_TIMEOUT
+        while track.Length <= 0 and alive and os.clock() < limit do HeartbeatWait(1) end
+        if track.Length <= 0 then
+            failure = "the animation did not load"
+            return
+        end
+
+        track.TimePosition = math.min(POSE_TIME, track.Length)
+        HeartbeatWait(SETTLE_FRAMES)
+        pose = CapturePose(rig)
+    end)
+
+    if world then pcall(function() world:Destroy() end) end
+    hostEntry.InUse = false
+    inflightPose[key] = nil
+
+    if not ok then return nil, tostring(err) end
+    if not pose then return nil, failure or "preview failed" end
+
+    store[key] = pose
+    SavePosesSoon()
+    return pose
+end
+
+-- ------------------------------------------
+-- API
+-- ------------------------------------------
+-- Model diam emote ini dari cache, atau nil kalau belum dibangun.
 function Preview.Get(entry)
     return entry and cache[entry.Instance] or nil
 end
 
--- Membuang hasil render lama (dipakai setelah emote ditukar: gambarnya ikut berubah).
+-- true kalau pose emote ini sudah ada di file (membangun modelnya instan).
+function Preview.PoseKnown(entry)
+    local animation = FindAnimation(entry.Instance, IsR15())
+    return animation == nil or LoadPoses()[PoseKey(animation, IsR15())] ~= nil
+end
+
+-- Membuang model lama (dipakai setelah emote ditukar: isinya berubah, jadi gambarnya ikut berubah).
 function Preview.Invalidate(entry)
     local model = entry and cache[entry.Instance]
     if model then
@@ -253,15 +462,14 @@ function Preview.Invalidate(entry)
     end
 end
 
--- Memuat animasi semua emote ini lebih dulu, serentak, di latar belakang (mempercepat render berikutnya).
+-- Memuat animasi emote yang posenya belum ada, serentak, di latar belakang (mempercepat pengambilan pose).
 function Preview.Preload(entries)
     local r15 = IsR15()
+    local store = LoadPoses()
     local list = {}
     for _, entry in ipairs(entries) do
-        if not cache[entry.Instance] then
-            local animation = FindAnimation(entry.Instance, r15)
-            if animation then table.insert(list, animation) end
-        end
+        local animation = FindAnimation(entry.Instance, r15)
+        if animation and not store[PoseKey(animation, r15)] then table.insert(list, animation) end
     end
     if #list == 0 then return end
     task.spawn(function()
@@ -269,8 +477,8 @@ function Preview.Preload(entries)
     end)
 end
 
--- Merender satu emote (menunggu sampai selesai; boleh yield). Mengembalikan model atau nil, alasan.
--- Beberapa emote boleh dirender bersamaan (sampai MAX_HOSTS).
+-- Membangun model diam satu emote (menunggu kalau posenya belum ada; boleh yield). Mengembalikan model
+-- atau nil, alasan. Kalau posenya sudah tersimpan, hasilnya langsung ada tanpa menunggu.
 function Preview.Bake(entry)
     if not alive then return nil, "unloaded" end
     local cached = cache[entry.Instance]
@@ -280,7 +488,7 @@ function Preview.Bake(entry)
     local template = RigTemplate(r15)
     if not template then return nil, "the game's preview rig was not found" end
 
-    -- emote yang sama sedang dirender (mis. oleh sisi grid lain): tunggu hasilnya
+    -- emote yang sama sedang dibangun (mis. oleh sisi grid lain): tunggu hasilnya
     while inflight[entry.Instance] do
         task.wait(0.03)
         if not alive then return nil, "unloaded" end
@@ -289,46 +497,19 @@ function Preview.Bake(entry)
     if cached then return cached end
     inflight[entry.Instance] = true
 
-    local hostEntry = AcquireHost()
-    if not hostEntry then
-        inflight[entry.Instance] = nil
-        return nil, "unloaded"
-    end
-
-    local model
-    local world
+    local model, failure
     local ok, err = pcall(function()
-        world = Instance.new("WorldModel")
-        world.Parent = hostEntry.Frame
-
-        local rig = template:Clone()
-        rig.Parent = world
-        AttachProps(rig, entry.Instance, r15)
-
-        local animation = FindAnimation(entry.Instance, r15)
-        local animator = animation and GetAnimator(rig)
-        if animation and animator then
-            local track = animator:LoadAnimation(animation)
-            track.Priority = Enum.AnimationPriority.Action3
-            track:Play(0)
-            track:AdjustSpeed(0)
-
-            local limit = os.clock() + TRACK_TIMEOUT
-            while track.Length <= 0 and alive and os.clock() < limit do HeartbeatWait(1) end
-            track.TimePosition = math.min(POSE_TIME, track.Length)
-            HeartbeatWait(SETTLE_FRAMES)
+        local pose, reason = EnsurePose(entry, r15, template)
+        if reason then
+            failure = reason
+            return
         end
-
-        SolveJoints(rig)
-        model = Freeze(rig, entry.Display)
+        model = BuildModel(entry, r15, template, pose)
     end)
-
-    if world then pcall(function() world:Destroy() end) end
-    hostEntry.InUse = false
     inflight[entry.Instance] = nil
 
     if not ok then return nil, tostring(err) end
-    if not model then return nil, "preview failed" end
+    if not model then return nil, failure or "preview failed" end
     if not alive then
         model:Destroy()
         return nil, "unloaded"
@@ -338,8 +519,30 @@ function Preview.Bake(entry)
     return model
 end
 
+-- Mengumpulkan pose semua emote ini di latar belakang, pelan-pelan (satu per satu, ada jeda), supaya
+-- membuka kategori mana pun nanti langsung instan. Hanya jalan sekali per animasi (hasilnya disimpan).
+-- Mengembalikan jumlah pose baru yang berhasil diambil.
+function Preview.Collect(entries)
+    local r15 = IsR15()
+    local template = RigTemplate(r15)
+    if not template then return 0 end
+
+    local store = LoadPoses()
+    local collected = 0
+    for _, entry in ipairs(entries) do
+        if not alive then break end
+        local animation = FindAnimation(entry.Instance, r15)
+        if animation and not store[PoseKey(animation, r15)] then
+            if EnsurePose(entry, r15, template) then collected = collected + 1 end
+            task.wait(COLLECT_GAP)
+        end
+    end
+    return collected
+end
+
 getgenv().MugiwaraRegisterCleanup(function()
     alive = false
+    FlushPoses()
     for instance, model in pairs(cache) do pcall(function() model:Destroy() end) cache[instance] = nil end
     if hostGui then pcall(function() hostGui:Destroy() end) hostGui = nil end
     table.clear(hosts)

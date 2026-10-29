@@ -132,16 +132,23 @@ and **Visual Emotes**.
   of each emote are cached, then exchanged between a **Base Emote** and a **Target Emote**; after a swap the
   button turns into **Revert** when the same pair is picked again, and **Revert All** restores everything.
   The emote list comes from the game's own item Registry (category "Emotes", with a built-in path list as a
-  fallback). Each side is a category dropdown (the game's own headers, split in pages of 30) plus a grid of
-  pictures. Evade has no emote images: its menu tiles are ViewportFrames, so `EmotePreview` rebuilds the same thing itself in a hidden frame (the game's own rig from `Assets.Items`,
-  the emote's animation frozen at 0.5 s, its prop model attached; it never `require`s the game's service modules, which
-  can hang from an executor), bakes the pose (joint transforms) into a still model and hands that to Mugiwara UI's grid
-  (`Viewport` items). Nothing animates,
-  and previews are rendered lazily (when a grid is opened) and cached; a swapped emote is rendered again
-  so its picture follows the swap. The Base list hides the Target and vice versa; Rockin Stride <> Kickback
-  and Zombie Stride <> Classic Dance can only be swapped with each other (whatever the category); an emote
-  that is already swapped must be reverted before it can be swapped again. Everything is restored when the
-  hub is unloaded.
+  fallback). Each side is a category dropdown (the game's own headers, split in pages of 24) plus a grid of
+  pictures. Evade has no emote images: its menu tiles are ViewportFrames, so `EmotePreview` rebuilds the same thing
+  itself (the game's own rig from `Assets.Items`, the emote's animation frozen at 0.5 s, its prop model attached;
+  it never `require`s the game's service modules, which can hang from an executor) and hands a still model to
+  Mugiwara UI's grid (`Viewport` items). Viewports are expensive (each one redraws its model every frame), so:
+  - the **pose** of every animation is computed once by really playing it in a hidden frame and saved to
+    `MugiwaraHub/EmotePoses.json` (keyed by animation id, so swapped emotes use their partner's pose); from then on a
+    model is built from the stored joint data instantly, with no animation and no waiting;
+  - opening the section starts a one-time background collection of the poses of all emotes (slow and gentle, 3 hidden
+    hosts at most); later sessions skip it;
+  - the baked models are still and stripped (no joints, attachments, particles, trails, beams, lights, scripts);
+  - only the **open** grid holds viewports (at most one page of 24); a closed grid shows plain icons.
+
+  A swapped emote is rebuilt so its picture follows the swap. The Base list hides the Target and vice versa;
+  Rockin Stride <> Kickback and Zombie Stride <> Classic Dance can only be swapped with each other (whatever the
+  category); an emote that is already swapped must be reverted before it can be swapped again. Everything is
+  restored when the hub is unloaded.
 - **Visual Carry** (free, `Games/Evade/VisualCarry.lua` + `VisualCarryUI.lua`): the same swap as Visual Emotes, for carry
   animations. Carries are the modules in the folders named `CarryAnimations` (spread over BaseItems and many
   ItemPacks, also in sub-folders such as DailyShop / Battlepass); their contents (the `Carry` and `Carried`
