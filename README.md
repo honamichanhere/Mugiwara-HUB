@@ -153,10 +153,13 @@ and **Visual Emotes**.
   animations. Carries are the modules in the folders named `CarryAnimations` (spread over BaseItems and many
   ItemPacks, also in sub-folders such as DailyShop / Battlepass); their contents (the `Carry` and `Carried`
   animations, the `Classic` R6 folder, the `Character` prop model) are exchanged between a **Base Carry** and a
-  **Target Carry** (two searchable dropdowns that list the game's own names and groups), with **Swap / Revert**
-  and **Revert All**. The list comes from the game's Registry (category `CarryAnimations`, with a folder scan as
-  fallback). Both Visual Emotes and Visual Carry share `Games/Evade/VisualSwap.lua`. Everything is restored when
-  the hub is unloaded.
+  **Target Carry**, with **Swap / Revert** and **Revert All**. The list comes from the game's Registry (category
+  `CarryAnimations`, with a folder scan as fallback) and is grouped by the game's own headers. Like Visual Emotes it
+  is a category dropdown plus a picture grid with still previews, built by the same code
+  (`Games/Evade/VisualGridUI.lua`, `EmotePreview.lua`, `VisualSwap.lua`). A carry preview follows the game's
+  `CarryPair`: two mannequins (carrier and carried) are placed where the carry's `Character` model puts them, posed
+  by the `Carry` / `Carried` animations, with the `CarryModel` props attached. Poses are cached in
+  `MugiwaraHub/EmotePoses.json` too. Everything is restored when the hub is unloaded.
 - **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
   `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned, Intermission, Round Start,
   Round End, Vote. The round triggers come from `ReplicatedStorage.Events.UpdateServerStateRegistry`, which

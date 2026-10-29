@@ -1,16 +1,20 @@
--- Pratinjau emote untuk Visual Emotes. Evade tidak punya gambar emote: tiap kotak di menu game adalah
--- ViewportFrame berisi rig (ReplicatedStorage.Assets.Items.VisualRigR15Emote / VisualRigClassic) yang
--- memainkan animasi emote, dibekukan di detik 0.5, ditambah model properti emote. Modul ini membuat hal
--- yang sama sendiri (mengikuti Emote.lua / ClientItemService milik game, tanpa require modul game: require
--- modul layanan game dari executor bisa menggantung).
+-- Pratinjau emote dan carry untuk Visual Emotes / Visual Carry. Evade tidak punya gambar untuk keduanya:
+-- tiap kotak di menu game adalah ViewportFrame berisi rig yang memainkan animasi item, dibekukan, ditambah
+-- model propertinya. Modul ini membuat hal yang sama sendiri (mengikuti Emote.lua / CarryPair.lua /
+-- ClientItemService milik game, tanpa require modul layanan game: itu bisa menggantung dari executor).
+--
+--   Emote : satu rig kosong (VisualRigR15Emote / VisualRigClassic) memainkan Animation emote, dibekukan di
+--           detik 0.5, plus model properti EmoteModel.
+--   Carry : dua boneka (Mannequin / MannequinClassic), pembawa dan yang dibawa, ditaruh di posisi dari model
+--           Character carry, memainkan animasi Carry / Carried (dibekukan di awal), plus model CarryModel.
 --
 -- Supaya ringan, ada tiga lapis:
---  1. POSE disimpan ke file (MugiwaraHub/EmotePoses.json), kuncinya animasi (R15/R6 + AnimationId). Hanya
---     sekali per animasi dihitung dengan benar-benar memainkan animasinya (lambat: animasi dimuat dari server);
---     sesudah itu model dibangun langsung dari data sendi, tanpa animasi, tanpa menunggu (instan). Karena
---     kuncinya animasi, emote yang ditukar otomatis memakai pose pasangannya.
+--  1. POSE disimpan ke file (MugiwaraHub/EmotePoses.json), kuncinya jenis rig + AnimationId. Hanya sekali per
+--     animasi dihitung dengan benar-benar memainkannya (lambat: animasi dimuat dari server); sesudah itu model
+--     dibangun langsung dari data sendi, tanpa animasi, tanpa menunggu (instan). Karena kuncinya animasi,
+--     item yang ditukar otomatis memakai pose pasangannya.
 --  2. Model hasilnya DIAM dan dibersihkan (tanpa sendi, attachment, partikel, trail, beam, lampu, dll).
---  3. Pengumpulan pose untuk semua emote berjalan pelan di latar belakang (Collect), satu per satu.
+--  3. Pengumpulan pose semua item berjalan pelan di latar belakang (Collect), satu per satu.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -20,9 +24,9 @@ local Preview = {}
 
 local TRACK_TIMEOUT = 3   -- detik menunggu panjang animasi diketahui (sama seperti game: maksimal 5)
 local SETTLE_FRAMES = 2   -- frame tambahan supaya pose benar-benar terpasang di sendi
-local POSE_TIME = 0.5     -- detik animasi yang dibekukan, sama dengan game
+local POSE_TIME = 0.5     -- detik animasi emote yang dibekukan, sama dengan game (carry: awal animasi)
 local MAX_HOSTS = 3       -- pengambilan pose yang boleh berjalan bersamaan (animasi dimuat dari server)
-local COLLECT_GAP = 0.12  -- jeda antar emote saat mengumpulkan pose di latar belakang
+local COLLECT_GAP = 0.12  -- jeda antar animasi saat mengumpulkan pose di latar belakang
 
 local POSE_FILE = (getgenv().MugiwaraFolder or "MugiwaraHub") .. "/EmotePoses.json"
 local POSE_VERSION = 1
@@ -30,8 +34,8 @@ local POSE_VERSION = 1
 local alive = true
 local hostGui = nil
 local hosts = {}          -- { Frame, InUse }: ViewportFrame tersembunyi
-local cache = {}          -- [modul emote] = model diam hasil render
-local inflight = {}       -- [modul emote] = true selama model sedang dibangun
+local cache = {}          -- [modul item] = model diam hasil render
+local inflight = {}       -- [modul item] = true selama model sedang dibangun
 local inflightPose = {}   -- [kunci pose] = true selama pose sedang diambil
 local poses = nil         -- [kunci pose] = { [jalur sendi] = komponen CFrame }
 local poseToken = 0
@@ -46,15 +50,26 @@ local function IsR15()
     return true
 end
 
--- Rig kosong milik game untuk pratinjau (R15 atau klasik).
-local function RigTemplate(r15)
+local function AssetItem(name)
     local assets = ReplicatedStorage:FindFirstChild("Assets")
     local items = assets and assets:FindFirstChild("Items")
-    return items and items:FindFirstChild(r15 and "VisualRigR15Emote" or "VisualRigClassic")
+    return items and items:FindFirstChild(name)
 end
 
-function Preview.Available()
-    return RigTemplate(IsR15()) ~= nil
+-- Rig kosong milik game untuk pratinjau emote (R15 atau klasik).
+local function RigTemplate(r15)
+    return AssetItem(r15 and "VisualRigR15Emote" or "VisualRigClassic")
+end
+
+-- Boneka milik game untuk pratinjau carry.
+local function MannequinTemplate(r15)
+    return AssetItem(r15 and "Mannequin" or "MannequinClassic")
+end
+
+function Preview.Available(kind)
+    local r15 = IsR15()
+    if kind == "Carry" then return MannequinTemplate(r15) ~= nil end
+    return RigTemplate(r15) ~= nil
 end
 
 -- ------------------------------------------
@@ -76,7 +91,8 @@ local function FlushPoses()
     poseToken = poseToken + 1
     if not (poses and writefile) then return end
     pcall(function()
-        if makefolder and isfolder and not isfolder(getgenv().MugiwaraFolder or "MugiwaraHub") then makefolder(getgenv().MugiwaraFolder or "MugiwaraHub") end
+        local folder = getgenv().MugiwaraFolder or "MugiwaraHub"
+        if makefolder and isfolder and not isfolder(folder) then makefolder(folder) end
         writefile(POSE_FILE, HttpService:JSONEncode({ Version = POSE_VERSION, Poses = poses }))
     end)
 end
@@ -180,7 +196,7 @@ local function AcquireHost()
 end
 
 -- ------------------------------------------
--- Isi emote (sama dengan cara game membacanya)
+-- Isi item (sama dengan cara game membacanya)
 -- ------------------------------------------
 -- Emote berpilihan (folder Selection) memakai pilihan pertama untuk pratinjau.
 local function Variant(item)
@@ -189,8 +205,8 @@ local function Variant(item)
     return item
 end
 
--- Animasi utama untuk pratinjau (Intro / Outro tidak dipakai).
-local function FindAnimation(item, r15)
+-- Animasi utama emote untuk pratinjau (Intro / Outro tidak dipakai).
+local function FindEmoteAnimation(item, r15)
     if item:FindFirstChild("Animations") or item:FindFirstChild("Selection") then
         local container = item:FindFirstChild("Selection") and Variant(item) or item
         local animations = container:FindFirstChild("Animations")
@@ -202,8 +218,39 @@ local function FindAnimation(item, r15)
     return item:FindFirstChild(r15 and "Animation" or "AnimationClassic")
 end
 
-local function PoseKey(animation, r15)
-    return (r15 and "R15:" or "R6:") .. tostring(animation.AnimationId)
+-- Carry R15 membaca langsung dari modulnya, carry klasik dari folder "Classic" (CarryPair.SetFor).
+local function CarryVariant(item, r15)
+    if r15 then return item end
+    return item:FindFirstChild("Classic")
+end
+
+-- Animasi carry: "Carry" milik pembawa, "Carried" milik yang dibawa.
+local function FindCarryAnimation(item, r15, animationName)
+    local variant = CarryVariant(item, r15)
+    local animation = variant and variant:FindFirstChild(animationName)
+    if animation and animation:IsA("Animation") and animation.AnimationId ~= "" then return animation end
+    return nil
+end
+
+-- Daftar animasi yang perlu diambil posenya untuk item ini: { { Name, Animation, Prefix, Template } }.
+local function PoseJobs(entry, kind, r15)
+    local jobs = {}
+    if kind == "Carry" then
+        local template = MannequinTemplate(r15)
+        local prefix = r15 and "M15:" or "M6:"
+        for name, animationName in pairs({ Carrier = "Carry", Carried = "Carried" }) do
+            local animation = FindCarryAnimation(entry.Instance, r15, animationName)
+            if animation then table.insert(jobs, { Name = name, Animation = animation, Prefix = prefix, Template = template, Classic = not r15 }) end
+        end
+    else
+        local animation = FindEmoteAnimation(entry.Instance, r15)
+        if animation then table.insert(jobs, { Name = "Rig", Animation = animation, Prefix = r15 and "R15:" or "R6:", Template = RigTemplate(r15) }) end
+    end
+    return jobs
+end
+
+local function PoseKey(job)
+    return job.Prefix .. tostring(job.Animation.AnimationId)
 end
 
 -- Jarak akar ke kaki terendah (dari getRootOffset milik game): properti emote dipasang relatif ke sini.
@@ -261,7 +308,7 @@ local function AttachProps(rig, item, r15)
     copy:Destroy()
 end
 
--- Animator rig pratinjau (rig memakai AnimationController, bukan Humanoid); dibuat kalau belum ada.
+-- Animator rig pratinjau (rig emote memakai AnimationController, boneka carry Humanoid); dibuat kalau belum ada.
 local function GetAnimator(rig)
     local controller = rig:FindFirstChildWhichIsA("AnimationController", true) or rig:FindFirstChildWhichIsA("Humanoid", true)
     if not controller then return nil end
@@ -272,32 +319,52 @@ local function GetAnimator(rig)
     end)()
 end
 
+-- Boneka klasik: sendi yang rotasi C0 dan C1-nya sama dinolkan rotasinya (alignJoints milik CarryPair).
+local function AlignJoints(model)
+    for _, descendant in ipairs(model:GetDescendants()) do
+        if descendant:IsA("Motor6D") then
+            local c0, c1 = descendant.C0, descendant.C1
+            if c0.Rotation ~= CFrame.identity and c0.Rotation:FuzzyEq(c1.Rotation) then
+                descendant.C0 = CFrame.new(c0.Position)
+                descendant.C1 = CFrame.new(c1.Position)
+            end
+        end
+    end
+end
+
 -- ------------------------------------------
 -- Model diam
 -- ------------------------------------------
--- Menghitung ulang posisi tiap part dari sendi (Motor6D memakai Transform, Weld tidak), dimulai dari part
--- akar. Hasilnya tidak bergantung pada simulasi: model bisa ditaruh di ViewportFrame biasa.
-local function SolveJoints(rig)
-    local root = rig:FindFirstChild("HumanoidRootPart", true) or rig.PrimaryPart
-    if not root then return false end
+-- Menghitung ulang posisi part dari sendi (Motor6D memakai Transform, Weld tidak). `solved` = part yang
+-- posisinya sudah benar (awalnya hanya part akar); dari situ posisi dirambatkan lewat sendi ke dua arah.
+-- Hasilnya tidak bergantung pada simulasi: model bisa ditaruh di ViewportFrame biasa.
+local function SolveJoints(container, solved)
+    if not solved then
+        local root = container:FindFirstChild("HumanoidRootPart", true) or container.PrimaryPart
+        if not root then return false end
+        solved = { [root] = true }
+    end
 
     local joints = {}
-    for _, descendant in ipairs(rig:GetDescendants()) do
+    for _, descendant in ipairs(container:GetDescendants()) do
         if descendant:IsA("Motor6D") or descendant:IsA("Weld") then
             if descendant.Part0 and descendant.Part1 then table.insert(joints, descendant) end
         end
     end
 
-    local solved = { [root] = true }
     local progress = true
     while progress do
         progress = false
         for _, joint in ipairs(joints) do
             local part0, part1 = joint.Part0, joint.Part1
+            local transform = joint:IsA("Motor6D") and joint.Transform or CFrame.new()
             if solved[part0] and not solved[part1] then
-                local transform = joint:IsA("Motor6D") and joint.Transform or CFrame.new()
                 part1.CFrame = part0.CFrame * joint.C0 * transform * joint.C1:Inverse()
                 solved[part1] = true
+                progress = true
+            elseif solved[part1] and not solved[part0] then
+                part0.CFrame = part1.CFrame * joint.C1 * transform:Inverse() * joint.C0:Inverse()
+                solved[part0] = true
                 progress = true
             end
         end
@@ -306,8 +373,8 @@ local function SolveJoints(rig)
 end
 
 -- Putar seluruh model supaya part utamanya sejajar sumbu dunia (rotasi identitas), posisi akarnya tetap.
--- Kamera game diletakkan relatif ke PrimaryPart rig (di depan karakter), tetapi rig bisa menghadap arah
--- lain; tanpa ini sisi yang terlihat di grid bisa dari samping.
+-- Kamera game diletakkan relatif ke PrimaryPart (di depan karakter), tetapi rig bisa menghadap arah lain;
+-- tanpa ini sisi yang terlihat di grid bisa dari samping.
 local function Orient(model)
     local primary = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart", true)
     if not primary then return end
@@ -336,9 +403,9 @@ local function ShouldStrip(instance)
     return instance:IsA("Attachment") and not instance:IsA("Bone")
 end
 
--- Salinan diam dari rig: bersih, semua part Anchored, menghadap depan.
-local function Freeze(rig, name)
-    local copy = rig:Clone()
+-- Salinan diam dari model: bersih, semua part Anchored, menghadap depan.
+local function Freeze(source, name)
+    local copy = source:Clone()
     copy.Name = name
     for _, descendant in ipairs(copy:GetDescendants()) do
         if descendant:IsA("BasePart") then
@@ -356,32 +423,128 @@ local function Freeze(rig, name)
     return copy
 end
 
--- Model dari rig kosong + properti emote + pose (tanpa animasi, tanpa menunggu).
-local function BuildModel(entry, r15, template, pose)
+-- Model emote: rig kosong + properti emote + pose (tanpa animasi, tanpa menunggu).
+local function BuildEmoteModel(entry, r15, poseOf)
+    local template = RigTemplate(r15)
+    if not template then return nil, "the game's preview rig was not found" end
+
     local rig = template:Clone()
     AttachProps(rig, entry.Instance, r15)
-    if pose then ApplyPose(rig, pose) end
+    if poseOf.Rig then ApplyPose(rig, poseOf.Rig) end
     SolveJoints(rig)
     local model = Freeze(rig, entry.Display)
     pcall(function() rig:Destroy() end)
     return model
 end
 
+local function IsInside(part, container)
+    local node = part
+    while node do
+        if node == container then return true end
+        node = node.Parent
+    end
+    return false
+end
+
+-- Model carry (CarryPair.Build + Pose): dua boneka (Carrier dan Carried) ditaruh di posisi HumanoidRootPart
+-- masing-masing dari model Character carry, diberi pose animasi, lalu model properti (CarryModel) dipasang ke
+-- boneka dan posisinya dihitung dari sendinya.
+local function BuildCarryModel(entry, r15, poseOf)
+    local template = MannequinTemplate(r15)
+    if not template then return nil, "the game's mannequin was not found" end
+
+    local variant = CarryVariant(entry.Instance, r15)
+    local characterTemplate = variant and variant:FindFirstChild("Character")
+    if not characterTemplate then return nil, "this carry has no character model" end
+
+    local okClone, character = pcall(function() return characterTemplate:Clone() end)
+    if not okClone or not character then return nil, "this carry model cannot be copied" end
+
+    local model = Instance.new("Model")
+    model.Name = entry.Display
+
+    local placed = {}
+    for _, name in ipairs({ "Carrier", "Carried" }) do
+        local holder = character:FindFirstChild(name)
+        local anchor = holder and holder:FindFirstChild("HumanoidRootPart")
+        if not (anchor and anchor:IsA("BasePart")) then
+            character:Destroy()
+            model:Destroy()
+            return nil, "this carry model is incomplete"
+        end
+
+        local clone = template:Clone()
+        clone.Name = name
+        if not r15 then pcall(AlignJoints, clone) end
+        if poseOf[name] then ApplyPose(clone, poseOf[name]) end
+        SolveJoints(clone)
+
+        -- boneka dipindahkan utuh supaya akarnya ada di posisi anchor
+        local root = clone:FindFirstChild("HumanoidRootPart", true)
+        local move = anchor.CFrame * root.CFrame:Inverse()
+        for _, descendant in ipairs(clone:GetDescendants()) do
+            if descendant:IsA("BasePart") then descendant.CFrame = move * descendant.CFrame end
+        end
+
+        clone.Parent = model
+        placed[name] = clone
+    end
+
+    -- properti: sendi yang menempel ke bagian Carrier / Carried diarahkan ke bagian boneka yang bernama sama
+    local propParts = {}
+    for _, name in ipairs({ "Carrier", "Carried" }) do
+        local holder = character:FindFirstChild(name)
+        local carryModel = holder and holder:FindFirstChild("CarryModel")
+        if carryModel then
+            for _, descendant in ipairs(carryModel:GetDescendants()) do
+                if descendant:IsA("BasePart") then propParts[descendant] = true end
+                if descendant:IsA("Motor6D") or descendant:IsA("Weld") or descendant:IsA("ManualWeld") or descendant:IsA("WeldConstraint") then
+                    for _, property in ipairs({ "Part0", "Part1" }) do
+                        local part = descendant[property]
+                        if typeof(part) == "Instance" and IsInside(part, character) and not IsInside(part, carryModel) then
+                            local top = part
+                            while top.Parent and top.Parent ~= character do top = top.Parent end
+                            local mannequin = placed[top.Name]
+                            if mannequin then
+                                local replacement = mannequin:FindFirstChild(part.Name)
+                                if not (replacement and replacement:IsA("BasePart")) then replacement = mannequin:FindFirstChild("HumanoidRootPart") end
+                                descendant[property] = replacement
+                            end
+                        end
+                    end
+                end
+            end
+            carryModel.Parent = placed[name]
+        end
+    end
+
+    model.PrimaryPart = placed.Carrier:FindFirstChild("HumanoidRootPart")
+    character:Destroy()
+
+    -- posisi properti dihitung dari boneka yang sudah di tempatnya
+    local solved = {}
+    for _, descendant in ipairs(model:GetDescendants()) do
+        if descendant:IsA("BasePart") and not propParts[descendant] then solved[descendant] = true end
+    end
+    SolveJoints(model, solved)
+
+    local frozen = Freeze(model, entry.Display)
+    pcall(function() model:Destroy() end)
+    return frozen
+end
+
 -- ------------------------------------------
 -- Pengambilan pose (satu-satunya bagian yang lambat)
 -- ------------------------------------------
--- Pose animasi emote ini: dari file kalau sudah pernah dihitung, kalau belum dihitung dengan memainkan
--- animasinya di host tersembunyi (menunggu animasi dimuat dari server) lalu disimpan.
--- Mengembalikan pose, atau nil (tanpa alasan) kalau emote tidak punya animasi, atau nil + alasan kalau gagal.
-local function EnsurePose(entry, r15, template)
-    local animation = FindAnimation(entry.Instance, r15)
-    if not animation then return nil end
-
-    local key = PoseKey(animation, r15)
+-- Pose satu animasi pada satu jenis rig: dari file kalau sudah pernah dihitung, kalau belum dihitung dengan
+-- memainkan animasinya di host tersembunyi (menunggu animasi dimuat dari server) lalu disimpan.
+-- Mengembalikan pose, atau nil + alasan kalau gagal.
+local function EnsurePose(job)
+    local key = PoseKey(job)
     local store = LoadPoses()
     if store[key] then return store[key] end
 
-    -- animasi yang sama sedang diambil (mis. oleh emote lain): tunggu hasilnya
+    -- animasi yang sama sedang diambil (mis. oleh item lain): tunggu hasilnya
     while inflightPose[key] do
         task.wait(0.03)
         if not alive then return nil, "unloaded" end
@@ -401,7 +564,8 @@ local function EnsurePose(entry, r15, template)
         world = Instance.new("WorldModel")
         world.Parent = hostEntry.Frame
 
-        local rig = template:Clone()
+        local rig = job.Template:Clone()
+        if job.Classic then pcall(AlignJoints, rig) end
         rig.Parent = world
 
         local animator = GetAnimator(rig)
@@ -410,7 +574,7 @@ local function EnsurePose(entry, r15, template)
             return
         end
 
-        local track = animator:LoadAnimation(animation)
+        local track = animator:LoadAnimation(job.Animation)
         track.Priority = Enum.AnimationPriority.Action3
         track:Play(0)
         track:AdjustSpeed(0)
@@ -422,7 +586,8 @@ local function EnsurePose(entry, r15, template)
             return
         end
 
-        track.TimePosition = math.min(POSE_TIME, track.Length)
+        -- emote: detik 0.5 seperti game; carry: awal animasi (game tidak mengatur TimePosition untuk carry)
+        if job.Prefix == "R15:" or job.Prefix == "R6:" then track.TimePosition = math.min(POSE_TIME, track.Length) end
         HeartbeatWait(SETTLE_FRAMES)
         pose = CapturePose(rig)
     end)
@@ -440,20 +605,23 @@ local function EnsurePose(entry, r15, template)
 end
 
 -- ------------------------------------------
--- API
+-- API (kind = "Emote" (bawaan) atau "Carry")
 -- ------------------------------------------
--- Model diam emote ini dari cache, atau nil kalau belum dibangun.
+-- Model diam item ini dari cache, atau nil kalau belum dibangun.
 function Preview.Get(entry)
     return entry and cache[entry.Instance] or nil
 end
 
--- true kalau pose emote ini sudah ada di file (membangun modelnya instan).
-function Preview.PoseKnown(entry)
-    local animation = FindAnimation(entry.Instance, IsR15())
-    return animation == nil or LoadPoses()[PoseKey(animation, IsR15())] ~= nil
+-- true kalau semua pose item ini sudah ada di file (membangun modelnya instan).
+function Preview.PoseKnown(entry, kind)
+    local store = LoadPoses()
+    for _, job in ipairs(PoseJobs(entry, kind, IsR15())) do
+        if not store[PoseKey(job)] then return false end
+    end
+    return true
 end
 
--- Membuang model lama (dipakai setelah emote ditukar: isinya berubah, jadi gambarnya ikut berubah).
+-- Membuang model lama (dipakai setelah item ditukar: isinya berubah, jadi gambarnya ikut berubah).
 function Preview.Invalidate(entry)
     local model = entry and cache[entry.Instance]
     if model then
@@ -462,14 +630,15 @@ function Preview.Invalidate(entry)
     end
 end
 
--- Memuat animasi emote yang posenya belum ada, serentak, di latar belakang (mempercepat pengambilan pose).
-function Preview.Preload(entries)
+-- Memuat animasi item yang posenya belum ada, serentak, di latar belakang (mempercepat pengambilan pose).
+function Preview.Preload(entries, kind)
     local r15 = IsR15()
     local store = LoadPoses()
     local list = {}
     for _, entry in ipairs(entries) do
-        local animation = FindAnimation(entry.Instance, r15)
-        if animation and not store[PoseKey(animation, r15)] then table.insert(list, animation) end
+        for _, job in ipairs(PoseJobs(entry, kind, r15)) do
+            if not store[PoseKey(job)] then table.insert(list, job.Animation) end
+        end
     end
     if #list == 0 then return end
     task.spawn(function()
@@ -477,18 +646,16 @@ function Preview.Preload(entries)
     end)
 end
 
--- Membangun model diam satu emote (menunggu kalau posenya belum ada; boleh yield). Mengembalikan model
--- atau nil, alasan. Kalau posenya sudah tersimpan, hasilnya langsung ada tanpa menunggu.
-function Preview.Bake(entry)
+-- Membangun model diam satu item (menunggu kalau posenya belum ada; boleh yield). Mengembalikan model
+-- atau nil, alasan. Kalau semua posenya sudah tersimpan, hasilnya langsung ada tanpa menunggu.
+function Preview.Bake(entry, kind)
     if not alive then return nil, "unloaded" end
     local cached = cache[entry.Instance]
     if cached then return cached end
 
     local r15 = IsR15()
-    local template = RigTemplate(r15)
-    if not template then return nil, "the game's preview rig was not found" end
 
-    -- emote yang sama sedang dibangun (mis. oleh sisi grid lain): tunggu hasilnya
+    -- item yang sama sedang dibangun (mis. oleh sisi grid lain): tunggu hasilnya
     while inflight[entry.Instance] do
         task.wait(0.03)
         if not alive then return nil, "unloaded" end
@@ -499,12 +666,20 @@ function Preview.Bake(entry)
 
     local model, failure
     local ok, err = pcall(function()
-        local pose, reason = EnsurePose(entry, r15, template)
-        if reason then
-            failure = reason
-            return
+        local poseOf = {}
+        for _, job in ipairs(PoseJobs(entry, kind, r15)) do
+            local pose, reason = EnsurePose(job)
+            if not pose then
+                failure = reason
+                return
+            end
+            poseOf[job.Name] = pose
         end
-        model = BuildModel(entry, r15, template, pose)
+        if kind == "Carry" then
+            model, failure = BuildCarryModel(entry, r15, poseOf)
+        else
+            model, failure = BuildEmoteModel(entry, r15, poseOf)
+        end
     end)
     inflight[entry.Instance] = nil
 
@@ -519,22 +694,20 @@ function Preview.Bake(entry)
     return model
 end
 
--- Mengumpulkan pose semua emote ini di latar belakang, pelan-pelan (satu per satu, ada jeda), supaya
+-- Mengumpulkan pose semua item ini di latar belakang, pelan-pelan (satu per satu, ada jeda), supaya
 -- membuka kategori mana pun nanti langsung instan. Hanya jalan sekali per animasi (hasilnya disimpan).
 -- Mengembalikan jumlah pose baru yang berhasil diambil.
-function Preview.Collect(entries)
+function Preview.Collect(entries, kind)
     local r15 = IsR15()
-    local template = RigTemplate(r15)
-    if not template then return 0 end
-
     local store = LoadPoses()
     local collected = 0
     for _, entry in ipairs(entries) do
         if not alive then break end
-        local animation = FindAnimation(entry.Instance, r15)
-        if animation and not store[PoseKey(animation, r15)] then
-            if EnsurePose(entry, r15, template) then collected = collected + 1 end
-            task.wait(COLLECT_GAP)
+        for _, job in ipairs(PoseJobs(entry, kind, r15)) do
+            if not store[PoseKey(job)] then
+                if EnsurePose(job) then collected = collected + 1 end
+                task.wait(COLLECT_GAP)
+            end
         end
     end
     return collected
