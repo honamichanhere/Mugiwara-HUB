@@ -114,7 +114,7 @@ module.
 
 ## Evade AFK Farm and Auto Commands
 
-Evade Main tab order: Premium Features, Halloween Ticket Farm, Auto Commands, Character Movement. All
+Evade Main tab order: Premium Features, Halloween Ticket Farm, Auto Commands, Visual Carry, Character Movement. All
 sections start collapsed, except Premium Activation. Premium Features is split into five sections of its
 own: **Auto Farm** (AFK Farm), **Accessory**, **Korless** (Headless Head, Korblox legs), **Avatar Changer**
 and **Visual Emotes**.
@@ -142,6 +142,14 @@ and **Visual Emotes**.
   and Zombie Stride <> Classic Dance can only be swapped with each other (whatever the category); an emote
   that is already swapped must be reverted before it can be swapped again. Everything is restored when the
   hub is unloaded.
+- **Visual Carry** (free, `Games/Evade/VisualCarry.lua` + `VisualCarryUI.lua`): the same swap as Visual Emotes, for carry
+  animations. Carries are the modules in the folders named `CarryAnimations` (spread over BaseItems and many
+  ItemPacks, also in sub-folders such as DailyShop / Battlepass); their contents (the `Carry` and `Carried`
+  animations, the `Classic` R6 folder, the `Character` prop model) are exchanged between a **Base Carry** and a
+  **Target Carry** (two searchable dropdowns that list the game's own names and groups), with **Swap / Revert**
+  and **Revert All**. The list comes from the game's Registry (category `CarryAnimations`, with a folder scan as
+  fallback). Both Visual Emotes and Visual Carry share `Games/Evade/VisualSwap.lua`. Everything is restored when
+  the hub is unloaded.
 - **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
   `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned, Intermission, Round Start,
   Round End, Vote. The round triggers come from `ReplicatedStorage.Events.UpdateServerStateRegistry`, which

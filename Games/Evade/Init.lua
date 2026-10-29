@@ -3,6 +3,7 @@ local AvatarChangerModule = getgenv().MugiwaraImport("Games/Evade/AvatarChanger.
 local TicketFarmModule = getgenv().MugiwaraImport("Games/Evade/TicketFarm.lua")
 local AfkFarmUI = getgenv().MugiwaraImport("Games/Evade/AfkFarmUI.lua")
 local VisualEmotesUI = getgenv().MugiwaraImport("Games/Evade/VisualEmotesUI.lua")
+local VisualCarryUI = getgenv().MugiwaraImport("Games/Evade/VisualCarryUI.lua")
 local Risk = getgenv().MugiwaraImport("Manager/Risk.lua") or { Desc = function(_, text) return text end, Warn = function() end }
 
 return function(Window, isPremiumUser, MugiwaraUI)
@@ -234,6 +235,18 @@ return function(Window, isPremiumUser, MugiwaraUI)
         local ok, err = pcall(AfkFarmUI.BuildCommands, TabMain, isPremiumUser, MugiwaraUI)
         if not ok then warn("[Mugiwara HUB] Auto Commands UI error: " .. tostring(err)) end
     end
+    -- ==========================================
+    -- VISUAL CARRY (free)
+    -- ==========================================
+    if VisualCarryUI then
+        local CarrySection = TabMain:Section({ Title = "Visual Carry", Icon = "lucide:hand-helping", Opened = false, Box = true })
+        -- Di thread sendiri: memuat daftar carry (Registry game) bisa lama, dan sisa tab Main tidak boleh menunggu.
+        task.spawn(function()
+            local ok, err = pcall(VisualCarryUI.Build, CarrySection, MugiwaraUI)
+            if not ok then warn("[Mugiwara HUB] Visual Carry UI error: " .. tostring(err)) end
+        end)
+    end
+
     local injectMovement = getgenv().MugiwaraImport("Tabs/MovementInjector.lua")
     if injectMovement then
         injectMovement(TabMain, isPremiumUser, MugiwaraUI)
