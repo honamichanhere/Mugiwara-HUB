@@ -241,7 +241,7 @@ return function(config)
     function Swap.SwappedCount()
         local count = 0
         for _ in pairs(swapped) do count = count + 1 end
-        return count // 2
+        return math.floor(count / 2)
     end
 
     -- Saat hub dimatikan semua item dikembalikan, supaya tidak ada yang tertinggal tertukar.
