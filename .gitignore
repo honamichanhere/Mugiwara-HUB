@@ -12,3 +12,7 @@ MugiwaraHubConfig/
 PremiumKey.txt
 .env
 HonamiHub/
+
+# release/build.mjs output: generated bundles (plain and obfuscated) - never commit these,
+# rebuild them and push to your release repo instead
+release/dist/
