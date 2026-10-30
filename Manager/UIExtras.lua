@@ -6,6 +6,10 @@ local UIExtras = {}
 -- diubah; semuanya ditambahkan dari sisi hub lewat modul ini.
 --
 -- Install(Window) dipanggil SEKALI tepat setelah window dibuat, sebelum elemen apa pun dibuat.
+--
+-- Daftar kontrol (untuk shortcut keyboard): tiap Toggle, Slider dan Button yang dibuat setelah Install dicatat di
+-- Window._MugiwaraControls beserta "jalur"-nya (Tab > Section > ...). Elemen yang dibuat dengan NoShortcut = true tidak
+-- dicatat, dan elemen yang dihapus (Destroy) ikut dikeluarkan dari daftar. Lihat Manager/Shortcuts.lua.
 
 local GOLD = Color3.fromRGB(255, 220, 130)
 
@@ -104,6 +108,47 @@ local function AttachSectionIcon(UI, Window, section, header, title, icon, color
     end
 end
 
+local function StripMarkup(text)
+    local clean = string.gsub(tostring(text or ""), "<[^>]*>", "")
+    return (string.match(clean, "^%s*(.-)%s*$"))
+end
+
+-- Daftar kontrol milik satu Window: { List = { control... }, Version = n }. Version naik tiap daftar berubah.
+function UIExtras.GetControls(Window)
+    return Window and Window._MugiwaraControls
+end
+
+local function RegisterControl(registry, container, element, kind, opts)
+    local title = StripMarkup(opts.Title)
+    if title == "" then return end
+
+    local path = container._ShortcutPath or ""
+    local base = path ~= "" and (title .. " - " .. path) or title
+
+    -- Judul dan jalur yang sama dibedakan dengan nomor, supaya tiap kontrol punya nama unik per jenisnya.
+    local same = 0
+    for _, other in ipairs(registry.List) do
+        if other.Type == kind and other.Base == base then same = same + 1 end
+    end
+    local display = same > 0 and (base .. " (" .. (same + 1) .. ")") or base
+
+    local control = { Type = kind, Title = title, Path = path, Base = base, Display = display, Element = element }
+    table.insert(registry.List, control)
+    registry.Version = registry.Version + 1
+
+    local originalDestroy = element.Destroy
+    element.Destroy = function(self, ...)
+        for index, other in ipairs(registry.List) do
+            if other == control then
+                table.remove(registry.List, index)
+                registry.Version = registry.Version + 1
+                break
+            end
+        end
+        if originalDestroy then return originalDestroy(self, ...) end
+    end
+end
+
 function UIExtras.Install(UI, Window)
     if Window._MugiwaraExtras then return end
     Window._MugiwaraExtras = true
@@ -160,10 +205,31 @@ function UIExtras.Install(UI, Window)
         return originalParagraph(self, opts)
     end
 
+    -- Daftar kontrol untuk shortcut: Toggle, Slider dan Button dicatat dengan jalurnya (Tab > Section > Section).
+    local registry = { List = {}, Version = 0 }
+    Window._MugiwaraControls = registry
+
+    for _, kind in ipairs({ "Toggle", "Slider", "Button" }) do
+        local original = Container[kind]
+        Container[kind] = function(self, opts)
+            local element = original(self, opts)
+            if type(opts) == "table" and element and opts.NoShortcut ~= true then
+                local ok, err = pcall(RegisterControl, registry, self, element, kind, opts)
+                if not ok then warn("[Mugiwara HUB] Control registry error: " .. tostring(err)) end
+            end
+            return element
+        end
+    end
+
     -- Judul Section berwarna (`<font color="#ffff82">...</font>`) dan ikon di header Section.
     local originalSection = Container.Section
     Container.Section = function(self, opts)
         local section = originalSection(self, opts)
+        if type(opts) == "table" and section then
+            local parentPath = self._ShortcutPath
+            local title = StripMarkup(opts.Title)
+            section._ShortcutPath = (parentPath and parentPath ~= "") and (parentPath .. " > " .. title) or title
+        end
         if type(opts) == "table" and section and section.Frame then
             local header = FindByName(section.Frame, "Header")
             local title = header and header:FindFirstChildOfClass("TextLabel")
@@ -180,6 +246,7 @@ function UIExtras.Install(UI, Window)
     local originalTab = Window.Tab
     Window.Tab = function(self, opts)
         local tab = originalTab(self, opts)
+        if type(opts) == "table" and tab then tab._ShortcutPath = StripMarkup(opts.Title) end
         if type(opts) == "table" and HasMarkup(opts.Title) and self.TabList then
             local button
             for _, child in ipairs(self.TabList:GetChildren()) do

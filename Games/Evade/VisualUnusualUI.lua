@@ -3,10 +3,9 @@ local VisualUnusual = getgenv().MugiwaraImport("Games/Evade/VisualUnusual.lua")
 -- Antarmuka Visual Unusual (premium): pilih efek Unusual dari grid. Memilih = langsung dipasang, memilih lagi =
 -- dilepas, dan beberapa bisa dipasang bersamaan (ditumpuk). Logikanya ada di VisualUnusual.lua.
 -- Gambar tiap kotak adalah ikon Unusual dari game, jadi tidak ada viewport (ringan). Daftar dibagi per kategori
--- (Header milik game) dan per halaman (CHUNK), sama seperti Visual Emotes.
+-- (Header milik game), satu kategori satu daftar utuh, sama seperti Visual Emotes.
 local UI = {}
 
-local CHUNK = 24
 local HEADER_ORDER = { "Normal", "Gamepasses", "Halloween", "Winter Holidays", "Summer", "Spring", "Valentines", "Event", "Special" }
 local NAMES_SHOWN = 6 -- berapa nama ditulis di ringkasan "Applied"
 
@@ -31,17 +30,10 @@ local function BuildGroups(entries)
     table.sort(rest)
     for _, header in ipairs(rest) do table.insert(order, header) end
 
+    -- Satu kategori = satu grup, berapa pun isinya (tidak dipecah jadi halaman).
     local groups = {}
     for _, header in ipairs(order) do
-        local list = byHeader[header]
-        local pages = math.ceil(#list / CHUNK)
-        for page = 1, pages do
-            local from = (page - 1) * CHUNK + 1
-            table.insert(groups, {
-                Title = pages > 1 and (header .. " " .. page .. "/" .. pages) or header,
-                Entries = table.move(list, from, math.min(from + CHUNK - 1, #list), 1, {}),
-            })
-        end
+        table.insert(groups, { Title = header, Entries = byHeader[header] })
     end
     return groups
 end

@@ -7,6 +7,7 @@ local LocalPlayer = Players.LocalPlayer
 TicketFarm.FarmEnabled = false
 TicketFarm.AvoidEnabled = false
 TicketFarm.SafeDistance = 30 -- studs; NextBot di dalam radius ini memicu teleport kabur
+TicketFarm.TeleportDelay = 0 -- detik; jeda minimal antara dua teleport ke ticket (0 = langsung)
 
 local TICK = 0.1                -- detik antar pengecekan
 local TARGET_TIMEOUT = 5        -- detik; ticket yang tidak hilang dalam waktu ini dilewati
@@ -18,6 +19,7 @@ local alive = true
 local currentTarget = nil
 local targetSince = 0
 local lastTeleport = 0
+local lastFarmTeleport = -math.huge -- teleport ke ticket terakhir (teleport kabur dari NextBot tidak dihitung)
 local ignored = setmetatable({}, { __mode = "k" }) -- ticket yang dilewati (timeout)
 local warnedError = false
 
@@ -162,6 +164,11 @@ local function Step()
     end
 
     if not currentTarget then
+        -- Jeda antar teleport ke ticket (slider Teleport Delay). Teleport kabur dari NextBot tidak ikut ditunda.
+        if TicketFarm.TeleportDelay > 0 and os.clock() - lastFarmTeleport < TicketFarm.TeleportDelay then
+            return
+        end
+
         local best, bestDistance = nil, math.huge
         for _, ticket in ipairs(folder:GetChildren()) do
             if not ignored[ticket] then
@@ -178,6 +185,7 @@ local function Step()
         if best then
             currentTarget, targetSince = best, os.clock()
             MoveTo(body, GetPosition(best))
+            lastFarmTeleport = os.clock()
         end
         -- Tidak ada ticket: diam di posisi terakhir, pemain bebas bergerak.
         return
@@ -218,6 +226,10 @@ end
 
 function TicketFarm.SetSafeDistance(value)
     TicketFarm.SafeDistance = value
+end
+
+function TicketFarm.SetTeleportDelay(value)
+    TicketFarm.TeleportDelay = math.max(0, tonumber(value) or 0)
 end
 
 -- Full teardown on re-execute / unload.

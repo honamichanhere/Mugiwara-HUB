@@ -135,6 +135,18 @@ return function(Window, isPremiumUser, MugiwaraUI)
                 TicketFarmModule.SetSafeDistance(Value)
             end
         })
+
+        FarmSection:Slider({
+            Title = "Teleport Delay",
+            Icon = "lucide:timer",
+            Desc = "Wait this many seconds between teleports to tickets. 0 teleports right away. Escaping a NextBot is never delayed.",
+            Step = 0.5,
+            Suffix = " s",
+            Value = { Min = 0, Max = 20, Default = TicketFarmModule.TeleportDelay or 0 },
+            Callback = function(Value)
+                TicketFarmModule.SetTeleportDelay(Value)
+            end
+        })
     end
 
     -- ==========================================

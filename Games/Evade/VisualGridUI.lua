@@ -8,12 +8,11 @@ local Preview = getgenv().MugiwaraImport("Games/Evade/EmotePreview.lua")
 -- Tiap kotak grid menampilkan item seperti di menu Evade (karakter dengan pose), tetapi DIAM: model hasil
 -- render EmotePreview ditaruh di item Viewport milik GridDropdown dan tidak diputar. Satu viewport = satu
 -- permukaan render yang digambar ulang setiap frame, jadi:
---   * daftar dibagi per kategori (Header milik game) dan per halaman (CHUNK);
+--   * daftar dibagi per kategori (Header milik game), satu kategori satu daftar utuh;
 --   * hanya grid yang sedang DIBUKA yang memegang viewport, grid tertutup menampilkan ikon biasa;
 --   * pose dihitung sekali dan disimpan ke file (lihat EmotePreview.lua).
 local UI = {}
 
-local CHUNK = 24
 local HEADER_ORDER = { "Normal", "Gamepasses", "Halloween", "Winter Holidays", "Summer", "Spring", "Valentines", "Event", "Special" }
 
 -- Sudut kamera seperti menu game: dari depan, sedikit ke kanan dan di atas, FOV 30. Ubah di sini kalau perlu.
@@ -41,17 +40,10 @@ local function BuildGroups(entries)
     table.sort(rest)
     for _, header in ipairs(rest) do table.insert(order, header) end
 
+    -- Satu kategori = satu grup, berapa pun isinya (tidak dipecah jadi halaman).
     local groups = {}
     for _, header in ipairs(order) do
-        local list = byHeader[header]
-        local pages = math.ceil(#list / CHUNK)
-        for page = 1, pages do
-            local from = (page - 1) * CHUNK + 1
-            table.insert(groups, {
-                Title = pages > 1 and (header .. " " .. page .. "/" .. pages) or header,
-                Entries = table.move(list, from, math.min(from + CHUNK - 1, #list), 1, {}),
-            })
-        end
+        table.insert(groups, { Title = header, Entries = byHeader[header] })
     end
     return groups
 end

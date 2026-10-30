@@ -43,15 +43,15 @@ default). The Arrow Keys turn 40 degrees per second (deliberately slower than Ro
 (Left / Right)** and **Vertical Speed (Up / Down)** are separate multipliers (0.1x to 5x) that apply to both the mouse and the
 Arrow Keys.
 
-Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm with NextBot avoidance). Every other game gets the **Universal** module: character movement plus the premium **Accessory** and **Korless** sections (the same ones Evade has, applied to your normal R6 / R15 character).
+Supported games: **Evade** (accessories, avatar morph, Halloween Ticket Farm with NextBot avoidance and a 0 to 20 second **Teleport Delay** between ticket teleports; escaping a NextBot is never delayed). Every other game gets the **Universal** module: character movement plus the premium **Accessory** and **Korless** sections (the same ones Evade has, applied to your normal R6 / R15 character).
 
 ## Folder structure
 
 ```
 Main.lua                 Entry point: auth, window, tab loader, game detector
 Universal.lua            Fallback module for games without their own module
-Tabs/                    UI tabs (Home, Lighting, Camera, Misc, Chat, UIConfig, MovementInjector, VisualAvatarUI)
-Manager/                 Logic behind the tabs (Movement, VisualAccessories, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Cursor, Risk, HideGui, UIExtras, UISettings)
+Tabs/                    UI tabs (Home, Lighting, Camera, Misc, Chat, UIConfig, MovementInjector, VisualAvatarUI, ShortcutsUI)
+Manager/                 Logic behind the tabs (Movement, VisualAccessories, Camera, Lighting, Reflection (script kept, not wired to the UI for now), Server, Keybinds, Shortcuts, Cursor, Risk, HideGui, UIExtras, UISettings)
 Games/<Game>/Init.lua    One folder per supported game
 ```
 
@@ -115,21 +115,25 @@ Icons follow the theme accent. Only premium things are coloured (`IconColor`, go
 
 ## Keyboard shortcuts
 
-Shortcuts are **off by default** (Misc > Keyboard Shortcuts > Enable Keyboard Shortcuts). Defaults, all rebindable and saved in `MugiwaraHub/Keybinds.json`:
+Shortcuts are **off by default** (Misc > Keyboard Shortcuts > Enable Keyboard Shortcuts). The section holds:
 
-| Action | Key |
-| --- | --- |
-| Show / Hide Hub | `K` |
-| Fly | `Y` |
-| Noclip | `N` |
-| Speed Hack | `Z` |
-| Infinite Jump | `J` |
-| Free Camera (premium) | `P` |
-| Panic: Unload Hub | `End` |
+- **Show / Hide Hub** (`K` by default): always there, you can only change its key. Saved in `MugiwaraHub/Keybinds.json`.
+- **Your own shortcuts** (`Add Shortcut`, up to 20, saved in `MugiwaraHub/Shortcuts.json`). Each one is a small
+  section with a **Name**, a **Type** (Toggle, Slider or Button, the only kinds you can bind), the **Feature** it runs,
+  what to do (**When pressed**: Toggle / Turn On / Turn Off for a toggle, a **Value** for a slider, nothing for a
+  button), the **Key** and **Delete Shortcut**. The Feature list holds every switch, slider or button of the hub,
+  named `Title - Tab > Section`, and it grows by itself when other tabs finish building. A shortcut for a feature that
+  is not in this game stays saved and just says it is not available. Premium features stay locked for free users.
+
+How it works: `Manager/UIExtras.lua` records every Toggle, Slider and Button as it is created
+(`Window._MugiwaraControls`; elements made with `NoShortcut = true` are skipped, destroyed ones are dropped), so a
+feature needs no shortcut code of its own. `Manager/Shortcuts.lua` holds the data and runs a shortcut by setting the
+real UI element (so the callback runs and the on-screen control stays in sync); `Tabs/ShortcutsUI.lua` is the UI.
+A single-row element that holds name, type, feature, value, key and delete together would need a new element in
+Mugiwara UI; for now each shortcut is one collapsible section.
 
 `getgenv().MugiwaraImport` caches modules per session, so a module imported by several tabs is
-always the same instance. Toggle shortcuts flip the real UI toggle (through `Module.UI`) so the
-on-screen switch stays in sync.
+always the same instance.
 
 ## Evade VIP commands
 
@@ -160,7 +164,7 @@ own: **Auto Farm** (AFK Farm), **Accessory**, **Korless** (Headless Head, Korblo
   of each emote are cached, then exchanged between a **Base Emote** and a **Target Emote**; after a swap the
   button turns into **Revert** when the same pair is picked again, and **Revert All** restores everything.
   The emote list comes from the game's own item Registry (category "Emotes", with a built-in path list as a
-  fallback). Each side is a category dropdown (the game's own headers, split in pages of 24) plus a grid of
+  fallback). Each side is a category dropdown (the game's own headers, one whole list per header, never split in pages) plus a grid of
   pictures. Evade has no emote images: its menu tiles are ViewportFrames, so `EmotePreview` rebuilds the same thing
   itself (the game's own rig from `Assets.Items`, the emote's animation frozen at 0.5 s, its prop model attached;
   it never `require`s the game's service modules, which can hang from an executor) and hands a still model to
@@ -171,7 +175,7 @@ own: **Auto Farm** (AFK Farm), **Accessory**, **Korless** (Headless Head, Korblo
   - opening the section starts a one-time background collection of the poses of all emotes (slow and gentle, 3 hidden
     hosts at most); later sessions skip it;
   - the baked models are still and stripped (no joints, attachments, particles, trails, beams, lights, scripts);
-  - only the **open** grid holds viewports (at most one page of 24); a closed grid shows plain icons.
+  - only the **open** grid holds viewports (one viewport per tile of the chosen category, so a very big category costs more while its grid is open); a closed grid shows plain icons.
 
   A swapped emote is rebuilt so its picture follows the swap. The Base list hides the Target and vice versa;
   Rockin Stride <> Kickback and Zombie Stride <> Classic Dance can only be swapped with each other (whatever the
@@ -205,7 +209,7 @@ own: **Auto Farm** (AFK Farm), **Accessory**, **Korless** (Headless Head, Korblo
   - the visible character is the rig in `Workspace.Rigs[YourName]`, not `Player.Character`; the parts meant for
     `HumanoidRootPart` go on the character's root (the rig has none). When the game rebuilds the rig (new round, avatar
     change) the applied effects are put back within half a second. The grid shows each effect's icon from the game
-    (no viewports, so it is cheap), split by the game's headers in pages of 24.
+    (no viewports, so it is cheap), one list per game header, never split in pages.
   Everything is removed when the hub is unloaded.
 - **Auto Commands** (free) > **Auto Execute**: any number of events (up to 10, "Create New Event"), each
   `Command > Trigger > Delay`. Triggers: Character Died, Character Spawned, Intermission, Round Start,
