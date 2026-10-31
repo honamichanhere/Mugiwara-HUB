@@ -289,7 +289,8 @@ env.MugiwaraImport = function(path)
 end`;
 }
 
-const OLD_BASE_URL_LINE = `local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/" .. BRANCH .. "/"`;
+const OLD_BASE_URL_LINE = `local REPO = env.MugiwaraRepo or "honamichanhere/Mugiwara-HUB"
+local BASE_URL = "https://raw.githubusercontent.com/" .. REPO .. "/" .. BRANCH .. "/"`;
 
 function patchMainLua() {
 	let source = readFileSync(join(ROOT, "Main.lua"), "utf8").replace(/\r\n/g, "\n");

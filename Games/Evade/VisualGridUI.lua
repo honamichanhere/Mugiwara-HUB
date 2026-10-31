@@ -135,12 +135,20 @@ function UI.Build(Section, config, MugiwaraUI)
         side.Entries = entries
 
         local key = table.concat(signature, "|")
+        side.Lookup = lookup
         if key ~= side.Signature then
-            side.Signature = key
-            side.Lookup = lookup
-            side.Grid:Refresh(items, false)
-        else
-            side.Lookup = lookup
+            -- Signature hanya dicatat kalau grid benar-benar berhasil dibangun. Kalau tidak (mis. satu viewport
+            -- gagal), grid setengah jadi akan terus dianggap "sudah benar" dan daftarnya tidak pernah berganti.
+            side.Signature = nil
+            local ok, err = pcall(side.Grid.Refresh, side.Grid, items, false)
+            if not ok then
+                warn("[Mugiwara HUB] " .. Capital .. " grid error: " .. tostring(err))
+                -- coba lagi dengan ikon biasa supaya daftarnya tetap berganti
+                local plain = {}
+                for _, entry in ipairs(entries) do table.insert(plain, ItemFor(entry, false)) end
+                ok = pcall(side.Grid.Refresh, side.Grid, plain, false)
+            end
+            if ok then side.Signature = key end
         end
 
         -- Set membangun ulang grid: hanya kalau pilihan yang tampil memang berbeda.
@@ -269,10 +277,12 @@ function UI.Build(Section, config, MugiwaraUI)
             Values = CategoryItems(),
             Value = groups[1].Title,
             Callback = function(Option)
+                if type(Option) == "table" then Option = Option.Title end
                 if type(Option) ~= "string" then return end
                 side.Group = GroupIndexOf(Option)
                 if isBase then base = nil else target = nil end
                 Picked(nil)
+                side.Signature = nil -- daftar kategori baru selalu dibangun ulang
                 Refresh()
                 Bake(side)
             end

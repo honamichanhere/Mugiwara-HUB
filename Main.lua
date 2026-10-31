@@ -46,9 +46,11 @@ env.MugiwaraExecuted = true
 -- To test another branch (for example "dev") without editing any file, set
 -- getgenv().MugiwaraBranch = "dev" before loading Main.lua from that branch.
 -- For a pinned release, put a commit hash in MugiwaraBranch instead.
+-- A repo that was renamed or moved is set with getgenv().MugiwaraRepo = "owner/name".
 -- ==========================================================
 local BRANCH = env.MugiwaraBranch or "main"
-local BASE_URL = "https://raw.githubusercontent.com/honamichanhere/Mugiwara-HUB/" .. BRANCH .. "/"
+local REPO = env.MugiwaraRepo or "honamichanhere/Mugiwara-HUB"
+local BASE_URL = "https://raw.githubusercontent.com/" .. REPO .. "/" .. BRANCH .. "/"
 local MAX_KEY_LENGTH = 128
 
 -- Results are cached per session: importing the same path twice returns the SAME module
@@ -121,6 +123,7 @@ local queue_on_tp = queue_on_teleport or (syn and syn.queue_on_teleport) or (flu
 if queue_on_tp and env.MugiwaraTeleportQueuedFor ~= game.JobId then
     env.MugiwaraTeleportQueuedFor = game.JobId
     local branchPrefix = (BRANCH ~= "main") and ('getgenv().MugiwaraBranch = "' .. BRANCH .. '"; ') or ""
+    if env.MugiwaraRepo then branchPrefix = branchPrefix .. 'getgenv().MugiwaraRepo = "' .. env.MugiwaraRepo .. '"; ' end
     queue_on_tp(branchPrefix .. 'loadstring(game:HttpGet("' .. BASE_URL .. 'Main.lua"))()')
 end
 
